@@ -73,6 +73,7 @@ func main() {
 	var tuiMode bool
 	var standalone bool
 	var localModel bool
+	var port int
 
 	// Define command-line flags for different operation modes.
 	flag.BoolVar(&login, "login", false, "Login Google Account")
@@ -91,6 +92,7 @@ func main() {
 	flag.BoolVar(&tuiMode, "tui", false, "Start with terminal management UI")
 	flag.BoolVar(&standalone, "standalone", false, "In TUI mode, start an embedded local server")
 	flag.BoolVar(&localModel, "local-model", false, "Use embedded model catalog only, skip remote model fetching")
+	flag.IntVar(&port, "port", 0, "Override the server port from config")
 
 	flag.CommandLine.Usage = func() {
 		out := flag.CommandLine.Output()
@@ -395,6 +397,11 @@ func main() {
 	}
 	if cfg == nil {
 		cfg = &config.Config{}
+	}
+
+	// Override port from command-line flag if provided.
+	if port != 0 {
+		cfg.Port = port
 	}
 
 	// In cloud deploy mode, check if we have a valid configuration
