@@ -140,6 +140,11 @@ func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []
 			Window:       w.Window,
 			InputTokens:  w.InputTokens,
 			OutputTokens: w.OutputTokens,
+			CacheTokens:  w.CacheTokens,
+			InputPriceM:  w.InputPriceM,
+			OutputPriceM: w.OutputPriceM,
+			CachePriceM:  w.CachePriceM,
+			Price:        w.Price,
 		})
 	}
 	for model, windows := range windowsByModel {

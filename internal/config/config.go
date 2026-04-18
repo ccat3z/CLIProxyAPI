@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -588,6 +589,21 @@ type ModelLimitWindow struct {
 
 	// Model is the model alias this limit applies to (required).
 	Model string `yaml:"model" json:"model"`
+
+	// CacheTokens is the maximum cached tokens allowed in this window (e.g., "1m" = 1 million).
+	CacheTokens string `yaml:"cache_tokens,omitempty" json:"cache_tokens,omitempty"`
+
+	// InputPriceM is the price per 1M non-cached input tokens for cost-based limiting.
+	InputPriceM string `yaml:"input_price_m,omitempty" json:"input_price_m,omitempty"`
+
+	// OutputPriceM is the price per 1M output tokens for cost-based limiting.
+	OutputPriceM string `yaml:"output_price_m,omitempty" json:"output_price_m,omitempty"`
+
+	// CachePriceM is the price per 1M cached tokens for cost-based limiting.
+	CachePriceM string `yaml:"cache_price_m,omitempty" json:"cache_price_m,omitempty"`
+
+	// Price is the maximum total cost within this window.
+	Price string `yaml:"price,omitempty" json:"price,omitempty"`
 }
 
 // ParsedModelLimitWindow is the validated, parsed form of ModelLimitWindow.
@@ -596,6 +612,11 @@ type ParsedModelLimitWindow struct {
 	InputTokens  int64
 	OutputTokens int64
 	Model        string
+	CacheTokens  int64
+	InputPriceM  float64
+	OutputPriceM float64
+	CachePriceM  float64
+	Price        float64
 }
 
 // OpenAICompatibilityModel represents a model configuration for OpenAI compatibility,
@@ -699,7 +720,32 @@ func parseModelLimitWindows(limits []ModelLimitWindow, provider string) []Parsed
 			log.Warnf("%s limits[%d]: skipping invalid output_tokens %q: %v", provider, i, w.OutputTokens, err)
 			continue
 		}
-		if inputTokens == 0 && outputTokens == 0 {
+		cacheTokens, err := ParseTokenAmount(w.CacheTokens)
+		if err != nil {
+			log.Warnf("%s limits[%d]: skipping invalid cache_tokens %q: %v", provider, i, w.CacheTokens, err)
+			continue
+		}
+		inputPriceM, err := strconv.ParseFloat(w.InputPriceM, 64)
+		if err != nil {
+			log.Warnf("%s limits[%d]: skipping invalid input_price_m %q: %v", provider, i, w.InputPriceM, err)
+			continue
+		}
+		outputPriceM, err := strconv.ParseFloat(w.OutputPriceM, 64)
+		if err != nil {
+			log.Warnf("%s limits[%d]: skipping invalid output_price_m %q: %v", provider, i, w.OutputPriceM, err)
+			continue
+		}
+		cachePriceM, err := strconv.ParseFloat(w.CachePriceM, 64)
+		if err != nil {
+			log.Warnf("%s limits[%d]: skipping invalid cache_price_m %q: %v", provider, i, w.CachePriceM, err)
+			continue
+		}
+		price, err := strconv.ParseFloat(w.Price, 64)
+		if err != nil {
+			log.Warnf("%s limits[%d]: skipping invalid price %q: %v", provider, i, w.Price, err)
+			continue
+		}
+		if inputTokens == 0 && outputTokens == 0 && cacheTokens == 0 && price == 0 {
 			continue
 		}
 		out = append(out, ParsedModelLimitWindow{
@@ -707,6 +753,11 @@ func parseModelLimitWindows(limits []ModelLimitWindow, provider string) []Parsed
 			InputTokens:  inputTokens,
 			OutputTokens: outputTokens,
 			Model:        strings.ToLower(model),
+			CacheTokens:  cacheTokens,
+			InputPriceM:  inputPriceM,
+			OutputPriceM: outputPriceM,
+			CachePriceM:  cachePriceM,
+			Price:        price,
 		})
 	}
 	// Sort by window duration ascending (shortest first)
@@ -1027,6 +1078,11 @@ func sanitizeModelLimitWindows(limits *[]ModelLimitWindow) {
 		w.InputTokens = strings.TrimSpace(w.InputTokens)
 		w.OutputTokens = strings.TrimSpace(w.OutputTokens)
 		w.Model = strings.TrimSpace(w.Model)
+		w.CacheTokens = strings.TrimSpace(w.CacheTokens)
+		w.InputPriceM = strings.TrimSpace(w.InputPriceM)
+		w.OutputPriceM = strings.TrimSpace(w.OutputPriceM)
+		w.CachePriceM = strings.TrimSpace(w.CachePriceM)
+		w.Price = strings.TrimSpace(w.Price)
 		if w.Window == "" || w.Model == "" {
 			continue
 		}

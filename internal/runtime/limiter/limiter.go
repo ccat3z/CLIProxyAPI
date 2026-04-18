@@ -16,6 +16,7 @@ type UsageEntry struct {
 	Timestamp    time.Time
 	InputTokens  int64
 	OutputTokens int64
+	CachedTokens int64
 }
 
 // LimitConfig defines a sliding-window token limit.
@@ -23,6 +24,11 @@ type LimitConfig struct {
 	Window       time.Duration
 	InputTokens  int64
 	OutputTokens int64
+	CacheTokens  int64
+	InputPriceM  float64
+	OutputPriceM float64
+	CachePriceM  float64
+	Price        float64
 }
 
 // LimitCheckResult describes the outcome of a limit check.
@@ -159,7 +165,7 @@ func (l *ModelLimiter) Check(authID, model string) *LimitCheckResult {
 	now := time.Now()
 	for _, w := range windows {
 		cutoff := now.Add(-w.Window)
-		var inputSum, outputSum int64
+		var inputSum, outputSum, cachedSum int64
 		for i := range snapshot {
 			e := &snapshot[i]
 			if e.Timestamp.Before(cutoff) {
@@ -167,6 +173,7 @@ func (l *ModelLimiter) Check(authID, model string) *LimitCheckResult {
 			}
 			inputSum += e.InputTokens
 			outputSum += e.OutputTokens
+			cachedSum += e.CachedTokens
 		}
 		if w.InputTokens > 0 && inputSum >= w.InputTokens {
 			return &LimitCheckResult{
@@ -184,12 +191,37 @@ func (l *ModelLimiter) Check(authID, model string) *LimitCheckResult {
 				Limit:     w.OutputTokens,
 			}
 		}
+		if w.CacheTokens > 0 && cachedSum >= w.CacheTokens {
+			return &LimitCheckResult{
+				Window:    w.Window,
+				LimitType: "cache_tokens",
+				Current:   cachedSum,
+				Limit:     w.CacheTokens,
+			}
+		}
+		if w.Price > 0 {
+			nonCachedInput := inputSum - cachedSum
+			if nonCachedInput < 0 {
+				nonCachedInput = 0
+			}
+			cost := float64(nonCachedInput)/1_000_000*w.InputPriceM +
+				float64(cachedSum)/1_000_000*w.CachePriceM +
+				float64(outputSum)/1_000_000*w.OutputPriceM
+			if cost >= w.Price {
+				return &LimitCheckResult{
+					Window:    w.Window,
+					LimitType: "price",
+					Current:   int64(cost * 1_000_000),
+					Limit:     int64(w.Price * 1_000_000),
+				}
+			}
+		}
 	}
 	return nil
 }
 
 // Record adds a usage entry for the given authID+model and prunes old entries.
-func (l *ModelLimiter) Record(authID, model string, timestamp time.Time, inputTokens, outputTokens int64) {
+func (l *ModelLimiter) Record(authID, model string, timestamp time.Time, inputTokens, outputTokens, cachedTokens int64) {
 	if l == nil {
 		return
 	}
@@ -205,6 +237,7 @@ func (l *ModelLimiter) Record(authID, model string, timestamp time.Time, inputTo
 		Timestamp:    timestamp,
 		InputTokens:  inputTokens,
 		OutputTokens: outputTokens,
+		CachedTokens: cachedTokens,
 	}
 	l.usage[key] = append(l.usage[key], entry)
 
@@ -321,6 +354,10 @@ type RateLimitError struct {
 func (e *RateLimitError) Error() string {
 	if e.result == nil {
 		return "rate limit exceeded"
+	}
+	if e.result.LimitType == "price" {
+		return fmt.Sprintf("rate limit exceeded: price limit (%.3f/%.3f) for window %v",
+			float64(e.result.Current)/1_000_000, float64(e.result.Limit)/1_000_000, e.result.Window)
 	}
 	return fmt.Sprintf("rate limit exceeded: %s limit (%d/%d) for window %v",
 		e.result.LimitType, e.result.Current, e.result.Limit, e.result.Window)

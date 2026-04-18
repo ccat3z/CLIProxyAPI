@@ -20,7 +20,7 @@ func (p *limiterPlugin) HandleUsage(ctx context.Context, record usage.Record) {
 		return
 	}
 	l.Record(record.AuthID, record.Model, record.RequestedAt,
-		record.Detail.InputTokens, record.Detail.OutputTokens)
+		record.Detail.InputTokens, record.Detail.OutputTokens, record.Detail.CachedTokens)
 }
 
 func init() {
