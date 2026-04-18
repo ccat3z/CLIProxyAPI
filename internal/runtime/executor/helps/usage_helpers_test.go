@@ -47,6 +47,85 @@ func TestParseOpenAIUsageResponses(t *testing.T) {
 	}
 }
 
+func TestParseOpenAIStreamUsage_NullUsage(t *testing.T) {
+	line := []byte(`data: {"id":"chatcmpl-1","object":"chat.completion.chunk","usage":null}`)
+	detail, ok := ParseOpenAIStreamUsage(line)
+	if ok {
+		t.Fatalf("expected ok=false for null usage, got ok=true, detail=%+v", detail)
+	}
+}
+
+func TestParseOpenAIStreamUsage_ValidUsage(t *testing.T) {
+	line := []byte(`data: {"id":"chatcmpl-1","object":"chat.completion.chunk","usage":{"prompt_tokens":5,"completion_tokens":10,"total_tokens":15}}`)
+	detail, ok := ParseOpenAIStreamUsage(line)
+	if !ok {
+		t.Fatal("expected ok=true for valid usage")
+	}
+	if detail.InputTokens != 5 {
+		t.Fatalf("input tokens = %d, want 5", detail.InputTokens)
+	}
+	if detail.OutputTokens != 10 {
+		t.Fatalf("output tokens = %d, want 10", detail.OutputTokens)
+	}
+	if detail.TotalTokens != 15 {
+		t.Fatalf("total tokens = %d, want 15", detail.TotalTokens)
+	}
+}
+
+func TestParseOpenAIStreamUsage_NoUsage(t *testing.T) {
+	line := []byte(`data: {"id":"chatcmpl-1","object":"chat.completion.chunk","choices":[]}`)
+	_, ok := ParseOpenAIStreamUsage(line)
+	if ok {
+		t.Fatal("expected ok=false when usage key is absent")
+	}
+}
+
+func TestParseClaudeStreamUsage_NullUsage(t *testing.T) {
+	line := []byte(`event: message_start\ndata: {"type":"message_start","message":{"usage":null}}`)
+	_, ok := ParseClaudeStreamUsage(line)
+	if ok {
+		t.Fatal("expected ok=false for null usage")
+	}
+}
+
+func TestParseClaudeStreamUsage_ValidUsage(t *testing.T) {
+	line := []byte(`data: {"type":"message_delta","usage":{"input_tokens":3,"output_tokens":7}}`)
+	detail, ok := ParseClaudeStreamUsage(line)
+	if !ok {
+		t.Fatal("expected ok=true for valid usage")
+	}
+	if detail.InputTokens != 3 {
+		t.Fatalf("input tokens = %d, want 3", detail.InputTokens)
+	}
+	if detail.OutputTokens != 7 {
+		t.Fatalf("output tokens = %d, want 7", detail.OutputTokens)
+	}
+}
+
+func TestParseGeminiStreamUsage_NullUsageMetadata(t *testing.T) {
+	line := []byte(`data: {"candidates":[],"usageMetadata":null}`)
+	_, ok := ParseGeminiStreamUsage(line)
+	if ok {
+		t.Fatal("expected ok=false for null usageMetadata")
+	}
+}
+
+func TestParseGeminiCLIStreamUsage_NullUsageMetadata(t *testing.T) {
+	line := []byte(`data: {"response":{"usageMetadata":null}}`)
+	_, ok := ParseGeminiCLIStreamUsage(line)
+	if ok {
+		t.Fatal("expected ok=false for null usageMetadata")
+	}
+}
+
+func TestParseAntigravityStreamUsage_NullUsageMetadata(t *testing.T) {
+	line := []byte(`data: {"response":{"usageMetadata":null}}`)
+	_, ok := ParseAntigravityStreamUsage(line)
+	if ok {
+		t.Fatal("expected ok=false for null usageMetadata")
+	}
+}
+
 func TestUsageReporterBuildRecordIncludesLatency(t *testing.T) {
 	reporter := &UsageReporter{
 		provider:    "openai",
