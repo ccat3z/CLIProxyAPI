@@ -105,29 +105,6 @@ func TestModelLimiter_Check_SlidingWindow(t *testing.T) {
 	}
 }
 
-func TestModelLimiter_Check_RetryAfter(t *testing.T) {
-	l := NewModelLimiter()
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 0},
-	})
-
-	now := time.Now()
-	oldestTime := now.Add(-30 * time.Minute)
-	l.Record("auth1", "model-a", oldestTime, 600, 0)
-	l.Record("auth1", "model-a", now.Add(-10*time.Minute), 500, 0)
-
-	result := l.Check("auth1", "model-a")
-	if result == nil {
-		t.Fatal("expected limit exceeded")
-	}
-	// RetryAfter should be approximately 30 minutes (oldest entry + 1h - now)
-	expectedRetry := oldestTime.Add(1 * time.Hour).Sub(now)
-	tolerance := 5 * time.Second
-	if result.RetryAfter < expectedRetry-tolerance || result.RetryAfter > expectedRetry+tolerance {
-		t.Fatalf("expected RetryAfter ~%v, got %v", expectedRetry, result.RetryAfter)
-	}
-}
-
 func TestModelLimiter_Record_SkipsUntracked(t *testing.T) {
 	l := NewModelLimiter()
 	// No limits configured, record should be skipped

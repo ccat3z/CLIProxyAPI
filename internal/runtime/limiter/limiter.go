@@ -27,11 +27,10 @@ type LimitConfig struct {
 
 // LimitCheckResult describes the outcome of a limit check.
 type LimitCheckResult struct {
-	Window     time.Duration
-	LimitType  string // "input_tokens" or "output_tokens"
-	Current    int64
-	Limit      int64
-	RetryAfter time.Duration
+	Window    time.Duration
+	LimitType string // "input_tokens" or "output_tokens"
+	Current   int64
+	Limit     int64
 }
 
 // ModelLimiter tracks token usage per authID+model and enforces sliding window limits.
@@ -136,7 +135,6 @@ func (l *ModelLimiter) Check(authID, model string) *LimitCheckResult {
 	for _, w := range windows {
 		cutoff := now.Add(-w.Window)
 		var inputSum, outputSum int64
-		var oldestInWindow *UsageEntry
 		for i := range snapshot {
 			e := &snapshot[i]
 			if e.Timestamp.Before(cutoff) {
@@ -144,40 +142,21 @@ func (l *ModelLimiter) Check(authID, model string) *LimitCheckResult {
 			}
 			inputSum += e.InputTokens
 			outputSum += e.OutputTokens
-			if oldestInWindow == nil {
-				oldestInWindow = e
-			}
 		}
 		if w.InputTokens > 0 && inputSum >= w.InputTokens {
-			retryAfter := time.Duration(0)
-			if oldestInWindow != nil {
-				retryAfter = oldestInWindow.Timestamp.Add(w.Window).Sub(now)
-				if retryAfter < 0 {
-					retryAfter = 0
-				}
-			}
 			return &LimitCheckResult{
-				Window:     w.Window,
-				LimitType:  "input_tokens",
-				Current:    inputSum,
-				Limit:      w.InputTokens,
-				RetryAfter: retryAfter,
+				Window:    w.Window,
+				LimitType: "input_tokens",
+				Current:   inputSum,
+				Limit:     w.InputTokens,
 			}
 		}
 		if w.OutputTokens > 0 && outputSum >= w.OutputTokens {
-			retryAfter := time.Duration(0)
-			if oldestInWindow != nil {
-				retryAfter = oldestInWindow.Timestamp.Add(w.Window).Sub(now)
-				if retryAfter < 0 {
-					retryAfter = 0
-				}
-			}
 			return &LimitCheckResult{
-				Window:     w.Window,
-				LimitType:  "output_tokens",
-				Current:    outputSum,
-				Limit:      w.OutputTokens,
-				RetryAfter: retryAfter,
+				Window:    w.Window,
+				LimitType: "output_tokens",
+				Current:   outputSum,
+				Limit:     w.OutputTokens,
 			}
 		}
 	}
@@ -309,8 +288,7 @@ func CheckRateLimit(authID, baseModel string) error {
 }
 
 // RateLimitError is returned when a per-key model usage limit is exceeded.
-// It implements StatusCode() and RetryAfter() so the handlers layer can
-// set the correct HTTP status and Retry-After header.
+// It implements StatusCode() so the handlers layer can set the correct HTTP status.
 type RateLimitError struct {
 	result *LimitCheckResult
 }
@@ -324,11 +302,3 @@ func (e *RateLimitError) Error() string {
 }
 
 func (e *RateLimitError) StatusCode() int { return http.StatusTooManyRequests }
-
-func (e *RateLimitError) RetryAfter() *time.Duration {
-	if e.result == nil {
-		return nil
-	}
-	d := e.result.RetryAfter
-	return &d
-}

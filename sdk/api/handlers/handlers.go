@@ -525,7 +525,6 @@ func (h *BaseAPIHandler) ExecuteWithAuthManager(ctx context.Context, handlerType
 				addon = hdr.Clone()
 			}
 		}
-		addon = appendRetryAfter(addon, err)
 		return nil, nil, &interfaces.ErrorMessage{StatusCode: status, Error: err, Addon: addon}
 	}
 	if !PassthroughHeadersEnabled(h.Cfg) {
@@ -573,7 +572,6 @@ func (h *BaseAPIHandler) ExecuteCountWithAuthManager(ctx context.Context, handle
 				addon = hdr.Clone()
 			}
 		}
-		addon = appendRetryAfter(addon, err)
 		return nil, nil, &interfaces.ErrorMessage{StatusCode: status, Error: err, Addon: addon}
 	}
 	if !PassthroughHeadersEnabled(h.Cfg) {
@@ -626,7 +624,6 @@ func (h *BaseAPIHandler) ExecuteStreamWithAuthManager(ctx context.Context, handl
 				addon = hdr.Clone()
 			}
 		}
-		addon = appendRetryAfter(addon, err)
 		errChan <- &interfaces.ErrorMessage{StatusCode: status, Error: err, Addon: addon}
 		close(errChan)
 		return nil, nil, errChan
@@ -738,7 +735,6 @@ func (h *BaseAPIHandler) ExecuteStreamWithAuthManager(ctx context.Context, handl
 						if hdr := he.Headers(); hdr != nil {
 							addon = hdr.Clone()
 						}
-						addon = appendRetryAfter(addon, streamErr)
 					}
 					_ = sendErr(&interfaces.ErrorMessage{StatusCode: status, Error: streamErr, Addon: addon})
 					return
@@ -933,8 +929,7 @@ func (h *BaseAPIHandler) WriteErrorResponse(c *gin.Context, msg *interfaces.Erro
 			if len(values) == 0 {
 				continue
 			}
-			// Always forward Retry-After for proxy-generated 429s regardless of passthrough-headers.
-			if !PassthroughHeadersEnabled(h.Cfg) && !strings.EqualFold(key, "Retry-After") {
+			if !PassthroughHeadersEnabled(h.Cfg) {
 				continue
 			}
 			c.Writer.Header().Del(key)
@@ -995,27 +990,3 @@ func (h *BaseAPIHandler) LoggingAPIResponseError(ctx context.Context, err *inter
 // APIHandlerCancelFunc is a function type for canceling an API handler's context.
 // It can optionally accept parameters, which are used for logging the response.
 type APIHandlerCancelFunc func(params ...interface{})
-
-// appendRetryAfter extracts a Retry-After duration from err (if it implements
-// the RetryAfter interface) and appends the Retry-After header to addon.
-// Proxy-generated 429 errors always carry Retry-After regardless of
-// passthrough-headers configuration.
-func appendRetryAfter(addon http.Header, err error) http.Header {
-	if err == nil {
-		return addon
-	}
-	type retryAfterer interface{ RetryAfter() *time.Duration }
-	ra, ok := err.(retryAfterer)
-	if !ok || ra == nil {
-		return addon
-	}
-	d := ra.RetryAfter()
-	if d == nil || *d <= 0 {
-		return addon
-	}
-	if addon == nil {
-		addon = make(http.Header)
-	}
-	addon.Set("Retry-After", fmt.Sprintf("%.0f", d.Seconds()))
-	return addon
-}
