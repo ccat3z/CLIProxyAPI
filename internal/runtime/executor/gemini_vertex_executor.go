@@ -17,6 +17,7 @@ import (
 	vertexauth "github.com/router-for-me/CLIProxyAPI/v6/internal/auth/vertex"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/config"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/runtime/executor/helps"
+	"github.com/router-for-me/CLIProxyAPI/v6/internal/runtime/limiter"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/thinking"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/util"
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/auth"
@@ -238,6 +239,14 @@ func (e *GeminiVertexExecutor) Execute(ctx context.Context, auth *cliproxyauth.A
 	if opts.Alt == "responses/compact" {
 		return resp, statusErr{code: http.StatusNotImplemented, msg: "/responses/compact not supported"}
 	}
+	baseModel := thinking.ParseSuffix(req.Model).ModelName
+
+	if auth != nil {
+		if err := limiter.CheckRateLimit(auth.ID, baseModel); err != nil {
+			return resp, err
+		}
+	}
+
 	// Try API key authentication first
 	apiKey, baseURL := vertexAPICreds(auth)
 
@@ -259,6 +268,14 @@ func (e *GeminiVertexExecutor) ExecuteStream(ctx context.Context, auth *cliproxy
 	if opts.Alt == "responses/compact" {
 		return nil, statusErr{code: http.StatusNotImplemented, msg: "/responses/compact not supported"}
 	}
+	baseModel := thinking.ParseSuffix(req.Model).ModelName
+
+	if auth != nil {
+		if err := limiter.CheckRateLimit(auth.ID, baseModel); err != nil {
+			return nil, err
+		}
+	}
+
 	// Try API key authentication first
 	apiKey, baseURL := vertexAPICreds(auth)
 

@@ -152,6 +152,12 @@ nonstream-keepalive-interval: 0
 #       - "gemini-2.5-*"       # wildcard matching prefix (e.g. gemini-2.5-flash, gemini-2.5-pro)
 #       - "*-preview"          # wildcard matching suffix (e.g. gemini-3-pro-preview)
 #       - "*flash*"            # wildcard matching substring (e.g. gemini-2.5-flash-lite)
+#     # Per-API-key model usage limits (sliding window). When exceeded, returns HTTP 429.
+#     limits:
+#       - window: 5h               # Duration of the sliding window (supports h, m, s, d for days)
+#         input_tokens: 5m          # Max input tokens within window (m=million, k=thousand, or plain integer)
+#         output_tokens: 1m         # Max output tokens within window
+#         model: gemini-flash       # Required: model alias this limit applies to
 #   - api-key: "AIzaSy...02"
 
 # Codex API keys
@@ -171,6 +177,12 @@ nonstream-keepalive-interval: 0
 #       - "gpt-5-*"         # wildcard matching prefix (e.g. gpt-5-medium, gpt-5-codex)
 #       - "*-mini"          # wildcard matching suffix (e.g. gpt-5-codex-mini)
 #       - "*codex*"         # wildcard matching substring (e.g. gpt-5-codex-low)
+#     # Per-API-key model usage limits (sliding window). When exceeded, returns HTTP 429.
+#     limits:
+#       - window: 5h               # Duration of the sliding window (supports h, m, s, d for days)
+#         input_tokens: 5m          # Max input tokens within window (m=million, k=thousand, or plain integer)
+#         output_tokens: 1m         # Max output tokens within window
+#         model: codex-latest       # Required: model alias this limit applies to
 
 # Claude API keys
 # claude-api-key:
@@ -190,6 +202,12 @@ nonstream-keepalive-interval: 0
 #       - "claude-3-*"               # wildcard matching prefix (e.g. claude-3-7-sonnet-20250219)
 #       - "*-thinking"               # wildcard matching suffix (e.g. claude-opus-4-5-thinking)
 #       - "*haiku*"                  # wildcard matching substring (e.g. claude-3-5-haiku-20241022)
+#     # Per-API-key model usage limits (sliding window). When exceeded, returns HTTP 429.
+#     limits:
+#       - window: 5h               # Duration of the sliding window (supports h, m, s, d for days)
+#         input_tokens: 5m          # Max input tokens within window (m=million, k=thousand, or plain integer)
+#         output_tokens: 1m         # Max output tokens within window
+#         model: claude-sonnet-latest # Required: model alias this limit applies to
 #     cloak:                         # optional: request cloaking for non-Claude-Code clients
 #       mode: "auto"                 # "auto" (default): cloak only when client is not Claude Code
 #                                    # "always": always apply cloaking
@@ -237,6 +255,16 @@ nonstream-keepalive-interval: 0
 #       - api-key: "sk-or-v1-...b780"
 #         proxy-url: "socks5://proxy.example.com:1080" # optional: per-key proxy override
 #         # proxy-url: "direct" # optional: explicit direct connect for this credential
+#         # Per-API-key model usage limits (sliding window). When exceeded, returns HTTP 429.
+#         limits:
+#           - window: 5h               # Duration of the sliding window (supports h, m, s, d for days)
+#             input_tokens: 5m          # Max input tokens within window (m=million, k=thousand, or plain integer)
+#             output_tokens: 1m         # Max output tokens within window
+#             model: kimi-k2            # Required: model alias this limit applies to
+#           - window: 1d
+#             input_tokens: 10m
+#             output_tokens: 5m
+#             model: kimi-k2
 #       - api-key: "sk-or-v1-...b781" # without proxy-url
 #     models: # The models supported by the provider.
 #       - name: "moonshotai/kimi-k2:free" # The actual model name.
@@ -272,6 +300,12 @@ nonstream-keepalive-interval: 0
 #     excluded-models:                            # optional: models to exclude from listing
 #       - "imagen-3.0-generate-002"
 #       - "imagen-*"
+#     # Per-API-key model usage limits (sliding window). When exceeded, returns HTTP 429.
+#     limits:
+#       - window: 5h               # Duration of the sliding window (supports h, m, s, d for days)
+#         input_tokens: 5m          # Max input tokens within window (m=million, k=thousand, or plain integer)
+#         output_tokens: 1m         # Max output tokens within window
+#         model: vertex-pro         # Required: model alias this limit applies to
 
 # Amp Integration
 # ampcode:

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/config"
+	"github.com/router-for-me/CLIProxyAPI/v6/internal/runtime/limiter"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/watcher/diff"
 	coreauth "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/auth"
 )
@@ -116,5 +117,24 @@ func addConfigHeadersToAttrs(headers map[string]string, attrs map[string]string)
 			continue
 		}
 		attrs["header:"+key] = val
+	}
+}
+
+// wireLimitsToLimiter registers parsed limit windows with the global limiter.
+// It groups windows by model and updates the limiter for each model.
+func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []config.ParsedModelLimitWindow) {
+	if len(parsed) == 0 {
+		return
+	}
+	windowsByModel := make(map[string][]limiter.LimitConfig)
+	for _, w := range parsed {
+		windowsByModel[w.Model] = append(windowsByModel[w.Model], limiter.LimitConfig{
+			Window:       w.Window,
+			InputTokens:  w.InputTokens,
+			OutputTokens: w.OutputTokens,
+		})
+	}
+	for model, windows := range windowsByModel {
+		limiter.DefaultLimiter().UpdateLimits(authID, model, windows)
 	}
 }

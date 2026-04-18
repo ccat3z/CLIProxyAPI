@@ -10,8 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
+	"sync"
 	"syscall"
+	"time"
 
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/registry"
 	log "github.com/sirupsen/logrus"
@@ -393,6 +396,13 @@ type ClaudeKey struct {
 	// ExcludedModels lists model IDs that should be excluded for this provider.
 	ExcludedModels []string `yaml:"excluded-models,omitempty" json:"excluded-models,omitempty"`
 
+	// Limits optionally configures per-model usage limits for this API key.
+	// When any window's token count is exceeded, the proxy returns HTTP 429.
+	Limits []ModelLimitWindow `yaml:"limits,omitempty" json:"limits,omitempty"`
+
+	// parsedLimits caches the result of ParsedLimits(). Not serialized.
+	parsedLimits parsedLimitsCache
+
 	// Cloak configures request cloaking for non-Claude-Code clients.
 	Cloak *CloakConfig `yaml:"cloak,omitempty" json:"cloak,omitempty"`
 
@@ -448,6 +458,13 @@ type CodexKey struct {
 
 	// ExcludedModels lists model IDs that should be excluded for this provider.
 	ExcludedModels []string `yaml:"excluded-models,omitempty" json:"excluded-models,omitempty"`
+
+	// Limits optionally configures per-model usage limits for this API key.
+	// When any window's token count is exceeded, the proxy returns HTTP 429.
+	Limits []ModelLimitWindow `yaml:"limits,omitempty" json:"limits,omitempty"`
+
+	// parsedLimits caches the result of ParsedLimits(). Not serialized.
+	parsedLimits parsedLimitsCache
 }
 
 func (k CodexKey) GetAPIKey() string  { return k.APIKey }
@@ -492,6 +509,13 @@ type GeminiKey struct {
 
 	// ExcludedModels lists model IDs that should be excluded for this provider.
 	ExcludedModels []string `yaml:"excluded-models,omitempty" json:"excluded-models,omitempty"`
+
+	// Limits optionally configures per-model usage limits for this API key.
+	// When any window's token count is exceeded, the proxy returns HTTP 429.
+	Limits []ModelLimitWindow `yaml:"limits,omitempty" json:"limits,omitempty"`
+
+	// parsedLimits caches the result of ParsedLimits(). Not serialized.
+	parsedLimits parsedLimitsCache
 }
 
 func (k GeminiKey) GetAPIKey() string  { return k.APIKey }
@@ -542,6 +566,36 @@ type OpenAICompatibilityAPIKey struct {
 
 	// ProxyURL overrides the global proxy setting for this API key if provided.
 	ProxyURL string `yaml:"proxy-url,omitempty" json:"proxy-url,omitempty"`
+
+	// Limits optionally configures per-model usage limits for this API key.
+	// When any window's token count is exceeded, the proxy returns HTTP 429.
+	Limits []ModelLimitWindow `yaml:"limits,omitempty" json:"limits,omitempty"`
+
+	// parsedLimits caches the result of ParsedLimits(). Not serialized.
+	parsedLimits parsedLimitsCache
+}
+
+// ModelLimitWindow defines a single usage limit window for an API key entry.
+type ModelLimitWindow struct {
+	// Window is the duration of the sliding window (e.g., "5h", "1d").
+	Window string `yaml:"window" json:"window"`
+
+	// InputTokens is the maximum input tokens allowed in this window (e.g., "5m" = 5 million).
+	InputTokens string `yaml:"input_tokens,omitempty" json:"input_tokens,omitempty"`
+
+	// OutputTokens is the maximum output tokens allowed in this window (e.g., "1m" = 1 million).
+	OutputTokens string `yaml:"output_tokens,omitempty" json:"output_tokens,omitempty"`
+
+	// Model is the model alias this limit applies to (required).
+	Model string `yaml:"model" json:"model"`
+}
+
+// ParsedModelLimitWindow is the validated, parsed form of ModelLimitWindow.
+type ParsedModelLimitWindow struct {
+	Window       time.Duration
+	InputTokens  int64
+	OutputTokens int64
+	Model        string
 }
 
 // OpenAICompatibilityModel represents a model configuration for OpenAI compatibility,
@@ -560,6 +614,107 @@ type OpenAICompatibilityModel struct {
 
 func (m OpenAICompatibilityModel) GetName() string  { return m.Name }
 func (m OpenAICompatibilityModel) GetAlias() string { return m.Alias }
+
+// parsedLimitsCache caches the result of ParsedLimits for OpenAICompatibilityAPIKey.
+type parsedLimitsCache struct {
+	once   sync.Once
+	result []ParsedModelLimitWindow
+}
+
+// ParsedLimits returns the validated, parsed limit windows for this API key entry.
+// Results are cached after the first call. Invalid entries are skipped with a warning log.
+func (k *OpenAICompatibilityAPIKey) ParsedLimits() []ParsedModelLimitWindow {
+	if k == nil || len(k.Limits) == 0 {
+		return nil
+	}
+	cache := &k.parsedLimits
+	cache.once.Do(func() {
+		cache.result = parseModelLimitWindows(k.Limits, "openai-compat")
+	})
+	return cache.result
+}
+
+// ParsedLimits returns the validated, parsed limit windows for this Claude API key.
+// Results are cached after the first call. Invalid entries are skipped with a warning log.
+func (k *ClaudeKey) ParsedLimits() []ParsedModelLimitWindow {
+	if k == nil || len(k.Limits) == 0 {
+		return nil
+	}
+	cache := &k.parsedLimits
+	cache.once.Do(func() {
+		cache.result = parseModelLimitWindows(k.Limits, "claude")
+	})
+	return cache.result
+}
+
+// ParsedLimits returns the validated, parsed limit windows for this Codex API key.
+// Results are cached after the first call. Invalid entries are skipped with a warning log.
+func (k *CodexKey) ParsedLimits() []ParsedModelLimitWindow {
+	if k == nil || len(k.Limits) == 0 {
+		return nil
+	}
+	cache := &k.parsedLimits
+	cache.once.Do(func() {
+		cache.result = parseModelLimitWindows(k.Limits, "codex")
+	})
+	return cache.result
+}
+
+// ParsedLimits returns the validated, parsed limit windows for this Gemini API key.
+// Results are cached after the first call. Invalid entries are skipped with a warning log.
+func (k *GeminiKey) ParsedLimits() []ParsedModelLimitWindow {
+	if k == nil || len(k.Limits) == 0 {
+		return nil
+	}
+	cache := &k.parsedLimits
+	cache.once.Do(func() {
+		cache.result = parseModelLimitWindows(k.Limits, "gemini")
+	})
+	return cache.result
+}
+
+// parseModelLimitWindows is the shared implementation for ParsedLimits methods.
+// It validates and parses raw ModelLimitWindow entries, logging warnings for
+// invalid entries and returning the valid ones sorted by window duration.
+func parseModelLimitWindows(limits []ModelLimitWindow, provider string) []ParsedModelLimitWindow {
+	var out []ParsedModelLimitWindow
+	for i, w := range limits {
+		model := strings.TrimSpace(w.Model)
+		if model == "" {
+			log.Warnf("%s limits[%d]: skipping window with empty model", provider, i)
+			continue
+		}
+		window, err := ParseDurationWithDays(w.Window)
+		if err != nil {
+			log.Warnf("%s limits[%d]: skipping invalid window %q: %v", provider, i, w.Window, err)
+			continue
+		}
+		inputTokens, err := ParseTokenAmount(w.InputTokens)
+		if err != nil {
+			log.Warnf("%s limits[%d]: skipping invalid input_tokens %q: %v", provider, i, w.InputTokens, err)
+			continue
+		}
+		outputTokens, err := ParseTokenAmount(w.OutputTokens)
+		if err != nil {
+			log.Warnf("%s limits[%d]: skipping invalid output_tokens %q: %v", provider, i, w.OutputTokens, err)
+			continue
+		}
+		if inputTokens == 0 && outputTokens == 0 {
+			continue
+		}
+		out = append(out, ParsedModelLimitWindow{
+			Window:       window,
+			InputTokens:  inputTokens,
+			OutputTokens: outputTokens,
+			Model:        strings.ToLower(model),
+		})
+	}
+	// Sort by window duration ascending (shortest first)
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Window < out[j].Window
+	})
+	return out
+}
 
 // LoadConfig reads a YAML configuration file from the given path,
 // unmarshals it into a Config struct, applies environment variable overrides,
@@ -850,12 +1005,38 @@ func (cfg *Config) SanitizeOpenAICompatibility() {
 		e.BaseURL = strings.TrimSpace(e.BaseURL)
 		e.Headers = NormalizeHeaders(e.Headers)
 		if e.BaseURL == "" {
-			// Skip providers with no base-url; treated as removed
 			continue
+		}
+		for j := range e.APIKeyEntries {
+			sanitizeModelLimitWindows(&e.APIKeyEntries[j].Limits)
 		}
 		out = append(out, e)
 	}
 	cfg.OpenAICompatibility = out
+}
+
+// sanitizeModelLimitWindows trims and validates limit window entries,
+// removing those with missing required fields.
+func sanitizeModelLimitWindows(limits *[]ModelLimitWindow) {
+	if limits == nil || len(*limits) == 0 {
+		return
+	}
+	cleaned := make([]ModelLimitWindow, 0, len(*limits))
+	for _, w := range *limits {
+		w.Window = strings.TrimSpace(w.Window)
+		w.InputTokens = strings.TrimSpace(w.InputTokens)
+		w.OutputTokens = strings.TrimSpace(w.OutputTokens)
+		w.Model = strings.TrimSpace(w.Model)
+		if w.Window == "" || w.Model == "" {
+			continue
+		}
+		cleaned = append(cleaned, w)
+	}
+	if len(cleaned) == 0 {
+		*limits = nil
+	} else {
+		*limits = cleaned
+	}
 }
 
 // SanitizeCodexKeys removes Codex API key entries missing a BaseURL.
@@ -871,6 +1052,7 @@ func (cfg *Config) SanitizeCodexKeys() {
 		e.BaseURL = strings.TrimSpace(e.BaseURL)
 		e.Headers = NormalizeHeaders(e.Headers)
 		e.ExcludedModels = NormalizeExcludedModels(e.ExcludedModels)
+		sanitizeModelLimitWindows(&e.Limits)
 		if e.BaseURL == "" {
 			continue
 		}
@@ -912,6 +1094,7 @@ func (cfg *Config) SanitizeGeminiKeys() {
 		entry.ProxyURL = strings.TrimSpace(entry.ProxyURL)
 		entry.Headers = NormalizeHeaders(entry.Headers)
 		entry.ExcludedModels = NormalizeExcludedModels(entry.ExcludedModels)
+		sanitizeModelLimitWindows(&entry.Limits)
 		uniqueKey := entry.APIKey + "|" + entry.BaseURL
 		if _, exists := seen[uniqueKey]; exists {
 			continue

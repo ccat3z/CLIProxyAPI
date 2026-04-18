@@ -86,6 +86,25 @@ func ComputeGeminiModelsHash(models []config.GeminiModel) string {
 	return hashJoined(keys)
 }
 
+// ComputeAPIKeyLimitsHash returns a stable hash for an API key entry's limits.
+// Used to detect limit changes during hot reload.
+func ComputeAPIKeyLimitsHash(limits []config.ModelLimitWindow) string {
+	if len(limits) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(limits))
+	for _, w := range limits {
+		key := strings.TrimSpace(w.Window) + "|" +
+			strings.TrimSpace(w.InputTokens) + "|" +
+			strings.TrimSpace(w.OutputTokens) + "|" +
+			strings.ToLower(strings.TrimSpace(w.Model))
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	sum := sha256.Sum256([]byte(strings.Join(keys, "\n")))
+	return hex.EncodeToString(sum[:])
+}
+
 // ComputeExcludedModelsHash returns a normalized hash for excluded model lists.
 func ComputeExcludedModelsHash(excluded []string) string {
 	if len(excluded) == 0 {
