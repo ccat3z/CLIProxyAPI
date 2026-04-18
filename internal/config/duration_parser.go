@@ -66,3 +66,12 @@ func ParseTokenAmount(s string) (int64, error) {
 		return v, nil
 	}
 }
+
+// parseFloatOptional parses a float string, treating empty/whitespace-only as 0.
+func parseFloatOptional(s string) (float64, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, nil
+	}
+	return strconv.ParseFloat(s, 64)
+}

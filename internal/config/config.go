@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -725,22 +724,22 @@ func parseModelLimitWindows(limits []ModelLimitWindow, provider string) []Parsed
 			log.Warnf("%s limits[%d]: skipping invalid cache_tokens %q: %v", provider, i, w.CacheTokens, err)
 			continue
 		}
-		inputPriceM, err := strconv.ParseFloat(w.InputPriceM, 64)
+		inputPriceM, err := parseFloatOptional(w.InputPriceM)
 		if err != nil {
 			log.Warnf("%s limits[%d]: skipping invalid input_price_m %q: %v", provider, i, w.InputPriceM, err)
 			continue
 		}
-		outputPriceM, err := strconv.ParseFloat(w.OutputPriceM, 64)
+		outputPriceM, err := parseFloatOptional(w.OutputPriceM)
 		if err != nil {
 			log.Warnf("%s limits[%d]: skipping invalid output_price_m %q: %v", provider, i, w.OutputPriceM, err)
 			continue
 		}
-		cachePriceM, err := strconv.ParseFloat(w.CachePriceM, 64)
+		cachePriceM, err := parseFloatOptional(w.CachePriceM)
 		if err != nil {
 			log.Warnf("%s limits[%d]: skipping invalid cache_price_m %q: %v", provider, i, w.CachePriceM, err)
 			continue
 		}
-		price, err := strconv.ParseFloat(w.Price, 64)
+		price, err := parseFloatOptional(w.Price)
 		if err != nil {
 			log.Warnf("%s limits[%d]: skipping invalid price %q: %v", provider, i, w.Price, err)
 			continue
