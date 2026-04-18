@@ -241,7 +241,7 @@ func ParseOpenAIStreamUsage(line []byte) (usage.Detail, bool) {
 		return usage.Detail{}, false
 	}
 	usageNode := gjson.GetBytes(payload, "usage")
-	if !usageNode.Exists() {
+	if !usageNode.Exists() || usageNode.Type == gjson.Null {
 		return usage.Detail{}, false
 	}
 	detail := usage.Detail{
@@ -282,7 +282,7 @@ func ParseClaudeStreamUsage(line []byte) (usage.Detail, bool) {
 		return usage.Detail{}, false
 	}
 	usageNode := gjson.GetBytes(payload, "usage")
-	if !usageNode.Exists() {
+	if !usageNode.Exists() || usageNode.Type == gjson.Null {
 		return usage.Detail{}, false
 	}
 	detail := usage.Detail{
@@ -341,10 +341,10 @@ func ParseGeminiStreamUsage(line []byte) (usage.Detail, bool) {
 		return usage.Detail{}, false
 	}
 	node := gjson.GetBytes(payload, "usageMetadata")
-	if !node.Exists() {
+	if !node.Exists() || node.Type == gjson.Null {
 		node = gjson.GetBytes(payload, "usage_metadata")
 	}
-	if !node.Exists() {
+	if !node.Exists() || node.Type == gjson.Null {
 		return usage.Detail{}, false
 	}
 	return parseGeminiFamilyUsageDetail(node), true
@@ -356,10 +356,10 @@ func ParseGeminiCLIStreamUsage(line []byte) (usage.Detail, bool) {
 		return usage.Detail{}, false
 	}
 	node := gjson.GetBytes(payload, "response.usageMetadata")
-	if !node.Exists() {
+	if !node.Exists() || node.Type == gjson.Null {
 		node = gjson.GetBytes(payload, "usage_metadata")
 	}
-	if !node.Exists() {
+	if !node.Exists() || node.Type == gjson.Null {
 		return usage.Detail{}, false
 	}
 	return parseGeminiFamilyUsageDetail(node), true
@@ -386,13 +386,13 @@ func ParseAntigravityStreamUsage(line []byte) (usage.Detail, bool) {
 		return usage.Detail{}, false
 	}
 	node := gjson.GetBytes(payload, "response.usageMetadata")
-	if !node.Exists() {
+	if !node.Exists() || node.Type == gjson.Null {
 		node = gjson.GetBytes(payload, "usageMetadata")
 	}
-	if !node.Exists() {
+	if !node.Exists() || node.Type == gjson.Null {
 		node = gjson.GetBytes(payload, "usage_metadata")
 	}
-	if !node.Exists() {
+	if !node.Exists() || node.Type == gjson.Null {
 		return usage.Detail{}, false
 	}
 	return parseGeminiFamilyUsageDetail(node), true
