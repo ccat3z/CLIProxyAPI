@@ -98,6 +98,31 @@ func (l *ModelLimiter) RemoveAllForAuth(authID string) {
 	l.mu.Unlock()
 }
 
+// SyncLimitsForAuth reconciles the limiter state for an authID with the
+// currently active set of models. Any model that has limits configured but is
+// not in activeModels will have its limits and usage removed. Call this before
+// UpdateLimits to ensure stale entries from removed config are cleaned up.
+func (l *ModelLimiter) SyncLimitsForAuth(authID string, activeModels []string) {
+	if l == nil || authID == "" {
+		return
+	}
+	prefix := authID + "|"
+	activeSet := make(map[string]struct{}, len(activeModels))
+	for _, m := range activeModels {
+		activeSet[limitKey(authID, m)] = struct{}{}
+	}
+	l.mu.Lock()
+	for k := range l.limits {
+		if strings.HasPrefix(k, prefix) {
+			if _, ok := activeSet[k]; !ok {
+				delete(l.limits, k)
+				delete(l.usage, k)
+			}
+		}
+	}
+	l.mu.Unlock()
+}
+
 // HasLimits returns true if any limits are configured for the given authID+model.
 func (l *ModelLimiter) HasLimits(authID, model string) bool {
 	if l == nil {

@@ -122,7 +122,15 @@ func addConfigHeadersToAttrs(headers map[string]string, attrs map[string]string)
 
 // wireLimitsToLimiter registers parsed limit windows with the global limiter.
 // It groups windows by model and updates the limiter for each model.
+// Stale limits (models that were previously limited but no longer in config) are removed.
 func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []config.ParsedModelLimitWindow) {
+	lim := limiter.DefaultLimiter()
+	// Collect active models and sync: remove limits for models no longer in config.
+	models := make([]string, 0, len(parsed))
+	for _, w := range parsed {
+		models = append(models, w.Model)
+	}
+	lim.SyncLimitsForAuth(authID, models)
 	if len(parsed) == 0 {
 		return
 	}
@@ -135,6 +143,6 @@ func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []
 		})
 	}
 	for model, windows := range windowsByModel {
-		limiter.DefaultLimiter().UpdateLimits(authID, model, windows)
+		lim.UpdateLimits(authID, model, windows)
 	}
 }

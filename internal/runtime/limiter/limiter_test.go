@@ -198,6 +198,70 @@ func TestModelLimiter_ConcurrentAccess(t *testing.T) {
 	wg.Wait()
 }
 
+func TestModelLimiter_SyncLimitsForAuth_RemovesStaleModels(t *testing.T) {
+	l := NewModelLimiter()
+	// Set up limits for two models
+	l.UpdateLimits("auth1", "model-a", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 0},
+	})
+	l.UpdateLimits("auth1", "model-b", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 2000, OutputTokens: 0},
+	})
+	l.Record("auth1", "model-a", time.Now(), 500, 0)
+	l.Record("auth1", "model-b", time.Now(), 300, 0)
+
+	// Sync with only model-a: model-b should be removed
+	l.SyncLimitsForAuth("auth1", []string{"model-a"})
+
+	if !l.HasLimits("auth1", "model-a") {
+		t.Fatal("expected model-a limits preserved")
+	}
+	if l.HasLimits("auth1", "model-b") {
+		t.Fatal("expected model-b limits removed after sync")
+	}
+	// Usage for model-b should also be gone
+	l.mu.RLock()
+	_, hasUsage := l.usage[limitKey("auth1", "model-b")]
+	l.mu.RUnlock()
+	if hasUsage {
+		t.Fatal("expected model-b usage removed after sync")
+	}
+}
+
+func TestModelLimiter_SyncLimitsForAuth_EmptyModelsRemovesAll(t *testing.T) {
+	l := NewModelLimiter()
+	l.UpdateLimits("auth1", "model-a", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 0},
+	})
+	l.Record("auth1", "model-a", time.Now(), 500, 0)
+
+	// Sync with no models: all limits should be removed
+	l.SyncLimitsForAuth("auth1", nil)
+
+	if l.HasLimits("auth1", "model-a") {
+		t.Fatal("expected all limits removed after sync with empty models")
+	}
+}
+
+func TestModelLimiter_SyncLimitsForAuth_PreservesOtherAuths(t *testing.T) {
+	l := NewModelLimiter()
+	l.UpdateLimits("auth1", "model-a", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 0},
+	})
+	l.UpdateLimits("auth2", "model-a", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 2000, OutputTokens: 0},
+	})
+
+	l.SyncLimitsForAuth("auth1", nil)
+
+	if l.HasLimits("auth1", "model-a") {
+		t.Fatal("expected auth1 limits removed")
+	}
+	if !l.HasLimits("auth2", "model-a") {
+		t.Fatal("expected auth2 limits preserved")
+	}
+}
+
 func TestModelLimiter_CaseInsensitiveModel(t *testing.T) {
 	l := NewModelLimiter()
 	l.UpdateLimits("auth1", "Kimi-K2", []LimitConfig{
