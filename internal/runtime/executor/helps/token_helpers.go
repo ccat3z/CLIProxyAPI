@@ -226,6 +226,112 @@ func appendToolPayload(tool gjson.Result, segments *[]string) {
 	}
 }
 
+// CountClaudeTokens approximates prompt tokens for Claude messages payloads.
+// It extracts text segments from the Claude-format request body and counts tokens
+// using the same tiktoken-based approach as CountOpenAIChatTokens.
+func CountClaudeTokens(enc tokenizer.Codec, payload []byte) (int64, error) {
+	if enc == nil {
+		return 0, fmt.Errorf("encoder is nil")
+	}
+	if len(payload) == 0 {
+		return 0, nil
+	}
+
+	root := gjson.ParseBytes(payload)
+	segments := make([]string, 0, 32)
+
+	// Collect system prompt
+	if system := root.Get("system"); system.Exists() {
+		collectClaudeSystemText(system, &segments)
+	}
+
+	// Collect messages
+	if messages := root.Get("messages"); messages.Exists() && messages.IsArray() {
+		messages.ForEach(func(_, msg gjson.Result) bool {
+			addIfNotEmpty(&segments, msg.Get("role").String())
+			collectClaudeContent(msg.Get("content"), &segments)
+			return true
+		})
+	}
+
+	// Collect tool definitions
+	if tools := root.Get("tools"); tools.Exists() && tools.IsArray() {
+		tools.ForEach(func(_, tool gjson.Result) bool {
+			addIfNotEmpty(&segments, tool.Get("name").String())
+			addIfNotEmpty(&segments, tool.Get("description").String())
+			if schema := tool.Get("input_schema"); schema.Exists() {
+				addIfNotEmpty(&segments, schema.Raw)
+			}
+			return true
+		})
+	}
+
+	joined := strings.TrimSpace(strings.Join(segments, "\n"))
+	if joined == "" {
+		return 0, nil
+	}
+
+	count, err := enc.Count(joined)
+	if err != nil {
+		return 0, err
+	}
+	return int64(count), nil
+}
+
+// collectClaudeSystemText extracts text from the system field which can be a string or content block array.
+func collectClaudeSystemText(system gjson.Result, segments *[]string) {
+	if !system.Exists() {
+		return
+	}
+	if system.Type == gjson.String {
+		addIfNotEmpty(segments, system.String())
+		return
+	}
+	if system.IsArray() {
+		system.ForEach(func(_, block gjson.Result) bool {
+			addIfNotEmpty(segments, block.Get("text").String())
+			return true
+		})
+	}
+}
+
+// collectClaudeContent extracts text from a Claude content field which can be a string or content block array.
+func collectClaudeContent(content gjson.Result, segments *[]string) {
+	if !content.Exists() {
+		return
+	}
+	if content.Type == gjson.String {
+		addIfNotEmpty(segments, content.String())
+		return
+	}
+	if content.IsArray() {
+		content.ForEach(func(_, block gjson.Result) bool {
+			blockType := block.Get("type").String()
+			switch blockType {
+			case "text":
+				addIfNotEmpty(segments, block.Get("text").String())
+			case "tool_use":
+				addIfNotEmpty(segments, block.Get("name").String())
+				addIfNotEmpty(segments, block.Get("input").Raw)
+			case "tool_result":
+				collectClaudeContent(block.Get("content"), segments)
+			case "thinking":
+				addIfNotEmpty(segments, block.Get("thinking").String())
+			default:
+				if text := block.Get("text"); text.Exists() && text.String() != "" {
+					addIfNotEmpty(segments, text.String())
+				}
+			}
+			return true
+		})
+	}
+}
+
+// BuildClaudeUsageJSON returns a minimal Claude-format usage structure.
+func BuildClaudeUsageJSON(count int64) []byte {
+	return []byte(fmt.Sprintf(`{"input_tokens":%d}`, count))
+}
+
 func addIfNotEmpty(segments *[]string, value string) {
 	if segments == nil {
 		return

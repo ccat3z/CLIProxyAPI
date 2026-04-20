@@ -631,6 +631,13 @@ func (e *ClaudeExecutor) CountTokens(ctx context.Context, auth *cliproxyauth.Aut
 		if errClose := errBody.Close(); errClose != nil {
 			log.Errorf("response body close error: %v", errClose)
 		}
+		// If the upstream does not support the count_tokens endpoint (404),
+		// fall back to local token estimation instead of propagating the error.
+		// Propagating a 404 would cause MarkResult to suspend the auth for 12 hours.
+		if resp.StatusCode == http.StatusNotFound {
+			log.WithField("model", baseModel).Debug("claude executor: upstream count_tokens not supported (404), falling back to local estimation")
+			return localCountTokens(body, baseModel, to, from)
+		}
 		return cliproxyexecutor.Response{}, statusErr{code: resp.StatusCode, msg: string(b)}
 	}
 	decodedBody, err := decodeResponseBody(resp.Body, resp.Header.Get("Content-Encoding"))
@@ -655,6 +662,22 @@ func (e *ClaudeExecutor) CountTokens(ctx context.Context, auth *cliproxyauth.Aut
 	count := gjson.GetBytes(data, "input_tokens").Int()
 	out := sdktranslator.TranslateTokenCount(ctx, to, from, count, data)
 	return cliproxyexecutor.Response{Payload: out, Headers: resp.Header.Clone()}, nil
+}
+
+// localCountTokens estimates token count locally using a tokenizer when the upstream
+// does not support the /v1/messages/count_tokens endpoint.
+func localCountTokens(body []byte, baseModel string, to, from sdktranslator.Format) (cliproxyexecutor.Response, error) {
+	enc, err := helps.TokenizerForModel(baseModel)
+	if err != nil {
+		return cliproxyexecutor.Response{}, fmt.Errorf("claude executor: local count_tokens tokenizer init failed: %w", err)
+	}
+	count, err := helps.CountClaudeTokens(enc, body)
+	if err != nil {
+		return cliproxyexecutor.Response{}, fmt.Errorf("claude executor: local count_tokens failed: %w", err)
+	}
+	usageJSON := helps.BuildClaudeUsageJSON(count)
+	out := sdktranslator.TranslateTokenCount(context.Background(), to, from, count, usageJSON)
+	return cliproxyexecutor.Response{Payload: out}, nil
 }
 
 func (e *ClaudeExecutor) Refresh(ctx context.Context, auth *cliproxyauth.Auth) (*cliproxyauth.Auth, error) {
