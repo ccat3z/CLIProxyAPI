@@ -9,6 +9,7 @@ import (
 
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/registry"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/executor"
+	log "github.com/sirupsen/logrus"
 )
 
 // schedulerStrategy identifies which built-in routing semantics the scheduler should apply.
@@ -29,6 +30,22 @@ const (
 	scheduledStateBlocked
 	scheduledStateDisabled
 )
+
+// scheduledStateName returns a human-readable name for a scheduler state.
+func scheduledStateName(s scheduledState) string {
+	switch s {
+	case scheduledStateReady:
+		return "ready"
+	case scheduledStateCooldown:
+		return "cooldown"
+	case scheduledStateBlocked:
+		return "blocked"
+	case scheduledStateDisabled:
+		return "disabled"
+	default:
+		return "unknown"
+	}
+}
 
 // authScheduler keeps the incremental provider/model scheduling state used by Manager.
 type authScheduler struct {
@@ -433,6 +450,8 @@ func (s *authScheduler) mixedUnavailableErrorLocked(providers []string, model st
 	total := 0
 	cooldownCount := 0
 	earliest := time.Time{}
+	// Collect per-auth state details for diagnostics.
+	var stateDetails []string
 	for _, providerKey := range providers {
 		providerState := s.providers[providerKey]
 		if providerState == nil {
@@ -448,8 +467,33 @@ func (s *authScheduler) mixedUnavailableErrorLocked(providers []string, model st
 		if !localEarliest.IsZero() && (earliest.IsZero() || localEarliest.Before(earliest)) {
 			earliest = localEarliest
 		}
+		// Collect per-auth state details.
+		for _, entry := range shard.entries {
+			if entry == nil || entry.auth == nil {
+				continue
+			}
+			parts := []string{
+				"auth_id=" + entry.auth.ID,
+				"provider=" + providerKey,
+				"state=" + scheduledStateName(entry.state),
+			}
+			if !entry.nextRetryAt.IsZero() {
+				parts = append(parts, "retry_after="+entry.nextRetryAt.Format(time.RFC3339))
+			}
+			if entry.auth.Disabled {
+				parts = append(parts, "disabled=true")
+			}
+			if entry.auth.Status != "" {
+				parts = append(parts, "status="+string(entry.auth.Status))
+			}
+			stateDetails = append(stateDetails, strings.Join(parts, ","))
+		}
 	}
 	if total == 0 {
+		log.WithFields(log.Fields{
+			"model":     model,
+			"providers": strings.Join(providers, ","),
+		}).Warn("auth_not_found: no auth registered for model")
 		return &Error{Code: "auth_not_found", Message: "no auth available"}
 	}
 	if cooldownCount == total && !earliest.IsZero() {
@@ -459,6 +503,18 @@ func (s *authScheduler) mixedUnavailableErrorLocked(providers []string, model st
 		}
 		return newModelCooldownError(model, "", resetIn)
 	}
+	earliestStr := "none"
+	if !earliest.IsZero() {
+		earliestStr = earliest.Format(time.RFC3339)
+	}
+	log.WithFields(log.Fields{
+		"model":          model,
+		"providers":      strings.Join(providers, ","),
+		"total":          total,
+		"cooldown_count": cooldownCount,
+		"earliest":       earliestStr,
+		"auth_states":    strings.Join(stateDetails, "; "),
+	}).Warn("auth_unavailable: all auths blocked but not all in cooldown; some are disabled/blocked (blockReasonOther)")
 	return &Error{Code: "auth_unavailable", Message: "no auth available"}
 }
 
@@ -845,6 +901,10 @@ func (m *modelScheduler) unavailableErrorLocked(provider, model string, predicat
 	now := time.Now()
 	total, cooldownCount, earliest := m.availabilitySummaryLocked(predicate)
 	if total == 0 {
+		log.WithFields(log.Fields{
+			"model":    model,
+			"provider": provider,
+		}).Warn("auth_not_found: no auth registered for model in shard")
 		return &Error{Code: "auth_not_found", Message: "no auth available"}
 	}
 	if cooldownCount == total && !earliest.IsZero() {
@@ -858,6 +918,42 @@ func (m *modelScheduler) unavailableErrorLocked(provider, model string, predicat
 		}
 		return newModelCooldownError(model, providerForError, resetIn)
 	}
+	// Collect per-auth state details for diagnostics.
+	var stateDetails []string
+	for _, entry := range m.entries {
+		if predicate != nil && !predicate(entry) {
+			continue
+		}
+		if entry == nil || entry.auth == nil {
+			continue
+		}
+		parts := []string{
+			"auth_id=" + entry.auth.ID,
+			"state=" + scheduledStateName(entry.state),
+		}
+		if !entry.nextRetryAt.IsZero() {
+			parts = append(parts, "retry_after="+entry.nextRetryAt.Format(time.RFC3339))
+		}
+		if entry.auth.Disabled {
+			parts = append(parts, "disabled=true")
+		}
+		if entry.auth.Status != "" {
+			parts = append(parts, "status="+string(entry.auth.Status))
+		}
+		stateDetails = append(stateDetails, strings.Join(parts, ","))
+	}
+	earliestStr := "none"
+	if !earliest.IsZero() {
+		earliestStr = earliest.Format(time.RFC3339)
+	}
+	log.WithFields(log.Fields{
+		"model":          model,
+		"provider":       provider,
+		"total":          total,
+		"cooldown_count": cooldownCount,
+		"earliest":       earliestStr,
+		"auth_states":    strings.Join(stateDetails, "; "),
+	}).Warn("auth_unavailable: all auths blocked but not all in cooldown; some are disabled/blocked (blockReasonOther)")
 	return &Error{Code: "auth_unavailable", Message: "no auth available"}
 }
 

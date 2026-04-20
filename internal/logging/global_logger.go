@@ -29,7 +29,8 @@ var (
 // Format: [2025-12-23 20:14:04] [debug] [manager.go:524] | a1b2c3d4 | Use API key sk-9...0RHO for model gpt-5.2
 type LogFormatter struct{}
 
-// logFieldOrder defines the display order for common log fields.
+// logFieldOrder defines the preferred display order for common log fields.
+// Fields not in this list are appended after the ordered ones.
 var logFieldOrder = []string{"provider", "model", "mode", "budget", "level", "original_mode", "original_value", "min", "max", "clamped_to", "error"}
 
 // Format renders a single log entry with custom formatting.
@@ -55,14 +56,22 @@ func (m *LogFormatter) Format(entry *log.Entry) ([]byte, error) {
 	}
 	levelStr := fmt.Sprintf("%-5s", level)
 
-	// Build fields string (only print fields in logFieldOrder)
+	// Build fields string: ordered fields first, then remaining fields
 	var fieldsStr string
 	if len(entry.Data) > 0 {
 		var fields []string
+		seen := map[string]bool{"request_id": true}
 		for _, k := range logFieldOrder {
 			if v, ok := entry.Data[k]; ok {
 				fields = append(fields, fmt.Sprintf("%s=%v", k, v))
+				seen[k] = true
 			}
+		}
+		for k, v := range entry.Data {
+			if seen[k] {
+				continue
+			}
+			fields = append(fields, fmt.Sprintf("%s=%v", k, v))
 		}
 		if len(fields) > 0 {
 			fieldsStr = " " + strings.Join(fields, " ")

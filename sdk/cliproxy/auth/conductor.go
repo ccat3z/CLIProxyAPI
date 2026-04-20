@@ -2123,6 +2123,24 @@ func (m *Manager) MarkResult(ctx context.Context, result Result) {
 						}
 					}
 
+					blockReasonStr := "other"
+					if state.Quota.Exceeded {
+						blockReasonStr = "cooldown"
+					}
+					nextRetryStr := "none"
+					if !state.NextRetryAfter.IsZero() {
+						nextRetryStr = state.NextRetryAfter.Format(time.RFC3339)
+					}
+					log.WithFields(log.Fields{
+						"auth_id":        result.AuthID,
+						"model":          result.Model,
+						"status_code":    statusCode,
+						"next_retry_at":  nextRetryStr,
+						"suspend_reason": suspendReason,
+						"quota_exceeded": state.Quota.Exceeded,
+						"block_reason":   blockReasonStr,
+					}).Debug("MarkResult: auth model marked unavailable")
+
 					auth.Status = StatusError
 					auth.UpdatedAt = now
 					updateAggregatedAvailability(auth, now)
