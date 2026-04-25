@@ -9,6 +9,7 @@ import (
 
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/config"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/runtime/limiter"
+	"github.com/router-for-me/CLIProxyAPI/v6/internal/usage"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/watcher/diff"
 	coreauth "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/auth"
 )
@@ -126,7 +127,7 @@ func addConfigHeadersToAttrs(headers map[string]string, attrs map[string]string)
 // Each model entry in the limits models list is resolved to both its alias and upstream name,
 // so limits are enforced regardless of which name the executor uses.
 // Stale limits (models that were previously limited but no longer in config) are removed.
-func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []config.ParsedModelLimitWindow, modelPrices map[string]limiter.ModelPrices, aliasMap map[string]string) {
+func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []config.ParsedModelLimitWindow, modelPrices map[string]usage.ModelPrices, aliasMap map[string]string) {
 	lim := limiter.DefaultLimiter()
 
 	// Resolve each model in the limits config to all its known names (alias + upstream name).
@@ -156,13 +157,15 @@ func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []
 
 	// Register prices for every resolved model. If a model has no prices in
 	// modelPrices, register zero prices so stale prices from a previous config
-	// are cleared (otherwise cost-based limiting would use outdated prices).
-	for m := range resolvedModels {
-		p, ok := modelPrices[m]
-		if !ok {
-			p = limiter.ModelPrices{}
+	// are cleared (otherwise cost computation would use outdated prices).
+	if usage.UsageStore != nil {
+		for m := range resolvedModels {
+			p, ok := modelPrices[m]
+			if !ok {
+				p = usage.ModelPrices{}
+			}
+			usage.UsageStore.SetModelPrices(authID, m, p)
 		}
-		lim.SetModelPrices(authID, m, p)
 	}
 
 	if len(parsed) == 0 {
@@ -199,8 +202,8 @@ func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []
 
 // claudeModelPrices builds a model→prices map from ClaudeModel definitions.
 // Prices are keyed by both alias and upstream name.
-func claudeModelPrices(models []config.ClaudeModel) map[string]limiter.ModelPrices {
-	out := make(map[string]limiter.ModelPrices, len(models)*2)
+func claudeModelPrices(models []config.ClaudeModel) map[string]usage.ModelPrices {
+	out := make(map[string]usage.ModelPrices, len(models)*2)
 	for _, m := range models {
 		name := strings.ToLower(strings.TrimSpace(m.Name))
 		alias := strings.ToLower(strings.TrimSpace(m.Alias))
@@ -208,7 +211,7 @@ func claudeModelPrices(models []config.ClaudeModel) map[string]limiter.ModelPric
 			continue
 		}
 		if m.InputPriceM > 0 || m.OutputPriceM > 0 || m.CachePriceM > 0 {
-			p := limiter.ModelPrices{
+			p := usage.ModelPrices{
 				InputPriceM:  m.InputPriceM,
 				OutputPriceM: m.OutputPriceM,
 				CachePriceM:  m.CachePriceM,
@@ -224,8 +227,8 @@ func claudeModelPrices(models []config.ClaudeModel) map[string]limiter.ModelPric
 
 // openAICompatModelPrices builds a model→prices map from OpenAICompatibilityModel definitions.
 // Prices are keyed by both alias and upstream name.
-func openAICompatModelPrices(models []config.OpenAICompatibilityModel) map[string]limiter.ModelPrices {
-	out := make(map[string]limiter.ModelPrices, len(models)*2)
+func openAICompatModelPrices(models []config.OpenAICompatibilityModel) map[string]usage.ModelPrices {
+	out := make(map[string]usage.ModelPrices, len(models)*2)
 	for _, m := range models {
 		name := strings.ToLower(strings.TrimSpace(m.Name))
 		alias := strings.ToLower(strings.TrimSpace(m.Alias))
@@ -233,7 +236,7 @@ func openAICompatModelPrices(models []config.OpenAICompatibilityModel) map[strin
 			continue
 		}
 		if m.InputPriceM > 0 || m.OutputPriceM > 0 || m.CachePriceM > 0 {
-			p := limiter.ModelPrices{
+			p := usage.ModelPrices{
 				InputPriceM:  m.InputPriceM,
 				OutputPriceM: m.OutputPriceM,
 				CachePriceM:  m.CachePriceM,

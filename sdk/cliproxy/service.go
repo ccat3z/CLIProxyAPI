@@ -16,7 +16,7 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/runtime/executor"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/runtime/limiter"
-	_ "github.com/router-for-me/CLIProxyAPI/v6/internal/usage"
+	iusage "github.com/router-for-me/CLIProxyAPI/v6/internal/usage"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/watcher"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/wsrelay"
 	sdkaccess "github.com/router-for-me/CLIProxyAPI/v6/sdk/access"
@@ -482,7 +482,12 @@ func (s *Service) Run(ctx context.Context) error {
 	}
 
 	usage.StartDefault(ctx)
-	limiter.DefaultLimiter().StartCleanup(ctx, 10*time.Minute)
+
+	if s.cfg.UsageDB != "" {
+		if err := iusage.InitPersistStore(s.cfg.UsageDB); err != nil {
+			log.Warnf("failed to init usage persist store: %v", err)
+		}
+	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer shutdownCancel()
@@ -752,7 +757,6 @@ func (s *Service) Shutdown(ctx context.Context) error {
 		if s.coreManager != nil {
 			s.coreManager.StopAutoRefresh()
 		}
-		limiter.DefaultLimiter().Stop()
 		if s.watcher != nil {
 			if err := s.watcher.Stop(); err != nil {
 				log.Errorf("failed to stop file watcher: %v", err)
@@ -792,6 +796,7 @@ func (s *Service) Shutdown(ctx context.Context) error {
 			}
 		}
 
+		iusage.ClosePersistStore()
 		usage.StopDefault()
 	})
 	return shutdownErr

@@ -70,6 +70,11 @@ error-logs-max-files: 10
 # When false, disable in-memory usage statistics aggregation
 usage-statistics-enabled: false
 
+# SQLite database path for persisting usage data (token counts and accumulated cost).
+# When set, usage data survives server restarts and is used for rate-limit checks.
+# When empty, usage is only kept in memory and lost on restart.
+# usage-db: ./usage.db
+
 # Proxy URL. Supports socks5/http/https protocols. Example: socks5://user:pass@192.168.1.1:1080/
 # Per-entry proxy-url also supports "direct" or "none" to bypass both the global proxy-url and environment proxies explicitly.
 proxy-url: ""

@@ -68,6 +68,10 @@ type Config struct {
 	// UsageStatisticsEnabled toggles in-memory usage aggregation; when false, usage data is discarded.
 	UsageStatisticsEnabled bool `yaml:"usage-statistics-enabled" json:"usage-statistics-enabled"`
 
+	// UsageDB specifies the SQLite database path for persisting usage data.
+	// When empty, usage is only kept in memory and lost on restart.
+	UsageDB string `yaml:"usage-db" json:"usage-db"`
+
 	// DisableCooling disables quota cooldown scheduling when true.
 	DisableCooling bool `yaml:"disable-cooling" json:"disable-cooling"`
 
