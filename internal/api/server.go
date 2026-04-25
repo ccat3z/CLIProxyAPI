@@ -494,7 +494,7 @@ func (s *Server) registerManagementRoutes() {
 	log.Info("management routes registered after secret key configuration")
 
 	mgmt := s.engine.Group("/v0/management")
-	mgmt.Use(s.managementAvailabilityMiddleware(), s.mgmt.Middleware())
+	mgmt.Use(s.managementAvailabilityMiddleware(), s.mgmt.Middleware(), s.mgmt.ConfigWriteBlockMiddleware())
 	{
 		mgmt.GET("/usage", s.mgmt.GetUsageStatistics)
 		mgmt.GET("/usage/export", s.mgmt.ExportUsageStatistics)

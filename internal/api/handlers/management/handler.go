@@ -148,6 +148,20 @@ func (h *Handler) SetPostAuthHook(hook coreauth.PostAuthHook) {
 	h.postAuthHook = hook
 }
 
+// ConfigWriteBlockMiddleware blocks config-modifying methods when DisableConfigAPI is set.
+func (h *Handler) ConfigWriteBlockMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if h.cfg.RemoteManagement.DisableConfigAPI {
+			switch c.Request.Method {
+			case http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodPost:
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "config API is disabled"})
+				return
+			}
+		}
+		c.Next()
+	}
+}
+
 // Middleware enforces access control for management endpoints.
 // All requests (local and remote) require a valid management key.
 // Additionally, remote access requires allow-remote-management=true.

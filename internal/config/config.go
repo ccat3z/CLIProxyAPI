@@ -195,6 +195,9 @@ type RemoteManagement struct {
 	// DisableAutoUpdatePanel disables automatic periodic background updates of the management panel asset from GitHub.
 	// When false (the default), the background updater remains enabled; when true, the panel is only downloaded on first access if missing.
 	DisableAutoUpdatePanel bool `yaml:"disable-auto-update-panel"`
+	// DisableConfigAPI blocks all config-modifying management endpoints (PUT/PATCH/DELETE/POST) with 403.
+	// GET endpoints remain accessible for monitoring purposes.
+	DisableConfigAPI bool `yaml:"disable-config-api"`
 	// PanelGitHubRepository overrides the GitHub repository used to fetch the management panel asset.
 	// Accepts either a repository URL (https://github.com/org/repo) or an API releases endpoint.
 	PanelGitHubRepository string `yaml:"panel-github-repository"`
