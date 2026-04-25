@@ -70,9 +70,6 @@ func (s *ConfigSynthesizer) synthesizeGeminiKeys(ctx *SynthesisContext) []*corea
 			attrs["models_hash"] = hash
 		}
 		addConfigHeadersToAttrs(entry.Headers, attrs)
-		if hash := diff.ComputeAPIKeyLimitsHash(entry.Limits); hash != "" {
-			attrs["limits_hash"] = hash
-		}
 		a := &coreauth.Auth{
 			ID:         id,
 			Provider:   "gemini",
@@ -85,7 +82,6 @@ func (s *ConfigSynthesizer) synthesizeGeminiKeys(ctx *SynthesisContext) []*corea
 			UpdatedAt:  now,
 		}
 		ApplyAuthExcludedModelsMeta(a, cfg, entry.ExcludedModels, "apikey")
-		wireLimitsToLimiter(a.ID, entry.Limits, entry.ParsedLimits())
 		out = append(out, a)
 	}
 	return out
@@ -137,7 +133,7 @@ func (s *ConfigSynthesizer) synthesizeClaudeKeys(ctx *SynthesisContext) []*corea
 			UpdatedAt:  now,
 		}
 		ApplyAuthExcludedModelsMeta(a, cfg, ck.ExcludedModels, "apikey")
-		wireLimitsToLimiter(a.ID, ck.Limits, ck.ParsedLimits())
+		wireLimitsToLimiter(a.ID, ck.Limits, ck.ParsedLimits(), claudeModelPrices(ck.Models), claudeAliasMap(ck.Models))
 		out = append(out, a)
 	}
 	return out
@@ -176,9 +172,6 @@ func (s *ConfigSynthesizer) synthesizeCodexKeys(ctx *SynthesisContext) []*coreau
 		}
 		addConfigHeadersToAttrs(ck.Headers, attrs)
 		proxyURL := strings.TrimSpace(ck.ProxyURL)
-		if hash := diff.ComputeAPIKeyLimitsHash(ck.Limits); hash != "" {
-			attrs["limits_hash"] = hash
-		}
 		a := &coreauth.Auth{
 			ID:         id,
 			Provider:   "codex",
@@ -191,7 +184,6 @@ func (s *ConfigSynthesizer) synthesizeCodexKeys(ctx *SynthesisContext) []*coreau
 			UpdatedAt:  now,
 		}
 		ApplyAuthExcludedModelsMeta(a, cfg, ck.ExcludedModels, "apikey")
-		wireLimitsToLimiter(a.ID, ck.Limits, ck.ParsedLimits())
 		out = append(out, a)
 	}
 	return out
@@ -251,7 +243,7 @@ func (s *ConfigSynthesizer) synthesizeOpenAICompat(ctx *SynthesisContext) []*cor
 				CreatedAt:  now,
 				UpdatedAt:  now,
 			}
-			wireLimitsToLimiter(a.ID, entry.Limits, entry.ParsedLimits())
+			wireLimitsToLimiter(a.ID, entry.Limits, entry.ParsedLimits(), openAICompatModelPrices(compat.Models), openAICompatAliasMap(compat.Models))
 			out = append(out, a)
 			createdEntries++
 		}
@@ -320,9 +312,6 @@ func (s *ConfigSynthesizer) synthesizeVertexCompat(ctx *SynthesisContext) []*cor
 			attrs["models_hash"] = hash
 		}
 		addConfigHeadersToAttrs(compat.Headers, attrs)
-		if hash := diff.ComputeAPIKeyLimitsHash(compat.Limits); hash != "" {
-			attrs["limits_hash"] = hash
-		}
 		a := &coreauth.Auth{
 			ID:         id,
 			Provider:   providerName,
@@ -335,7 +324,6 @@ func (s *ConfigSynthesizer) synthesizeVertexCompat(ctx *SynthesisContext) []*cor
 			UpdatedAt:  now,
 		}
 		ApplyAuthExcludedModelsMeta(a, cfg, compat.ExcludedModels, "apikey")
-		wireLimitsToLimiter(a.ID, compat.Limits, compat.ParsedLimits())
 		out = append(out, a)
 	}
 	return out

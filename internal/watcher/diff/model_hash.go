@@ -94,15 +94,20 @@ func ComputeAPIKeyLimitsHash(limits []config.ModelLimitWindow) string {
 	}
 	keys := make([]string, 0, len(limits))
 	for _, w := range limits {
+		models := make([]string, 0, len(w.Models))
+		for _, m := range w.Models {
+			trimmed := strings.ToLower(strings.TrimSpace(m))
+			if trimmed != "" {
+				models = append(models, trimmed)
+			}
+		}
+		sort.Strings(models)
 		key := strings.TrimSpace(w.Window) + "|" +
 			strings.TrimSpace(w.InputTokens) + "|" +
 			strings.TrimSpace(w.OutputTokens) + "|" +
 			strings.TrimSpace(w.CacheTokens) + "|" +
-			strings.TrimSpace(w.InputPriceM) + "|" +
-			strings.TrimSpace(w.OutputPriceM) + "|" +
-			strings.TrimSpace(w.CachePriceM) + "|" +
 			strings.TrimSpace(w.Price) + "|" +
-			strings.ToLower(strings.TrimSpace(w.Model))
+			strings.Join(models, ",")
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)

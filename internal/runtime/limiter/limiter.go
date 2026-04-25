@@ -25,10 +25,14 @@ type LimitConfig struct {
 	InputTokens  int64
 	OutputTokens int64
 	CacheTokens  int64
+	Price        float64
+}
+
+// ModelPrices holds per-unit pricing for cost-based limiting.
+type ModelPrices struct {
 	InputPriceM  float64
 	OutputPriceM float64
 	CachePriceM  float64
-	Price        float64
 }
 
 // LimitCheckResult describes the outcome of a limit check.
@@ -43,6 +47,7 @@ type LimitCheckResult struct {
 type ModelLimiter struct {
 	mu     sync.RWMutex
 	limits map[string][]LimitConfig // key = "authID|model" -> sorted by Window asc
+	prices map[string]ModelPrices   // key = "authID|model" -> per-unit pricing
 	usage  map[string][]UsageEntry  // key = "authID|model" -> sorted by Timestamp asc
 
 	stopOnce sync.Once
@@ -53,6 +58,7 @@ type ModelLimiter struct {
 func NewModelLimiter() *ModelLimiter {
 	return &ModelLimiter{
 		limits: make(map[string][]LimitConfig),
+		prices: make(map[string]ModelPrices),
 		usage:  make(map[string][]UsageEntry),
 	}
 }
@@ -84,7 +90,18 @@ func (l *ModelLimiter) RemoveLimits(authID, model string) {
 	l.mu.Unlock()
 }
 
-// RemoveAllForAuth removes all limit configurations and usage entries for an authID.
+// SetModelPrices sets per-unit pricing for cost-based limiting on an authID+model pair.
+func (l *ModelLimiter) SetModelPrices(authID, model string, p ModelPrices) {
+	if l == nil {
+		return
+	}
+	key := limitKey(authID, model)
+	l.mu.Lock()
+	l.prices[key] = p
+	l.mu.Unlock()
+}
+
+// RemoveAllForAuth removes all limit configurations, pricing, and usage entries for an authID.
 func (l *ModelLimiter) RemoveAllForAuth(authID string) {
 	if l == nil || authID == "" {
 		return
@@ -94,6 +111,11 @@ func (l *ModelLimiter) RemoveAllForAuth(authID string) {
 	for k := range l.limits {
 		if strings.HasPrefix(k, prefix) {
 			delete(l.limits, k)
+		}
+	}
+	for k := range l.prices {
+		if strings.HasPrefix(k, prefix) {
+			delete(l.prices, k)
 		}
 	}
 	for k := range l.usage {
@@ -106,7 +128,7 @@ func (l *ModelLimiter) RemoveAllForAuth(authID string) {
 
 // SyncLimitsForAuth reconciles the limiter state for an authID with the
 // currently active set of models. Any model that has limits configured but is
-// not in activeModels will have its limits and usage removed. Call this before
+// not in activeModels will have its limits, prices, and usage removed. Call this before
 // UpdateLimits to ensure stale entries from removed config are cleaned up.
 func (l *ModelLimiter) SyncLimitsForAuth(authID string, activeModels []string) {
 	if l == nil || authID == "" {
@@ -122,6 +144,7 @@ func (l *ModelLimiter) SyncLimitsForAuth(authID string, activeModels []string) {
 		if strings.HasPrefix(k, prefix) {
 			if _, ok := activeSet[k]; !ok {
 				delete(l.limits, k)
+				delete(l.prices, k)
 				delete(l.usage, k)
 			}
 		}
@@ -157,6 +180,7 @@ func (l *ModelLimiter) Check(authID, model string) *LimitCheckResult {
 		return nil
 	}
 	entries := l.usage[key]
+	prices := l.prices[key]
 	// Snapshot entries to avoid holding the lock during computation
 	snapshot := make([]UsageEntry, len(entries))
 	copy(snapshot, entries)
@@ -199,14 +223,14 @@ func (l *ModelLimiter) Check(authID, model string) *LimitCheckResult {
 				Limit:     w.CacheTokens,
 			}
 		}
-		if w.Price > 0 {
+		if w.Price > 0 && (prices.InputPriceM > 0 || prices.OutputPriceM > 0 || prices.CachePriceM > 0) {
 			nonCachedInput := inputSum - cachedSum
 			if nonCachedInput < 0 {
 				nonCachedInput = 0
 			}
-			cost := float64(nonCachedInput)/1_000_000*w.InputPriceM +
-				float64(cachedSum)/1_000_000*w.CachePriceM +
-				float64(outputSum)/1_000_000*w.OutputPriceM
+			cost := float64(nonCachedInput)/1_000_000*prices.InputPriceM +
+				float64(cachedSum)/1_000_000*prices.CachePriceM +
+				float64(outputSum)/1_000_000*prices.OutputPriceM
 			if cost >= w.Price {
 				return &LimitCheckResult{
 					Window:    w.Window,

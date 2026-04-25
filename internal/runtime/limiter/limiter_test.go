@@ -301,8 +301,9 @@ func TestModelLimiter_Check_CacheTokensExceeded(t *testing.T) {
 
 func TestModelLimiter_Check_PriceExceeded(t *testing.T) {
 	l := NewModelLimiter()
+	l.SetModelPrices("auth1", "model-a", ModelPrices{InputPriceM: 3.0, OutputPriceM: 15.0})
 	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputPriceM: 3.0, OutputPriceM: 15.0, Price: 0.01},
+		{Window: 1 * time.Hour, Price: 0.01},
 	})
 
 	// 1M input tokens at $3/M = $3, but Price limit is $0.01
@@ -319,8 +320,9 @@ func TestModelLimiter_Check_PriceExceeded(t *testing.T) {
 
 func TestModelLimiter_Check_PriceCostCalculation(t *testing.T) {
 	l := NewModelLimiter()
+	l.SetModelPrices("auth1", "model-a", ModelPrices{InputPriceM: 3.0, CachePriceM: 0.3, OutputPriceM: 15.0})
 	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputPriceM: 3.0, CachePriceM: 0.3, OutputPriceM: 15.0, Price: 1.0},
+		{Window: 1 * time.Hour, Price: 1.0},
 	})
 
 	// 500k input (non-cached) at $3/M = $1.5
@@ -340,8 +342,9 @@ func TestModelLimiter_Check_PriceCostCalculation(t *testing.T) {
 
 func TestModelLimiter_Check_PriceWithinLimits(t *testing.T) {
 	l := NewModelLimiter()
+	l.SetModelPrices("auth1", "model-a", ModelPrices{InputPriceM: 3.0, OutputPriceM: 15.0})
 	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputPriceM: 3.0, OutputPriceM: 15.0, Price: 10.0},
+		{Window: 1 * time.Hour, Price: 10.0},
 	})
 
 	// 100k input at $3/M = $0.3, 10k output at $15/M = $0.15
@@ -355,8 +358,9 @@ func TestModelLimiter_Check_PriceWithinLimits(t *testing.T) {
 
 func TestModelLimiter_Check_CachedExceedsInput(t *testing.T) {
 	l := NewModelLimiter()
+	l.SetModelPrices("auth1", "model-a", ModelPrices{InputPriceM: 3.0, CachePriceM: 0.3, OutputPriceM: 15.0})
 	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputPriceM: 3.0, CachePriceM: 0.3, OutputPriceM: 15.0, Price: 1.0},
+		{Window: 1 * time.Hour, Price: 1.0},
 	})
 
 	// Cached tokens exceed input tokens — nonCachedInput should clamp to 0

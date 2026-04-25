@@ -37,26 +37,6 @@ type VertexCompatKey struct {
 
 	// ExcludedModels lists model IDs that should be excluded for this provider.
 	ExcludedModels []string `yaml:"excluded-models,omitempty" json:"excluded-models,omitempty"`
-
-	// Limits optionally configures per-model usage limits for this API key.
-	// When any window's token count is exceeded, the proxy returns HTTP 429.
-	Limits []ModelLimitWindow `yaml:"limits,omitempty" json:"limits,omitempty"`
-
-	// parsedLimits caches the result of ParsedLimits(). Not serialized.
-	parsedLimits parsedLimitsCache
-}
-
-// ParsedLimits returns the validated, parsed limit windows for this Vertex-compat API key.
-// Results are cached after the first call. Invalid entries are skipped with a warning log.
-func (k *VertexCompatKey) ParsedLimits() []ParsedModelLimitWindow {
-	if k == nil || len(k.Limits) == 0 {
-		return nil
-	}
-	cache := &k.parsedLimits
-	cache.once.Do(func() {
-		cache.result = parseModelLimitWindows(k.Limits, "vertex")
-	})
-	return cache.result
 }
 
 func (k VertexCompatKey) GetAPIKey() string  { return k.APIKey }
@@ -94,7 +74,6 @@ func (cfg *Config) SanitizeVertexCompatKeys() {
 		entry.ProxyURL = strings.TrimSpace(entry.ProxyURL)
 		entry.Headers = NormalizeHeaders(entry.Headers)
 		entry.ExcludedModels = NormalizeExcludedModels(entry.ExcludedModels)
-		sanitizeModelLimitWindows(&entry.Limits)
 
 		// Sanitize models: remove entries without valid alias
 		sanitizedModels := make([]VertexCompatModel, 0, len(entry.Models))

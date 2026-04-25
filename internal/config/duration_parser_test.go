@@ -77,10 +77,9 @@ func TestParseModelLimitWindows_EmptyPriceFields(t *testing.T) {
 	limits := []ModelLimitWindow{
 		{
 			Window:       "1h",
-			Model:        "gpt-4",
+			Models:       []string{"gpt-4"},
 			InputTokens:  "1k",
 			OutputTokens: "1k",
-			// Price fields left empty — must not cause the window to be skipped
 		},
 	}
 	result := parseModelLimitWindows(limits, "test")
@@ -93,38 +92,24 @@ func TestParseModelLimitWindows_EmptyPriceFields(t *testing.T) {
 	if result[0].OutputTokens != 1000 {
 		t.Fatalf("output_tokens = %d, want 1000", result[0].OutputTokens)
 	}
-	if result[0].InputPriceM != 0 {
-		t.Fatalf("input_price_m = %v, want 0", result[0].InputPriceM)
-	}
-	if result[0].OutputPriceM != 0 {
-		t.Fatalf("output_price_m = %v, want 0", result[0].OutputPriceM)
-	}
 	if result[0].Price != 0 {
 		t.Fatalf("price = %v, want 0", result[0].Price)
 	}
 }
 
-func TestParseModelLimitWindows_WithPriceFields(t *testing.T) {
+func TestParseModelLimitWindows_WithPriceField(t *testing.T) {
 	limits := []ModelLimitWindow{
 		{
 			Window:       "1d",
-			Model:        "claude-3",
+			Models:       []string{"claude-3"},
 			InputTokens:  "5m",
 			OutputTokens: "2m",
-			InputPriceM:  "3.0",
-			OutputPriceM: "15.0",
 			Price:        "50",
 		},
 	}
 	result := parseModelLimitWindows(limits, "test")
 	if len(result) != 1 {
 		t.Fatalf("expected 1 window, got %d", len(result))
-	}
-	if result[0].InputPriceM != 3.0 {
-		t.Fatalf("input_price_m = %v, want 3.0", result[0].InputPriceM)
-	}
-	if result[0].OutputPriceM != 15.0 {
-		t.Fatalf("output_price_m = %v, want 15.0", result[0].OutputPriceM)
 	}
 	if result[0].Price != 50.0 {
 		t.Fatalf("price = %v, want 50.0", result[0].Price)
@@ -133,7 +118,7 @@ func TestParseModelLimitWindows_WithPriceFields(t *testing.T) {
 
 func TestParseModelLimitWindows_AllZeroLimitsSkipped(t *testing.T) {
 	limits := []ModelLimitWindow{
-		{Window: "1h", Model: "gpt-4"}, // all token/price fields empty => 0
+		{Window: "1h", Models: []string{"gpt-4"}}, // all token/price fields empty => 0
 	}
 	result := parseModelLimitWindows(limits, "test")
 	if len(result) != 0 {

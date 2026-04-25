@@ -425,6 +425,15 @@ type ClaudeModel struct {
 
 	// Alias is the client-facing model name that maps to Name.
 	Alias string `yaml:"alias" json:"alias"`
+
+	// InputPriceM is the price per 1M non-cached input tokens.
+	InputPriceM float64 `yaml:"input_price_m,omitempty" json:"input_price_m,omitempty"`
+
+	// OutputPriceM is the price per 1M output tokens.
+	OutputPriceM float64 `yaml:"output_price_m,omitempty" json:"output_price_m,omitempty"`
+
+	// CachePriceM is the price per 1M cached input tokens.
+	CachePriceM float64 `yaml:"cache_price_m,omitempty" json:"cache_price_m,omitempty"`
 }
 
 func (m ClaudeModel) GetName() string  { return m.Name }
@@ -461,13 +470,6 @@ type CodexKey struct {
 
 	// ExcludedModels lists model IDs that should be excluded for this provider.
 	ExcludedModels []string `yaml:"excluded-models,omitempty" json:"excluded-models,omitempty"`
-
-	// Limits optionally configures per-model usage limits for this API key.
-	// When any window's token count is exceeded, the proxy returns HTTP 429.
-	Limits []ModelLimitWindow `yaml:"limits,omitempty" json:"limits,omitempty"`
-
-	// parsedLimits caches the result of ParsedLimits(). Not serialized.
-	parsedLimits parsedLimitsCache
 }
 
 func (k CodexKey) GetAPIKey() string  { return k.APIKey }
@@ -512,13 +514,6 @@ type GeminiKey struct {
 
 	// ExcludedModels lists model IDs that should be excluded for this provider.
 	ExcludedModels []string `yaml:"excluded-models,omitempty" json:"excluded-models,omitempty"`
-
-	// Limits optionally configures per-model usage limits for this API key.
-	// When any window's token count is exceeded, the proxy returns HTTP 429.
-	Limits []ModelLimitWindow `yaml:"limits,omitempty" json:"limits,omitempty"`
-
-	// parsedLimits caches the result of ParsedLimits(). Not serialized.
-	parsedLimits parsedLimitsCache
 }
 
 func (k GeminiKey) GetAPIKey() string  { return k.APIKey }
@@ -589,20 +584,11 @@ type ModelLimitWindow struct {
 	// OutputTokens is the maximum output tokens allowed in this window (e.g., "1m" = 1 million).
 	OutputTokens string `yaml:"output_tokens,omitempty" json:"output_tokens,omitempty"`
 
-	// Model is the model alias this limit applies to (required).
-	Model string `yaml:"model" json:"model"`
+	// Models is the list of model aliases this limit applies to (at least one required).
+	Models []string `yaml:"models" json:"models"`
 
 	// CacheTokens is the maximum cached tokens allowed in this window (e.g., "1m" = 1 million).
 	CacheTokens string `yaml:"cache_tokens,omitempty" json:"cache_tokens,omitempty"`
-
-	// InputPriceM is the price per 1M non-cached input tokens for cost-based limiting.
-	InputPriceM string `yaml:"input_price_m,omitempty" json:"input_price_m,omitempty"`
-
-	// OutputPriceM is the price per 1M output tokens for cost-based limiting.
-	OutputPriceM string `yaml:"output_price_m,omitempty" json:"output_price_m,omitempty"`
-
-	// CachePriceM is the price per 1M cached tokens for cost-based limiting.
-	CachePriceM string `yaml:"cache_price_m,omitempty" json:"cache_price_m,omitempty"`
 
 	// Price is the maximum total cost within this window.
 	Price string `yaml:"price,omitempty" json:"price,omitempty"`
@@ -613,11 +599,8 @@ type ParsedModelLimitWindow struct {
 	Window       time.Duration
 	InputTokens  int64
 	OutputTokens int64
-	Model        string
+	Models       []string
 	CacheTokens  int64
-	InputPriceM  float64
-	OutputPriceM float64
-	CachePriceM  float64
 	Price        float64
 }
 
@@ -633,6 +616,15 @@ type OpenAICompatibilityModel struct {
 	// Thinking configures the thinking/reasoning capability for this model.
 	// If nil, the model defaults to level-based reasoning with levels ["low", "medium", "high"].
 	Thinking *registry.ThinkingSupport `yaml:"thinking,omitempty" json:"thinking,omitempty"`
+
+	// InputPriceM is the price per 1M non-cached input tokens.
+	InputPriceM float64 `yaml:"input_price_m,omitempty" json:"input_price_m,omitempty"`
+
+	// OutputPriceM is the price per 1M output tokens.
+	OutputPriceM float64 `yaml:"output_price_m,omitempty" json:"output_price_m,omitempty"`
+
+	// CachePriceM is the price per 1M cached input tokens.
+	CachePriceM float64 `yaml:"cache_price_m,omitempty" json:"cache_price_m,omitempty"`
 }
 
 func (m OpenAICompatibilityModel) GetName() string  { return m.Name }
@@ -672,39 +664,21 @@ func (k *ClaudeKey) ParsedLimits() []ParsedModelLimitWindow {
 
 // ParsedLimits returns the validated, parsed limit windows for this Codex API key.
 // Results are cached after the first call. Invalid entries are skipped with a warning log.
-func (k *CodexKey) ParsedLimits() []ParsedModelLimitWindow {
-	if k == nil || len(k.Limits) == 0 {
-		return nil
-	}
-	cache := &k.parsedLimits
-	cache.once.Do(func() {
-		cache.result = parseModelLimitWindows(k.Limits, "codex")
-	})
-	return cache.result
-}
-
-// ParsedLimits returns the validated, parsed limit windows for this Gemini API key.
-// Results are cached after the first call. Invalid entries are skipped with a warning log.
-func (k *GeminiKey) ParsedLimits() []ParsedModelLimitWindow {
-	if k == nil || len(k.Limits) == 0 {
-		return nil
-	}
-	cache := &k.parsedLimits
-	cache.once.Do(func() {
-		cache.result = parseModelLimitWindows(k.Limits, "gemini")
-	})
-	return cache.result
-}
-
 // parseModelLimitWindows is the shared implementation for ParsedLimits methods.
 // It validates and parses raw ModelLimitWindow entries, logging warnings for
 // invalid entries and returning the valid ones sorted by window duration.
 func parseModelLimitWindows(limits []ModelLimitWindow, provider string) []ParsedModelLimitWindow {
 	var out []ParsedModelLimitWindow
 	for i, w := range limits {
-		model := strings.TrimSpace(w.Model)
-		if model == "" {
-			log.Warnf("%s limits[%d]: skipping window with empty model", provider, i)
+		var models []string
+		for _, m := range w.Models {
+			m = strings.TrimSpace(m)
+			if m != "" {
+				models = append(models, strings.ToLower(m))
+			}
+		}
+		if len(models) == 0 {
+			log.Warnf("%s limits[%d]: skipping window with empty models", provider, i)
 			continue
 		}
 		window, err := ParseDurationWithDays(w.Window)
@@ -727,21 +701,6 @@ func parseModelLimitWindows(limits []ModelLimitWindow, provider string) []Parsed
 			log.Warnf("%s limits[%d]: skipping invalid cache_tokens %q: %v", provider, i, w.CacheTokens, err)
 			continue
 		}
-		inputPriceM, err := parseFloatOptional(w.InputPriceM)
-		if err != nil {
-			log.Warnf("%s limits[%d]: skipping invalid input_price_m %q: %v", provider, i, w.InputPriceM, err)
-			continue
-		}
-		outputPriceM, err := parseFloatOptional(w.OutputPriceM)
-		if err != nil {
-			log.Warnf("%s limits[%d]: skipping invalid output_price_m %q: %v", provider, i, w.OutputPriceM, err)
-			continue
-		}
-		cachePriceM, err := parseFloatOptional(w.CachePriceM)
-		if err != nil {
-			log.Warnf("%s limits[%d]: skipping invalid cache_price_m %q: %v", provider, i, w.CachePriceM, err)
-			continue
-		}
 		price, err := parseFloatOptional(w.Price)
 		if err != nil {
 			log.Warnf("%s limits[%d]: skipping invalid price %q: %v", provider, i, w.Price, err)
@@ -754,11 +713,8 @@ func parseModelLimitWindows(limits []ModelLimitWindow, provider string) []Parsed
 			Window:       window,
 			InputTokens:  inputTokens,
 			OutputTokens: outputTokens,
-			Model:        strings.ToLower(model),
+			Models:       models,
 			CacheTokens:  cacheTokens,
-			InputPriceM:  inputPriceM,
-			OutputPriceM: outputPriceM,
-			CachePriceM:  cachePriceM,
 			Price:        price,
 		})
 	}
@@ -1079,13 +1035,17 @@ func sanitizeModelLimitWindows(limits *[]ModelLimitWindow) {
 		w.Window = strings.TrimSpace(w.Window)
 		w.InputTokens = strings.TrimSpace(w.InputTokens)
 		w.OutputTokens = strings.TrimSpace(w.OutputTokens)
-		w.Model = strings.TrimSpace(w.Model)
 		w.CacheTokens = strings.TrimSpace(w.CacheTokens)
-		w.InputPriceM = strings.TrimSpace(w.InputPriceM)
-		w.OutputPriceM = strings.TrimSpace(w.OutputPriceM)
-		w.CachePriceM = strings.TrimSpace(w.CachePriceM)
 		w.Price = strings.TrimSpace(w.Price)
-		if w.Window == "" || w.Model == "" {
+		var models []string
+		for _, m := range w.Models {
+			m = strings.TrimSpace(m)
+			if m != "" {
+				models = append(models, m)
+			}
+		}
+		w.Models = models
+		if w.Window == "" || len(w.Models) == 0 {
 			continue
 		}
 		cleaned = append(cleaned, w)
@@ -1110,7 +1070,6 @@ func (cfg *Config) SanitizeCodexKeys() {
 		e.BaseURL = strings.TrimSpace(e.BaseURL)
 		e.Headers = NormalizeHeaders(e.Headers)
 		e.ExcludedModels = NormalizeExcludedModels(e.ExcludedModels)
-		sanitizeModelLimitWindows(&e.Limits)
 		if e.BaseURL == "" {
 			continue
 		}
@@ -1152,7 +1111,6 @@ func (cfg *Config) SanitizeGeminiKeys() {
 		entry.ProxyURL = strings.TrimSpace(entry.ProxyURL)
 		entry.Headers = NormalizeHeaders(entry.Headers)
 		entry.ExcludedModels = NormalizeExcludedModels(entry.ExcludedModels)
-		sanitizeModelLimitWindows(&entry.Limits)
 		uniqueKey := entry.APIKey + "|" + entry.BaseURL
 		if _, exists := seen[uniqueKey]; exists {
 			continue

@@ -121,33 +121,160 @@ func addConfigHeadersToAttrs(headers map[string]string, attrs map[string]string)
 }
 
 // wireLimitsToLimiter registers parsed limit windows with the global limiter.
-// It groups windows by model and updates the limiter for each model.
+// It expands the Models list in each window so each model gets its own limit config,
+// and registers model prices for cost-based limiting.
+// Each model entry in the limits models list is resolved to both its alias and upstream name,
+// so limits are enforced regardless of which name the executor uses.
 // Stale limits (models that were previously limited but no longer in config) are removed.
-func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []config.ParsedModelLimitWindow) {
+func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []config.ParsedModelLimitWindow, modelPrices map[string]limiter.ModelPrices, aliasMap map[string]string) {
 	lim := limiter.DefaultLimiter()
-	// Collect active models and sync: remove limits for models no longer in config.
-	models := make([]string, 0, len(parsed))
+
+	// Resolve each model in the limits config to all its known names (alias + upstream name).
+	// aliasMap: alias -> upstream-name (both lowercased).
+	resolvedModels := make(map[string]struct{})
 	for _, w := range parsed {
-		models = append(models, w.Model)
+		for _, m := range w.Models {
+			resolvedModels[m] = struct{}{}
+			// If m is an alias, also add the upstream name
+			if upstream, ok := aliasMap[m]; ok && upstream != m {
+				resolvedModels[upstream] = struct{}{}
+			}
+			// If m is an upstream name, also add any alias pointing to it
+			for alias, name := range aliasMap {
+				if name == m && alias != m {
+					resolvedModels[alias] = struct{}{}
+				}
+			}
+		}
 	}
-	lim.SyncLimitsForAuth(authID, models)
+
+	modelList := make([]string, 0, len(resolvedModels))
+	for m := range resolvedModels {
+		modelList = append(modelList, m)
+	}
+	lim.SyncLimitsForAuth(authID, modelList)
+
+	// Register model prices under both alias and upstream name
+	for m, p := range modelPrices {
+		lim.SetModelPrices(authID, m, p)
+		if upstream, ok := aliasMap[m]; ok && upstream != m {
+			lim.SetModelPrices(authID, upstream, p)
+		}
+	}
+	// Also register prices for upstream names that map from aliases
+	for alias, upstream := range aliasMap {
+		if p, ok := modelPrices[alias]; ok {
+			lim.SetModelPrices(authID, upstream, p)
+		}
+		if p, ok := modelPrices[upstream]; ok {
+			lim.SetModelPrices(authID, alias, p)
+		}
+	}
+
 	if len(parsed) == 0 {
 		return
 	}
+	// Expand windows: one LimitConfig per resolved model name in each window's Models list
 	windowsByModel := make(map[string][]limiter.LimitConfig)
 	for _, w := range parsed {
-		windowsByModel[w.Model] = append(windowsByModel[w.Model], limiter.LimitConfig{
+		cfg := limiter.LimitConfig{
 			Window:       w.Window,
 			InputTokens:  w.InputTokens,
 			OutputTokens: w.OutputTokens,
 			CacheTokens:  w.CacheTokens,
-			InputPriceM:  w.InputPriceM,
-			OutputPriceM: w.OutputPriceM,
-			CachePriceM:  w.CachePriceM,
 			Price:        w.Price,
-		})
+		}
+		for _, m := range w.Models {
+			windowsByModel[m] = append(windowsByModel[m], cfg)
+			// Also add limits for the upstream name if m is an alias
+			if upstream, ok := aliasMap[m]; ok && upstream != m {
+				windowsByModel[upstream] = append(windowsByModel[upstream], cfg)
+			}
+			// Also add limits for aliases if m is an upstream name
+			for alias, name := range aliasMap {
+				if name == m && alias != m {
+					windowsByModel[alias] = append(windowsByModel[alias], cfg)
+				}
+			}
+		}
 	}
 	for model, windows := range windowsByModel {
 		lim.UpdateLimits(authID, model, windows)
 	}
+}
+
+// claudeModelPrices builds a model→prices map from ClaudeModel definitions.
+// Prices are keyed by both alias and upstream name.
+func claudeModelPrices(models []config.ClaudeModel) map[string]limiter.ModelPrices {
+	out := make(map[string]limiter.ModelPrices, len(models)*2)
+	for _, m := range models {
+		name := strings.ToLower(strings.TrimSpace(m.Name))
+		alias := strings.ToLower(strings.TrimSpace(m.Alias))
+		if name == "" {
+			continue
+		}
+		if m.InputPriceM > 0 || m.OutputPriceM > 0 || m.CachePriceM > 0 {
+			p := limiter.ModelPrices{
+				InputPriceM:  m.InputPriceM,
+				OutputPriceM: m.OutputPriceM,
+				CachePriceM:  m.CachePriceM,
+			}
+			out[name] = p
+			if alias != "" {
+				out[alias] = p
+			}
+		}
+	}
+	return out
+}
+
+// openAICompatModelPrices builds a model→prices map from OpenAICompatibilityModel definitions.
+// Prices are keyed by both alias and upstream name.
+func openAICompatModelPrices(models []config.OpenAICompatibilityModel) map[string]limiter.ModelPrices {
+	out := make(map[string]limiter.ModelPrices, len(models)*2)
+	for _, m := range models {
+		name := strings.ToLower(strings.TrimSpace(m.Name))
+		alias := strings.ToLower(strings.TrimSpace(m.Alias))
+		if name == "" {
+			continue
+		}
+		if m.InputPriceM > 0 || m.OutputPriceM > 0 || m.CachePriceM > 0 {
+			p := limiter.ModelPrices{
+				InputPriceM:  m.InputPriceM,
+				OutputPriceM: m.OutputPriceM,
+				CachePriceM:  m.CachePriceM,
+			}
+			out[name] = p
+			if alias != "" {
+				out[alias] = p
+			}
+		}
+	}
+	return out
+}
+
+// claudeAliasMap builds an alias→name map from ClaudeModel definitions.
+func claudeAliasMap(models []config.ClaudeModel) map[string]string {
+	out := make(map[string]string, len(models))
+	for _, m := range models {
+		name := strings.ToLower(strings.TrimSpace(m.Name))
+		alias := strings.ToLower(strings.TrimSpace(m.Alias))
+		if alias != "" && name != "" {
+			out[alias] = name
+		}
+	}
+	return out
+}
+
+// openAICompatAliasMap builds an alias→name map from OpenAICompatibilityModel definitions.
+func openAICompatAliasMap(models []config.OpenAICompatibilityModel) map[string]string {
+	out := make(map[string]string, len(models))
+	for _, m := range models {
+		name := strings.ToLower(strings.TrimSpace(m.Name))
+		alias := strings.ToLower(strings.TrimSpace(m.Alias))
+		if alias != "" && name != "" {
+			out[alias] = name
+		}
+	}
+	return out
 }

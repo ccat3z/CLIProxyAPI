@@ -156,17 +156,6 @@ nonstream-keepalive-interval: 0
 #       - "gemini-2.5-*"       # wildcard matching prefix (e.g. gemini-2.5-flash, gemini-2.5-pro)
 #       - "*-preview"          # wildcard matching suffix (e.g. gemini-3-pro-preview)
 #       - "*flash*"            # wildcard matching substring (e.g. gemini-2.5-flash-lite)
-#     # Per-API-key model usage limits (sliding window). When exceeded, returns HTTP 429.
-#     limits:
-#       - window: 5h               # Duration of the sliding window (supports h, m, s, d for days)
-#         input_tokens: 5m          # Max input tokens within window (m=million, k=thousand, or plain integer)
-#         output_tokens: 1m         # Max output tokens within window
-#         model: gemini-flash       # Required: model alias this limit applies to
-#         # cache_tokens: 1m    # Max cache tokens within window (optional)
-#         # input_price_m: 1.25  # Price per 1M non-cached input tokens (optional)
-#         # output_price_m: 10   # Price per 1M output tokens (optional)
-#         # cache_price_m: 0.1   # Price per 1M cached input tokens (optional)
-#         # price: 50            # Max total cost within window (optional)
 #   - api-key: "AIzaSy...02"
 
 # Codex API keys
@@ -186,17 +175,6 @@ nonstream-keepalive-interval: 0
 #       - "gpt-5-*"         # wildcard matching prefix (e.g. gpt-5-medium, gpt-5-codex)
 #       - "*-mini"          # wildcard matching suffix (e.g. gpt-5-codex-mini)
 #       - "*codex*"         # wildcard matching substring (e.g. gpt-5-codex-low)
-#     # Per-API-key model usage limits (sliding window). When exceeded, returns HTTP 429.
-#     limits:
-#       - window: 5h               # Duration of the sliding window (supports h, m, s, d for days)
-#         input_tokens: 5m          # Max input tokens within window (m=million, k=thousand, or plain integer)
-#         output_tokens: 1m         # Max output tokens within window
-#         model: codex-latest       # Required: model alias this limit applies to
-#         # cache_tokens: 1m    # Max cache tokens within window (optional)
-#         # input_price_m: 5     # Price per 1M non-cached input tokens (optional)
-#         # output_price_m: 20   # Price per 1M output tokens (optional)
-#         # cache_price_m: 0.4   # Price per 1M cached input tokens (optional)
-#         # price: 100           # Max total cost within window (optional)
 
 # Claude API keys
 # claude-api-key:
@@ -211,6 +189,9 @@ nonstream-keepalive-interval: 0
 #     models:
 #       - name: "claude-3-5-sonnet-20241022" # upstream model name
 #         alias: "claude-sonnet-latest"      # client alias mapped to the upstream model
+#         input_price_m: 3    # Price per 1M non-cached input tokens (optional)
+#         output_price_m: 15  # Price per 1M output tokens (optional)
+#         cache_price_m: 0.3  # Price per 1M cached input tokens (optional)
 #     excluded-models:
 #       - "claude-opus-4-5-20251101" # exclude specific models (exact match)
 #       - "claude-3-*"               # wildcard matching prefix (e.g. claude-3-7-sonnet-20250219)
@@ -218,15 +199,12 @@ nonstream-keepalive-interval: 0
 #       - "*haiku*"                  # wildcard matching substring (e.g. claude-3-5-haiku-20241022)
 #     # Per-API-key model usage limits (sliding window). When exceeded, returns HTTP 429.
 #     limits:
-#       - window: 5h               # Duration of the sliding window (supports h, m, s, d for days)
-#         input_tokens: 5m          # Max input tokens within window (m=million, k=thousand, or plain integer)
-#         output_tokens: 1m         # Max output tokens within window
-#         model: claude-sonnet-latest # Required: model alias this limit applies to
-#         # cache_tokens: 1m    # Max cache tokens within window (optional)
-#         # input_price_m: 3    # Price per 1M non-cached input tokens (optional)
-#         # output_price_m: 15  # Price per 1M output tokens (optional)
-#         # cache_price_m: 0.3  # Price per 1M cached input tokens (optional)
-#         # price: 50           # Max total cost within window (optional)
+#       - window: 5h                 # Duration of the sliding window (supports h, m, s, d for days)
+#         input_tokens: 5m           # Max input tokens within window (m=million, k=thousand, or plain integer) (optional)
+#         output_tokens: 1m          # Max output tokens within window (optional)
+#         models: [model-a, model-b] # Multi model share one window
+#         cache_tokens: 1m           # Max cache tokens within window (optional)
+#         price: 50                  # Max total cost within window (optional)
 #     cloak:                         # optional: request cloaking for non-Claude-Code clients
 #       mode: "auto"                 # "auto" (default): cloak only when client is not Claude Code
 #                                    # "always": always apply cloaking
@@ -277,24 +255,23 @@ nonstream-keepalive-interval: 0
 #         # Per-API-key model usage limits (sliding window). When exceeded, returns HTTP 429.
 #         limits:
 #           - window: 5h               # Duration of the sliding window (supports h, m, s, d for days)
-#             input_tokens: 5m          # Max input tokens within window (m=million, k=thousand, or plain integer)
-#             output_tokens: 1m         # Max output tokens within window
-#             model: kimi-k2            # Required: model alias this limit applies to
-#             # cache_tokens: 1m    # Max cache tokens within window (optional, m=million, k=thousand, or plain integer)
-#             # input_price_m: 5     # Price per 1M non-cached input tokens (optional, plain float)
-#             # output_price_m: 20   # Price per 1M output tokens (optional, plain float)
-#             # cache_price_m: 0.4   # Price per 1M cached input tokens (optional, plain float)
-#             # price: 100           # Max total cost within window (optional, plain float; enables cost-based limiting)
+#             input_tokens: 5m         # Max input tokens within window (m=million, k=thousand, or plain integer) (optional)
+#             output_tokens: 1m        # Max output tokens within window (optional)
+#             models: [kimi-k2]        # Required: model alias this limit applies to
+#             cache_tokens: 1m         # Max cache tokens within window (optional, m=million, k=thousand, or plain integer)
+#             price: 100               # Max total cost within window (optional, plain float; enables cost-based limiting)
 #           - window: 1d
 #             input_tokens: 10m
-#             output_tokens: 5m
-#             model: kimi-k2
+#             models: [kimi-k2]
 #       - api-key: "sk-or-v1-...b781" # without proxy-url
 #     models: # The models supported by the provider.
 #       - name: "moonshotai/kimi-k2:free" # The actual model name.
 #         alias: "kimi-k2"               # The alias used in the API.
 #         thinking:                      # optional: omit to default to levels ["low","medium","high"]
 #           levels: ["low", "medium", "high"]
+#         input_price_m: 5     # Price per 1M non-cached input tokens (optional, plain float)
+#         output_price_m: 20   # Price per 1M output tokens (optional, plain float)
+#         cache_price_m: 0.4   # Price per 1M cached input tokens (optional, plain float)
 #       # You may repeat the same alias to build an internal model pool.
 #       # The client still sees only one alias in the model list.
 #       # Requests to that alias will round-robin across the upstream names below,
@@ -324,17 +301,6 @@ nonstream-keepalive-interval: 0
 #     excluded-models:                            # optional: models to exclude from listing
 #       - "imagen-3.0-generate-002"
 #       - "imagen-*"
-#     # Per-API-key model usage limits (sliding window). When exceeded, returns HTTP 429.
-#     limits:
-#       - window: 5h               # Duration of the sliding window (supports h, m, s, d for days)
-#         input_tokens: 5m          # Max input tokens within window (m=million, k=thousand, or plain integer)
-#         output_tokens: 1m         # Max output tokens within window
-#         model: vertex-pro         # Required: model alias this limit applies to
-#         # cache_tokens: 1m    # Max cache tokens within window (optional)
-#         # input_price_m: 1.25  # Price per 1M non-cached input tokens (optional)
-#         # output_price_m: 5    # Price per 1M output tokens (optional)
-#         # cache_price_m: 0.1   # Price per 1M cached input tokens (optional)
-#         # price: 50            # Max total cost within window (optional)
 
 # Amp Integration
 # ampcode:
