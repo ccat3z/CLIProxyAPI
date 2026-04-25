@@ -154,21 +154,15 @@ func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []
 	}
 	lim.SyncLimitsForAuth(authID, modelList)
 
-	// Register model prices under both alias and upstream name
-	for m, p := range modelPrices {
+	// Register prices for every resolved model. If a model has no prices in
+	// modelPrices, register zero prices so stale prices from a previous config
+	// are cleared (otherwise cost-based limiting would use outdated prices).
+	for m := range resolvedModels {
+		p, ok := modelPrices[m]
+		if !ok {
+			p = limiter.ModelPrices{}
+		}
 		lim.SetModelPrices(authID, m, p)
-		if upstream, ok := aliasMap[m]; ok && upstream != m {
-			lim.SetModelPrices(authID, upstream, p)
-		}
-	}
-	// Also register prices for upstream names that map from aliases
-	for alias, upstream := range aliasMap {
-		if p, ok := modelPrices[alias]; ok {
-			lim.SetModelPrices(authID, upstream, p)
-		}
-		if p, ok := modelPrices[upstream]; ok {
-			lim.SetModelPrices(authID, alias, p)
-		}
 	}
 
 	if len(parsed) == 0 {
