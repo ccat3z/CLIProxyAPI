@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/router-for-me/CLIProxyAPI/v6/internal/logging"
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/auth"
 	"github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/usage"
 	"github.com/tidwall/gjson"
@@ -70,7 +71,7 @@ func (r *UsageReporter) publishWithOutcome(ctx context.Context, detail usage.Det
 		}
 	}
 	r.once.Do(func() {
-		usage.PublishRecord(ctx, r.buildRecord(detail, failed))
+		usage.PublishRecord(ctx, r.buildRecord(ctx, detail, failed))
 	})
 }
 
@@ -83,11 +84,11 @@ func (r *UsageReporter) EnsurePublished(ctx context.Context) {
 		return
 	}
 	r.once.Do(func() {
-		usage.PublishRecord(ctx, r.buildRecord(usage.Detail{}, false))
+		usage.PublishRecord(ctx, r.buildRecord(ctx, usage.Detail{}, false))
 	})
 }
 
-func (r *UsageReporter) buildRecord(detail usage.Detail, failed bool) usage.Record {
+func (r *UsageReporter) buildRecord(ctx context.Context, detail usage.Detail, failed bool) usage.Record {
 	if r == nil {
 		return usage.Record{Detail: detail, Failed: failed}
 	}
@@ -101,6 +102,7 @@ func (r *UsageReporter) buildRecord(detail usage.Detail, failed bool) usage.Reco
 		RequestedAt: r.requestedAt,
 		Latency:     r.latency(),
 		Failed:      failed,
+		RequestID:   logging.GetRequestID(ctx),
 		Detail:      detail,
 	}
 }

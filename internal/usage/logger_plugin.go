@@ -95,6 +95,8 @@ type RequestDetail struct {
 	AuthIndex string     `json:"auth_index"`
 	Tokens    TokenStats `json:"tokens"`
 	Failed    bool       `json:"failed"`
+	RequestID string     `json:"request_id"`
+	Cost      float64    `json:"cost"`
 }
 
 // TokenStats captures the token usage breakdown for a request.
@@ -115,10 +117,12 @@ type StatisticsSnapshot struct {
 
 	APIs map[string]APISnapshot `json:"apis"`
 
-	RequestsByDay  map[string]int64 `json:"requests_by_day"`
-	RequestsByHour map[string]int64 `json:"requests_by_hour"`
-	TokensByDay    map[string]int64 `json:"tokens_by_day"`
-	TokensByHour   map[string]int64 `json:"tokens_by_hour"`
+	RequestsByDay  map[string]int64   `json:"requests_by_day"`
+	RequestsByHour map[string]int64   `json:"requests_by_hour"`
+	TokensByDay    map[string]int64   `json:"tokens_by_day"`
+	TokensByHour   map[string]int64   `json:"tokens_by_hour"`
+	CostByDay      map[string]float64 `json:"cost_by_day"`
+	CostByHour     map[string]float64 `json:"cost_by_hour"`
 }
 
 // APISnapshot summarises metrics for a single API key.
@@ -280,6 +284,9 @@ func (s *RequestStatistics) Snapshot() StatisticsSnapshot {
 		key := formatHour(hour)
 		result.TokensByHour[key] = v
 	}
+
+	result.CostByDay = make(map[string]float64)
+	result.CostByHour = make(map[string]float64)
 
 	return result
 }

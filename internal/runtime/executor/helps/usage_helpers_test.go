@@ -1,6 +1,7 @@
 package helps
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -133,7 +134,7 @@ func TestUsageReporterBuildRecordIncludesLatency(t *testing.T) {
 		requestedAt: time.Now().Add(-1500 * time.Millisecond),
 	}
 
-	record := reporter.buildRecord(usage.Detail{TotalTokens: 3}, false)
+	record := reporter.buildRecord(context.Background(), usage.Detail{TotalTokens: 3}, false)
 	if record.Latency < time.Second {
 		t.Fatalf("latency = %v, want >= 1s", record.Latency)
 	}

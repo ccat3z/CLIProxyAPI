@@ -269,6 +269,11 @@ func NewServer(cfg *config.Config, authManager *auth.Manager, accessManager *sdk
 		s.mgmt.SetLocalPassword(optionState.localPassword)
 	}
 	logDir := logging.ResolveLogDirectory(cfg)
+	if !filepath.IsAbs(logDir) {
+		if configDir := filepath.Dir(configFilePath); configDir != "" {
+			logDir = filepath.Join(configDir, logDir)
+		}
+	}
 	s.mgmt.SetLogDirectory(logDir)
 	if optionState.postAuthHook != nil {
 		s.mgmt.SetPostAuthHook(optionState.postAuthHook)

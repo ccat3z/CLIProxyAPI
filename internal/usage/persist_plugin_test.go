@@ -212,8 +212,11 @@ func TestPersistStoreFailedRecord(t *testing.T) {
 	UsageStore.HandleUsage(nil, r)
 
 	summary, _ := UsageStore.QueryUsage(authID, model, now.Add(-time.Hour), now.Add(time.Hour))
-	if summary.EntryCount != 0 {
-		t.Errorf("Failed records should not be persisted, got EntryCount = %d", summary.EntryCount)
+	if summary.EntryCount != 1 {
+		t.Errorf("Failed records should be persisted, got EntryCount = %d", summary.EntryCount)
+	}
+	if summary.Cost != 0 {
+		t.Errorf("Failed records should have zero cost, got Cost = %f", summary.Cost)
 	}
 }
 
