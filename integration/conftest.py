@@ -124,6 +124,7 @@ class Server:
             ["go", "run", "./cmd/server", "--config", self.config_path, "--no-browser"],
             stdout=self.stdout_log, stderr=self.stderr_log,
             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            start_new_session=True,
         )
         try:
             self.wait_for_server(timeout)
@@ -134,11 +135,17 @@ class Server:
 
     def stop(self):
         if self.process and self.process.poll() is None:
-            self.process.send_signal(signal.SIGTERM)
+            try:
+                os.killpg(self.process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
             try:
                 self.process.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                self.process.kill()
+                try:
+                    os.killpg(self.process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
                 self.process.wait()
             self.process = None
         for f in ("stdout_log", "stderr_log"):
@@ -158,6 +165,7 @@ class Server:
             ["go", "run", "./cmd/server", "--config", self.config_path, "--no-browser"],
             stdout=self.stdout_log, stderr=self.stderr_log,
             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            start_new_session=True,
         )
         self.wait_for_server(timeout)
 

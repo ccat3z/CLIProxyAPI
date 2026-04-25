@@ -2,6 +2,7 @@
 
 import os
 import sqlite3
+import time
 import urllib.request
 
 
@@ -35,6 +36,16 @@ def test_usage_recorded_to_sqlite(make_server):
     assert status == 200
 
     db_path = os.path.join(srv.usage_db_dir, "usage.db")
+
+    # Usage may be written asynchronously; retry briefly
+    for _ in range(10):
+        conn = sqlite3.connect(db_path)
+        rows = conn.execute("SELECT count(*) FROM usage").fetchone()
+        conn.close()
+        if rows[0] > 0:
+            break
+        time.sleep(0.5)
+
     conn = sqlite3.connect(db_path)
     try:
         rows = conn.execute("SELECT count(*) FROM usage").fetchone()
