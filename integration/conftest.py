@@ -175,15 +175,36 @@ class Server:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key or self.API_KEY}",
         }
+        status, resp_headers, resp_body = self.request(
+            "/v1/chat/completions", method="POST", body=body, headers=headers,
+        )
+        return status, resp_body
+
+    def request(self, path, method="GET", body=None, headers=None, timeout=60):
+        """Send an HTTP request. Returns (status_code, headers_dict, response_body).
+
+        headers_dict is a case-insensitive dict-like object from the response.
+        response_body is parsed JSON if possible, otherwise raw bytes.
+        """
         req = urllib.request.Request(
-            self.base_url + "/v1/chat/completions",
-            data=body, headers=headers, method="POST",
+            self.base_url + path,
+            data=body, headers=headers or {}, method=method,
         )
         try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                return resp.status, json.loads(resp.read())
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                raw = resp.read()
+                try:
+                    body = json.loads(raw)
+                except (json.JSONDecodeError, ValueError):
+                    body = raw
+                return resp.status, resp.headers, body
         except urllib.error.HTTPError as e:
-            return e.code, json.loads(e.read())
+            raw = e.read()
+            try:
+                body = json.loads(raw)
+            except (json.JSONDecodeError, ValueError):
+                body = raw
+            return e.code, e.headers, body
 
 
 @pytest.fixture
