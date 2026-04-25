@@ -1,0 +1,216 @@
+"""Shared fixtures for CLIProxyAPI integration tests."""
+
+import json
+import os
+import signal
+import socket
+import subprocess
+import time
+import urllib.request
+import urllib.error
+
+import pytest
+
+HOST = "127.0.0.1"
+
+CONFIG_TEMPLATE = """\
+host: "{host}"
+port: {port}
+debug: true
+usage-statistics-enabled: true
+usage-db: {usage_db}
+api-keys:
+  - "{api_key}"
+openai-compatibility:
+  - name: "test-upstream"
+    base-url: "{upstream_url}"
+    api-key-entries:
+      - api-key: "{upstream_key}"
+        limits:
+          - window: 1h
+            input_tokens: 3k
+            models: [test-haiku]
+    models:
+      - name: "{upstream_model}"
+        alias: "test-haiku"
+        input_price_m: 3
+        output_price_m: 15
+        cache_price_m: 0.3
+"""
+
+
+class Server:
+    """Manages a CLIProxyAPI subprocess for integration testing."""
+
+    API_KEY = "integration-test-key"
+
+    def __init__(self, workdir, template):
+        self.workdir = workdir
+        self.config_dir = os.path.join(workdir, "config")
+        self.usage_db_dir = os.path.join(workdir, "usage_db")
+        os.makedirs(self.config_dir, exist_ok=True)
+        os.makedirs(self.usage_db_dir, exist_ok=True)
+
+        self.port = self.find_free_port()
+        self.base_url = f"http://{HOST}:{self.port}"
+        self.process = None
+        self.config_path = os.path.join(self.config_dir, "config.yaml")
+
+        self.write_config(template)
+
+    @staticmethod
+    def find_free_port():
+        """Find a free TCP port on localhost."""
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((HOST, 0))
+            return s.getsockname()[1]
+
+    @staticmethod
+    def get_upstream_api():
+        """Read Anthropic API credentials from environment variables.
+
+        Skips the test if any required env var is missing.
+        """
+        api_key = os.environ.get("ANTHROPIC_AUTH_TOKEN")
+        base_url = os.environ.get("ANTHROPIC_BASE_URL")
+        model = os.environ.get("ANTHROPIC_DEFAULT_HAIKU_MODEL")
+        missing = []
+        if not api_key:
+            missing.append("ANTHROPIC_AUTH_TOKEN")
+        if not base_url:
+            missing.append("ANTHROPIC_BASE_URL")
+        if not model:
+            missing.append("ANTHROPIC_DEFAULT_HAIKU_MODEL")
+        if missing:
+            pytest.skip(f"{', '.join(missing)} not set, skipping integration test")
+        return {"url": base_url, "key": api_key, "model": model}
+
+    def wait_for_server(self, timeout=30):
+        """Poll until the server responds, the process exits, or timeout."""
+        url = self.base_url + "/healthz"
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self.process.poll() is not None:
+                raise RuntimeError(
+                    f"Server process exited with code {self.process.returncode}"
+                )
+            try:
+                req = urllib.request.Request(url)
+                with urllib.request.urlopen(req, timeout=2):
+                    return True
+            except (urllib.error.URLError, ConnectionError, OSError):
+                time.sleep(0.5)
+        raise RuntimeError(f"Server did not start within {timeout}s")
+
+    def write_config(self, template, **overrides):
+        upstream = self.get_upstream_api()
+        defaults = dict(
+            host=HOST, port=self.port, api_key=self.API_KEY,
+            upstream_url=upstream["url"].rstrip("/") + "/v1",
+            upstream_key=upstream["key"],
+            upstream_model=upstream["model"],
+            usage_db=os.path.join(self.usage_db_dir, "usage.db"),
+        )
+        defaults.update(overrides)
+        with open(self.config_path, "w") as f:
+            f.write(template.format(**defaults))
+
+    def start(self, timeout=30):
+        log_dir = os.path.join(self.config_dir, "logs")
+        os.makedirs(log_dir, exist_ok=True)
+        self.stdout_log = open(os.path.join(log_dir, "stdout.log"), "w")
+        self.stderr_log = open(os.path.join(log_dir, "stderr.log"), "w")
+        self.process = subprocess.Popen(
+            ["go", "run", "./cmd/server", "--config", self.config_path, "--no-browser"],
+            stdout=self.stdout_log, stderr=self.stderr_log,
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        )
+        try:
+            self.wait_for_server(timeout)
+        except RuntimeError:
+            self.stop()
+            raise
+        return self
+
+    def stop(self):
+        if self.process and self.process.poll() is None:
+            self.process.send_signal(signal.SIGTERM)
+            try:
+                self.process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+                self.process.wait()
+            self.process = None
+        for f in ("stdout_log", "stderr_log"):
+            fh = getattr(self, f, None)
+            if fh:
+                fh.close()
+                setattr(self, f, None)
+
+    def restart(self, timeout=30):
+        """Stop and restart using the same config and usage DB."""
+        self.stop()
+        log_dir = os.path.join(self.config_dir, "logs")
+        os.makedirs(log_dir, exist_ok=True)
+        self.stdout_log = open(os.path.join(log_dir, "stdout_restart.log"), "w")
+        self.stderr_log = open(os.path.join(log_dir, "stderr_restart.log"), "w")
+        self.process = subprocess.Popen(
+            ["go", "run", "./cmd/server", "--config", self.config_path, "--no-browser"],
+            stdout=self.stdout_log, stderr=self.stderr_log,
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        )
+        self.wait_for_server(timeout)
+
+    def chat_completions(self, model, messages=None, api_key=None, stream=False):
+        """Send a chat completion request. Returns (status_code, response_body)."""
+        if messages is None:
+            messages = [{"role": "user", "content": "Say hello in one word."}]
+        body = json.dumps({
+            "model": model,
+            "messages": messages,
+            "max_tokens": 50,
+            "stream": stream,
+        }).encode()
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key or self.API_KEY}",
+        }
+        req = urllib.request.Request(
+            self.base_url + "/v1/chat/completions",
+            data=body, headers=headers, method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                return resp.status, json.loads(resp.read())
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read())
+
+
+@pytest.fixture
+def make_server(tmp_path):
+    """Factory fixture to create a Server with a custom config template.
+
+    Usage:
+        srv = make_server(None)             # default CONFIG_TEMPLATE
+        srv = make_server(my_template)      # custom template
+        srv.start()
+        ...
+        srv.stop()
+
+    The server is NOT started automatically — call start() when ready.
+    Each server gets a unique free port.
+    """
+    servers = []
+
+    def _make_server(template=None):
+        if template is None:
+            template = CONFIG_TEMPLATE
+
+        srv = Server(str(tmp_path / f"server_{len(servers)}"), template)
+        servers.append(srv)
+        return srv
+
+    yield _make_server
+
+    for srv in servers:
+        srv.stop()
