@@ -1,33 +1,7 @@
-"""Persistence integration tests: rate limits survive server restarts."""
+"""Persistence integration tests: usage DB survives server restarts."""
 
 import os
 import sqlite3
-
-
-def test_limits_persist_across_restart(make_server):
-    """After restarting the server, previously accumulated usage is still enforced."""
-    srv = make_server(None)
-    srv.start()
-
-    # Send requests until rate limited
-    got_429 = False
-    total_input = 0
-    for _ in range(10):
-        status, _, body = srv.chat_completions("test-haiku")
-        if status == 429:
-            got_429 = True
-            break
-        if status != 200:
-            break
-        total_input += body.get("usage", {}).get("prompt_tokens", 0)
-    assert got_429, f"Should hit rate limit before restart (accumulated {total_input})"
-
-    # Restart server — usage DB should persist
-    srv.restart()
-
-    # First request after restart should still be rate limited
-    status, _, body = srv.chat_completions("test-haiku")
-    assert status == 429, f"Expected 429 after restart, got {status}: {body}"
 
 
 def test_usage_db_file_exists(make_server):

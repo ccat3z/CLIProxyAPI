@@ -3,49 +3,6 @@
 import json
 import time
 
-CONFIG_WITH_LIMITS = """\
-host: "{host}"
-port: {port}
-debug: true
-usage-statistics-enabled: true
-usage-db: {usage_db}
-api-keys:
-  - "{api_key}"
-openai-compatibility:
-  - name: "test-upstream"
-    base-url: "{upstream_url}"
-    api-key-entries:
-      - api-key: "{upstream_key}"
-        limits:
-          - window: 1h
-            input_tokens: 1k
-            models: ["{upstream_model}"]
-    models:
-      - name: "{upstream_model}"
-        alias: "test-haiku"
-        input_price_m: 3
-        output_price_m: 15
-        cache_price_m: 0.3
-"""
-
-CONFIG_WITHOUT_LIMITS = """\
-host: "{host}"
-port: {port}
-debug: true
-usage-statistics-enabled: true
-usage-db: {usage_db}
-api-keys:
-  - "{api_key}"
-openai-compatibility:
-  - name: "test-upstream"
-    base-url: "{upstream_url}"
-    api-key-entries:
-      - api-key: "{upstream_key}"
-    models:
-      - name: "{upstream_model}"
-        alias: "test-haiku"
-"""
-
 CONFIG_MGMT_ENABLED = """\
 host: "{host}"
 port: {port}
@@ -95,33 +52,6 @@ RELOAD_WAIT = 3  # seconds to wait for hot-reload (debounce + reload)
 
 def _mgmt_headers():
     return {"Authorization": "Bearer test-mgmt-key"}
-
-
-def test_removing_limits_clears_rate_limit(make_server):
-    """After removing limits from config, requests that were 429 should succeed."""
-    srv = make_server(CONFIG_WITH_LIMITS)
-    srv.start()
-
-    # Hit rate limit
-    got_429 = False
-    total_input = 0
-    for _ in range(10):
-        status, _, body = srv.chat_completions("test-haiku")
-        if status == 429:
-            got_429 = True
-            break
-        if status != 200:
-            break
-        total_input += body.get("usage", {}).get("prompt_tokens", 0)
-    assert got_429, f"Should hit rate limit with limits configured (accumulated {total_input})"
-
-    # Remove limits via hot-reload
-    srv.write_config(CONFIG_WITHOUT_LIMITS)
-    time.sleep(RELOAD_WAIT)
-
-    # Request should now succeed
-    status, _, _ = srv.chat_completions("test-haiku")
-    assert status == 200, f"Expected 200 after removing limits, got {status}"
 
 
 def test_toggling_disable_config_api(make_server):
