@@ -435,6 +435,140 @@ def test_usage_api_counters_consistent(make_server):
     assert sum(usage["tokens_by_day"].values()) == usage["total_tokens"]
 
 
+def test_usage_api_limits_field_structure(make_server):
+    """The 'limits' field in the usage response has the expected structure with config and current usage."""
+    srv = make_server(CONFIG_WITH_MGMT)
+    srv.start()
+
+    status, _ = srv.chat_completions("test-haiku")
+    assert status == 200
+
+    body = _fetch_usage(srv)
+
+    assert "limits" in body, "Response should have 'limits' key"
+    limits = body["limits"]
+    assert isinstance(limits, list), "limits should be a list"
+    assert len(limits) > 0, "limits should have at least one entry (limits are configured)"
+
+    entry = limits[0]
+    assert "source" in entry, "limit entry should have 'source'"
+    assert isinstance(entry["source"], str)
+    assert "auth_index" in entry, "limit entry should have 'auth_index'"
+    assert isinstance(entry["auth_index"], str)
+
+    assert "config" in entry, "limit entry should have 'config'"
+    config = entry["config"]
+    assert "window" in config and isinstance(config["window"], int)
+    assert config["window"] == 3600, f"Expected 3600s (1h) window, got {config['window']}"
+    assert "models" in config and isinstance(config["models"], list)
+    assert len(config["models"]) > 0
+    assert "input_tokens" in config and isinstance(config["input_tokens"], int)
+    assert config["input_tokens"] == 20000, f"Expected 20000 input_tokens, got {config['input_tokens']}"
+    assert "output_tokens" in config and isinstance(config["output_tokens"], int)
+    assert "cache_tokens" in config and isinstance(config["cache_tokens"], int)
+    assert "price" in config and isinstance(config["price"], (int, float))
+
+    assert "current" in entry, "limit entry should have 'current'"
+    current = entry["current"]
+    assert "input_tokens" in current and isinstance(current["input_tokens"], int)
+    assert "output_tokens" in current and isinstance(current["output_tokens"], int)
+    assert "cache_tokens" in current and isinstance(current["cache_tokens"], int)
+    assert "price" in current and isinstance(current["price"], (int, float))
+
+
+def test_usage_api_limits_current_reflects_usage(make_server):
+    """Current usage in limits reflects actual token consumption from requests."""
+    srv = make_server(CONFIG_WITH_MGMT)
+    srv.start()
+
+    # Make a single request
+    status, chat_body = srv.chat_completions("test-haiku")
+    assert status == 200
+
+    body = _fetch_usage(srv)
+    limits = body["limits"]
+    assert len(limits) > 0
+
+    # Limits are keyed by upstream model name; just use the first entry
+    # since the test config only has one limit.
+    entry = limits[0]
+
+    current = entry["current"]
+    chat_usage = chat_body.get("usage", {})
+    assert chat_usage.get("prompt_tokens", 0) > 0, "Chat response should have prompt_tokens"
+
+    assert current["input_tokens"] >= chat_usage["prompt_tokens"], \
+        f"Current input_tokens {current['input_tokens']} should be >= chat prompt_tokens {chat_usage['prompt_tokens']}"
+    assert current["output_tokens"] >= chat_usage.get("completion_tokens", 0), \
+        f"Current output_tokens {current['output_tokens']} should be >= chat completion_tokens {chat_usage.get('completion_tokens', 0)}"
+
+
+def test_usage_api_limits_multiple_rounds(make_server):
+    """After multiple requests, current usage accumulates across the window."""
+    srv = make_server(CONFIG_WITH_MGMT)
+    srv.start()
+
+    num_rounds = 3
+    total_input = 0
+    total_output = 0
+    for _ in range(num_rounds):
+        status, chat_body = srv.chat_completions("test-haiku")
+        assert status == 200
+        chat_usage = chat_body.get("usage", {})
+        total_input += chat_usage.get("prompt_tokens", 0)
+        total_output += chat_body.get("completion_tokens", 0)
+
+    body = _fetch_usage(srv)
+    limits = body["limits"]
+    assert len(limits) > 0
+
+    entry = limits[0]
+
+    current = entry["current"]
+    assert current["input_tokens"] >= total_input, \
+        f"Current input_tokens {current['input_tokens']} should be >= total {total_input}"
+    assert current["output_tokens"] >= total_output, \
+        f"Current output_tokens {current['output_tokens']} should be >= total {total_output}"
+
+
+def test_usage_api_limits_empty_when_no_limits(make_server):
+    """When no limits are configured, the limits field is an empty list."""
+    config_no_limits = """\
+host: "{host}"
+port: {port}
+debug: true
+usage-statistics-enabled: true
+usage-db: {usage_db}
+api-keys:
+  - "{api_key}"
+remote-management:
+  allow-remote: false
+  secret-key: "test-mgmt-key"
+openai-compatibility:
+  - name: "test-upstream"
+    base-url: "{upstream_url}"
+    api-key-entries:
+      - api-key: "{upstream_key}"
+    models:
+      - name: "{upstream_model}"
+        alias: "test-haiku"
+        input_price_m: 3
+        output_price_m: 15
+        cache_price_m: 0.3
+"""
+    srv = make_server(config_no_limits)
+    srv.start()
+
+    status, _ = srv.chat_completions("test-haiku")
+    assert status == 200
+
+    body = _fetch_usage(srv)
+
+    assert "limits" in body
+    assert isinstance(body["limits"], list)
+    assert len(body["limits"]) == 0, "limits should be empty when no limits are configured"
+
+
 def test_usage_download_log_by_request_id(make_server):
     """The /v0/management/request-log-by-id/:id endpoint downloads log files by request ID."""
     srv = make_server(CONFIG_WITH_REQUEST_LOG)

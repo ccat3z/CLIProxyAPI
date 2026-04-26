@@ -117,6 +117,35 @@ func (l *ModelLimiter) ClearAll() {
 	l.mu.Unlock()
 }
 
+// LimitEntry describes a configured limit with its associated auth and model.
+type LimitEntry struct {
+	AuthID string
+	Model  string
+	Limits []LimitConfig
+}
+
+// GetAllLimits returns a snapshot of all configured limits grouped by authID+model.
+func (l *ModelLimiter) GetAllLimits() []LimitEntry {
+	if l == nil {
+		return nil
+	}
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	entries := make([]LimitEntry, 0, len(l.limits))
+	for key, windows := range l.limits {
+		parts := strings.SplitN(key, "|", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		entries = append(entries, LimitEntry{
+			AuthID: parts[0],
+			Model:  parts[1],
+			Limits: windows,
+		})
+	}
+	return entries
+}
+
 // HasLimits returns true if any limits are configured for the given authID+model.
 func (l *ModelLimiter) HasLimits(authID, model string) bool {
 	if l == nil {

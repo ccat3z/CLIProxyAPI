@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/router-for-me/CLIProxyAPI/v6/internal/runtime/limiter"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/usage"
+	coreauth "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/auth"
 )
 
 type usageExportPayload struct {
@@ -32,6 +34,8 @@ func (h *Handler) GetUsageStatistics(c *gin.Context) {
 		}
 	}
 
+	limits := buildLimitsResponse(h)
+
 	if usage.UsageStore != nil {
 		from := time.Now().Add(-time.Duration(windowHours) * time.Hour)
 		to := time.Now()
@@ -40,7 +44,9 @@ func (h *Handler) GetUsageStatistics(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to query usage: %v", err)})
 			return
 		}
-		c.JSON(http.StatusOK, buildPersistResponse(report))
+		resp := buildPersistResponse(report)
+		resp["limits"] = limits
+		c.JSON(http.StatusOK, resp)
 		return
 	}
 
@@ -52,6 +58,7 @@ func (h *Handler) GetUsageStatistics(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"usage":           snapshot,
 		"failed_requests": snapshot.FailureCount,
+		"limits":          limits,
 	})
 }
 
@@ -182,4 +189,88 @@ func (h *Handler) ImportUsageStatistics(c *gin.Context) {
 		"total_requests":  snapshot.TotalRequests,
 		"failed_requests": snapshot.FailureCount,
 	})
+}
+
+type limitConfigJSON struct {
+	Window       int64    `json:"window"`
+	Models       []string `json:"models"`
+	InputTokens  int64    `json:"input_tokens"`
+	OutputTokens int64    `json:"output_tokens"`
+	CacheTokens  int64    `json:"cache_tokens"`
+	Price        float64  `json:"price"`
+}
+
+type limitCurrentJSON struct {
+	InputTokens  int64   `json:"input_tokens"`
+	OutputTokens int64   `json:"output_tokens"`
+	CacheTokens  int64   `json:"cache_tokens"`
+	Price        float64 `json:"price"`
+}
+
+type limitEntryJSON struct {
+	Source    string           `json:"source"`
+	AuthIndex string           `json:"auth_index"`
+	Config    limitConfigJSON  `json:"config"`
+	Current   limitCurrentJSON `json:"current"`
+}
+
+func buildLimitsResponse(h *Handler) []limitEntryJSON {
+	allLimits := limiter.DefaultLimiter().GetAllLimits()
+	if len(allLimits) == 0 {
+		return []limitEntryJSON{}
+	}
+
+	// Build auth lookup map for source/auth_index
+	var authList []*coreauth.Auth
+	if h != nil && h.authManager != nil {
+		authList = h.authManager.List()
+	}
+	authByID := make(map[string]*coreauth.Auth, len(authList))
+	for _, a := range authList {
+		authByID[a.ID] = a
+	}
+
+	now := time.Now()
+	result := make([]limitEntryJSON, 0, len(allLimits))
+
+	for _, entry := range allLimits {
+		auth := authByID[entry.AuthID]
+		var source, authIndex string
+		if auth != nil {
+			source = auth.FileName
+			authIndex = auth.Index
+		}
+
+		for _, lc := range entry.Limits {
+			cfg := limitConfigJSON{
+				Window:       int64(lc.Window.Seconds()),
+				Models:       []string{entry.Model},
+				InputTokens:  lc.InputTokens,
+				OutputTokens: lc.OutputTokens,
+				CacheTokens:  lc.CacheTokens,
+				Price:        lc.Price,
+			}
+
+			var current limitCurrentJSON
+			if usage.UsageStore != nil {
+				cutoff := now.Add(-lc.Window)
+				summary, err := usage.UsageStore.QueryUsage(entry.AuthID, entry.Model, cutoff, now)
+				if err == nil {
+					current.InputTokens = summary.InputTokens
+					current.OutputTokens = summary.OutputTokens
+					current.CacheTokens = summary.CachedTokens
+					current.Price = summary.Cost
+				}
+			}
+
+			result = append(result, limitEntryJSON{
+				Source:    source,
+				AuthIndex: authIndex,
+				Config:    cfg,
+				Current:   current,
+			})
+		}
+	}
+
+	return result
 }
