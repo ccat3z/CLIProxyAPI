@@ -682,8 +682,7 @@ func parseModelLimitWindows(limits []ModelLimitWindow, provider string) []Parsed
 			}
 		}
 		if len(models) == 0 {
-			log.Warnf("%s limits[%d]: skipping window with empty models", provider, i)
-			continue
+			log.Infof("%s limits[%d]: empty models means wildcard (all models)", provider, i)
 		}
 		window, err := ParseDurationWithDays(w.Window)
 		if err != nil {
@@ -1049,7 +1048,7 @@ func sanitizeModelLimitWindows(limits *[]ModelLimitWindow) {
 			}
 		}
 		w.Models = models
-		if w.Window == "" || len(w.Models) == 0 {
+		if w.Window == "" {
 			continue
 		}
 		cleaned = append(cleaned, w)

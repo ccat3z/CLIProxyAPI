@@ -10,13 +10,16 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/usage"
 )
 
-// LimitConfig defines a sliding-window token limit.
+// LimitConfig defines a sliding-window token limit for a set of models.
+// Models lists the model names this config applies to; empty/nil means wildcard (all models).
+// When Models has multiple entries, their combined usage is checked against the limits.
 type LimitConfig struct {
 	Window       time.Duration
 	InputTokens  int64
 	OutputTokens int64
 	CacheTokens  int64
 	Price        float64
+	Models       []string // empty = wildcard (all models for authID)
 }
 
 // LimitCheckResult describes the outcome of a limit check.
@@ -27,12 +30,12 @@ type LimitCheckResult struct {
 	Limit     int64
 }
 
-// ModelLimiter tracks token usage per authID+model and enforces sliding window limits.
+// ModelLimiter tracks token usage per authID and enforces sliding window limits.
 // Usage data is queried from usage.UsageStore (SQLite). When no store is configured,
 // Check returns nil (no limiting).
 type ModelLimiter struct {
 	mu     sync.RWMutex
-	limits map[string][]LimitConfig // key = "authID|model" -> sorted by Window asc
+	limits map[string][]LimitConfig // key = authID
 }
 
 // NewModelLimiter creates a new ModelLimiter.
@@ -42,29 +45,17 @@ func NewModelLimiter() *ModelLimiter {
 	}
 }
 
-func limitKey(authID, model string) string {
-	return authID + "|" + strings.ToLower(model)
-}
-
-// UpdateLimits sets or replaces the limit windows for an authID+model pair.
-func (l *ModelLimiter) UpdateLimits(authID, model string, windows []LimitConfig) {
-	if l == nil || len(windows) == 0 {
+// UpdateLimits replaces all limit configs for an authID.
+func (l *ModelLimiter) UpdateLimits(authID string, configs []LimitConfig) {
+	if l == nil || authID == "" {
 		return
 	}
-	key := limitKey(authID, model)
 	l.mu.Lock()
-	l.limits[key] = windows
-	l.mu.Unlock()
-}
-
-// RemoveLimits removes limit configuration for an authID+model pair.
-func (l *ModelLimiter) RemoveLimits(authID, model string) {
-	if l == nil {
-		return
+	if len(configs) == 0 {
+		delete(l.limits, authID)
+	} else {
+		l.limits[authID] = configs
 	}
-	key := limitKey(authID, model)
-	l.mu.Lock()
-	delete(l.limits, key)
 	l.mu.Unlock()
 }
 
@@ -73,37 +64,8 @@ func (l *ModelLimiter) RemoveAllForAuth(authID string) {
 	if l == nil || authID == "" {
 		return
 	}
-	prefix := authID + "|"
 	l.mu.Lock()
-	for k := range l.limits {
-		if strings.HasPrefix(k, prefix) {
-			delete(l.limits, k)
-		}
-	}
-	l.mu.Unlock()
-}
-
-// SyncLimitsForAuth reconciles the limiter state for an authID with the
-// currently active set of models. Any model that has limits configured but is
-// not in activeModels will have its limits removed. Call this before
-// UpdateLimits to ensure stale entries from removed config are cleaned up.
-func (l *ModelLimiter) SyncLimitsForAuth(authID string, activeModels []string) {
-	if l == nil || authID == "" {
-		return
-	}
-	prefix := authID + "|"
-	activeSet := make(map[string]struct{}, len(activeModels))
-	for _, m := range activeModels {
-		activeSet[limitKey(authID, m)] = struct{}{}
-	}
-	l.mu.Lock()
-	for k := range l.limits {
-		if strings.HasPrefix(k, prefix) {
-			if _, ok := activeSet[k]; !ok {
-				delete(l.limits, k)
-			}
-		}
-	}
+	delete(l.limits, authID)
 	l.mu.Unlock()
 }
 
@@ -117,14 +79,14 @@ func (l *ModelLimiter) ClearAll() {
 	l.mu.Unlock()
 }
 
-// LimitEntry describes a configured limit with its associated auth and model.
+// LimitEntry describes a configured limit with its associated auth and models.
 type LimitEntry struct {
 	AuthID string
-	Model  string
+	Models []string
 	Limits []LimitConfig
 }
 
-// GetAllLimits returns a snapshot of all configured limits grouped by authID+model.
+// GetAllLimits returns a snapshot of all configured limits grouped by authID.
 func (l *ModelLimiter) GetAllLimits() []LimitEntry {
 	if l == nil {
 		return nil
@@ -132,47 +94,60 @@ func (l *ModelLimiter) GetAllLimits() []LimitEntry {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	entries := make([]LimitEntry, 0, len(l.limits))
-	for key, windows := range l.limits {
-		parts := strings.SplitN(key, "|", 2)
-		if len(parts) != 2 {
-			continue
-		}
+	for authID, configs := range l.limits {
 		entries = append(entries, LimitEntry{
-			AuthID: parts[0],
-			Model:  parts[1],
-			Limits: windows,
+			AuthID: authID,
+			Limits: configs,
 		})
 	}
 	return entries
 }
 
-// HasLimits returns true if any limits are configured for the given authID+model.
-func (l *ModelLimiter) HasLimits(authID, model string) bool {
+// HasLimits returns true if any limits are configured for the given authID.
+func (l *ModelLimiter) HasLimits(authID string) bool {
 	if l == nil {
 		return false
 	}
-	key := limitKey(authID, model)
 	l.mu.RLock()
-	_, ok := l.limits[key]
+	_, ok := l.limits[authID]
 	l.mu.RUnlock()
 	return ok
 }
 
+// modelMatches returns true if the given model is covered by the config's Models list.
+// Empty Models means wildcard (matches everything).
+func modelMatches(configModels []string, model string) bool {
+	if len(configModels) == 0 {
+		return true
+	}
+	lower := strings.ToLower(model)
+	for _, m := range configModels {
+		if strings.ToLower(m) == lower {
+			return true
+		}
+	}
+	return false
+}
+
 // Check performs a pre-emptive limit check by querying usage.UsageStore.
-// Returns nil if no limits are configured, no store is available, or usage is
-// within limits. Returns a LimitCheckResult if any window limit is breached.
+// It iterates all configs for the authID; for each config where the requested model
+// matches (either explicitly listed or via wildcard), it queries the aggregate usage
+// across the config's models and checks against limits.
+// Returns nil if no limits apply, no store is available, or usage is within limits.
+// Returns a LimitCheckResult if any window limit is breached.
 func (l *ModelLimiter) Check(authID, model string) *LimitCheckResult {
 	if l == nil {
 		return nil
 	}
-	key := limitKey(authID, model)
 
 	l.mu.RLock()
-	windows, hasLimits := l.limits[key]
+	configs, hasLimits := l.limits[authID]
 	if !hasLimits {
 		l.mu.RUnlock()
 		return nil
 	}
+	configsCopy := make([]LimitConfig, len(configs))
+	copy(configsCopy, configs)
 	l.mu.RUnlock()
 
 	if usage.UsageStore == nil {
@@ -180,10 +155,13 @@ func (l *ModelLimiter) Check(authID, model string) *LimitCheckResult {
 	}
 
 	now := time.Now()
-	for _, w := range windows {
-		cutoff := now.Add(-w.Window)
+	for _, w := range configsCopy {
+		if !modelMatches(w.Models, model) {
+			continue
+		}
 
-		summary, err := usage.UsageStore.QueryUsage(authID, model, cutoff, now)
+		cutoff := now.Add(-w.Window)
+		summary, err := usage.UsageStore.QueryUsageMulti(authID, w.Models, cutoff, now)
 		if err != nil {
 			return nil
 		}

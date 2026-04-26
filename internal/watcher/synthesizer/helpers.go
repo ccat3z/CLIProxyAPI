@@ -122,22 +122,18 @@ func addConfigHeadersToAttrs(headers map[string]string, attrs map[string]string)
 }
 
 // wireLimitsToLimiter registers parsed limit windows with the global limiter.
-// Stale limits (models that were previously limited but no longer in config) are removed.
+// Each ParsedModelLimitWindow becomes one LimitConfig (with its Models list preserved),
+// so models in the same window share usage.
 func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []config.ParsedModelLimitWindow, modelPrices map[string]usage.ModelPrices) {
 	lim := limiter.DefaultLimiter()
 
+	// Collect all model names mentioned in limits for price registration.
 	modelSet := make(map[string]struct{})
 	for _, w := range parsed {
 		for _, m := range w.Models {
 			modelSet[m] = struct{}{}
 		}
 	}
-
-	modelList := make([]string, 0, len(modelSet))
-	for m := range modelSet {
-		modelList = append(modelList, m)
-	}
-	lim.SyncLimitsForAuth(authID, modelList)
 
 	// Register prices for every model. If a model has no prices in
 	// modelPrices, register zero prices so stale prices from a previous config
@@ -153,24 +149,22 @@ func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []
 	}
 
 	if len(parsed) == 0 {
+		lim.UpdateLimits(authID, nil)
 		return
 	}
-	windowsByModel := make(map[string][]limiter.LimitConfig)
+
+	configs := make([]limiter.LimitConfig, 0, len(parsed))
 	for _, w := range parsed {
-		cfg := limiter.LimitConfig{
+		configs = append(configs, limiter.LimitConfig{
 			Window:       w.Window,
 			InputTokens:  w.InputTokens,
 			OutputTokens: w.OutputTokens,
 			CacheTokens:  w.CacheTokens,
 			Price:        w.Price,
-		}
-		for _, m := range w.Models {
-			windowsByModel[m] = append(windowsByModel[m], cfg)
-		}
+			Models:       w.Models,
+		})
 	}
-	for model, windows := range windowsByModel {
-		lim.UpdateLimits(authID, model, windows)
-	}
+	lim.UpdateLimits(authID, configs)
 }
 
 // claudeModelPrices builds a model→prices map from ClaudeModel definitions.
@@ -210,4 +204,3 @@ func openAICompatModelPrices(models []config.OpenAICompatibilityModel) map[strin
 	}
 	return out
 }
-

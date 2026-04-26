@@ -244,7 +244,7 @@ func buildLimitsResponse(h *Handler) []limitEntryJSON {
 		for _, lc := range entry.Limits {
 			cfg := limitConfigJSON{
 				Window:       int64(lc.Window.Seconds()),
-				Models:       []string{entry.Model},
+				Models:       lc.Models,
 				InputTokens:  lc.InputTokens,
 				OutputTokens: lc.OutputTokens,
 				CacheTokens:  lc.CacheTokens,
@@ -254,7 +254,7 @@ func buildLimitsResponse(h *Handler) []limitEntryJSON {
 			var current limitCurrentJSON
 			if usage.UsageStore != nil {
 				cutoff := now.Add(-lc.Window)
-				summary, err := usage.UsageStore.QueryUsage(entry.AuthID, entry.Model, cutoff, now)
+				summary, err := usage.UsageStore.QueryUsageMulti(entry.AuthID, lc.Models, cutoff, now)
 				if err == nil {
 					current.InputTokens = summary.InputTokens
 					current.OutputTokens = summary.OutputTokens

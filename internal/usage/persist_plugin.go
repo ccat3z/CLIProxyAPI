@@ -228,6 +228,45 @@ func (p *PersistPlugin) QueryUsage(authID, model string, from, to time.Time) (Us
 	return s, nil
 }
 
+// QueryUsageMulti aggregates usage across multiple models for a given authID.
+// If models is empty/nil, it sums usage across all models for the authID (wildcard).
+// Otherwise, it sums usage for the specified models only.
+func (p *PersistPlugin) QueryUsageMulti(authID string, models []string, from, to time.Time) (UsageSummary, error) {
+	var s UsageSummary
+	if p == nil || p.db == nil {
+		return s, fmt.Errorf("persist: store not initialized")
+	}
+
+	var query string
+	var args []any
+
+	if len(models) == 0 {
+		query = `SELECT COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0), COALESCE(SUM(cached_tokens),0), COALESCE(SUM(cost),0), COUNT(*)
+			 FROM usage WHERE auth_id = ? AND timestamp >= ? AND timestamp < ?`
+		args = []any{authID, from.UnixNano(), to.UnixNano()}
+	} else {
+		placeholders := make([]string, len(models))
+		args = make([]any, 0, len(models)+3)
+		args = append(args, authID)
+		for i, m := range models {
+			placeholders[i] = "?"
+			args = append(args, strings.ToLower(strings.TrimSpace(m)))
+		}
+		args = append(args, from.UnixNano(), to.UnixNano())
+		query = fmt.Sprintf(
+			`SELECT COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0), COALESCE(SUM(cached_tokens),0), COALESCE(SUM(cost),0), COUNT(*)
+			 FROM usage WHERE auth_id = ? AND model IN (%s) AND timestamp >= ? AND timestamp < ?`,
+			strings.Join(placeholders, ","))
+	}
+
+	row := p.db.QueryRow(query, args...)
+	err := row.Scan(&s.InputTokens, &s.OutputTokens, &s.CachedTokens, &s.Cost, &s.EntryCount)
+	if err != nil {
+		return s, fmt.Errorf("persist: query usage multi: %w", err)
+	}
+	return s, nil
+}
+
 // QueryFullUsageReport returns a complete usage report for the time range [from, to).
 func (p *PersistPlugin) QueryFullUsageReport(from, to time.Time) (*UsageReport, error) {
 	if p == nil || p.db == nil {

@@ -38,7 +38,6 @@ openai-compatibility:
         cache_price_m: 0.3
 """
 
-
 class Server:
     """Manages a CLIProxyAPI subprocess for integration testing."""
 
@@ -74,6 +73,7 @@ class Server:
         api_key = os.environ.get("ANTHROPIC_AUTH_TOKEN")
         base_url = os.environ.get("ANTHROPIC_BASE_URL")
         model = os.environ.get("ANTHROPIC_DEFAULT_HAIKU_MODEL")
+        model_2 = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL")
         missing = []
         if not api_key:
             missing.append("ANTHROPIC_AUTH_TOKEN")
@@ -81,9 +81,11 @@ class Server:
             missing.append("ANTHROPIC_BASE_URL")
         if not model:
             missing.append("ANTHROPIC_DEFAULT_HAIKU_MODEL")
+        if not model_2:
+            missing.append("ANTHROPIC_DEFAULT_SONNET_MODEL")
         if missing:
             pytest.skip(f"{', '.join(missing)} not set, skipping integration test")
-        return {"url": base_url, "key": api_key, "model": model}
+        return {"url": base_url, "key": api_key, "model": model, "model_2": model_2}
 
     def wait_for_server(self, timeout=30):
         """Poll until the server responds, the process exits, or timeout."""
@@ -109,6 +111,7 @@ class Server:
             upstream_url=upstream["url"].rstrip("/") + "/v1",
             upstream_key=upstream["key"],
             upstream_model=upstream["model"],
+            upstream_model_2=upstream["model_2"],
             usage_db=os.path.join(self.usage_db_dir, "usage.db"),
         )
         defaults.update(overrides)

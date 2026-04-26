@@ -50,8 +50,8 @@ func TestModelLimiter_Check_NoLimits(t *testing.T) {
 
 func TestModelLimiter_Check_NoStore(t *testing.T) {
 	l := NewModelLimiter()
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 1000},
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 1000, Models: []string{"model-a"}},
 	})
 	// No UsageStore — Check returns nil
 	if result := l.Check("auth1", "model-a"); result != nil {
@@ -64,8 +64,8 @@ func TestModelLimiter_Check_WithinLimits(t *testing.T) {
 	defer cleanup()
 
 	l := DefaultLimiter()
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 500},
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 500, Models: []string{"model-a"}},
 	})
 
 	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-a", time.Now(), 500, 200, 0))
@@ -80,8 +80,8 @@ func TestModelLimiter_Check_InputExceeded(t *testing.T) {
 	defer cleanup()
 
 	l := DefaultLimiter()
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 500},
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 500, Models: []string{"model-a"}},
 	})
 
 	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-a", time.Now(), 1000, 100, 0))
@@ -106,8 +106,8 @@ func TestModelLimiter_Check_OutputExceeded(t *testing.T) {
 	defer cleanup()
 
 	l := DefaultLimiter()
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 5000, OutputTokens: 500},
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 5000, OutputTokens: 500, Models: []string{"model-a"}},
 	})
 
 	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-a", time.Now(), 100, 500, 0))
@@ -126,9 +126,9 @@ func TestModelLimiter_Check_MultipleWindows(t *testing.T) {
 	defer cleanup()
 
 	l := DefaultLimiter()
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 500, OutputTokens: 200},
-		{Window: 24 * time.Hour, InputTokens: 2000, OutputTokens: 1000},
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 500, OutputTokens: 200, Models: []string{"model-a"}},
+		{Window: 24 * time.Hour, InputTokens: 2000, OutputTokens: 1000, Models: []string{"model-a"}},
 	})
 
 	now := time.Now()
@@ -149,8 +149,8 @@ func TestModelLimiter_Check_SlidingWindow(t *testing.T) {
 	defer cleanup()
 
 	l := DefaultLimiter()
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 0},
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 0, Models: []string{"model-a"}},
 	})
 
 	now := time.Now()
@@ -163,50 +163,25 @@ func TestModelLimiter_Check_SlidingWindow(t *testing.T) {
 	}
 }
 
-func TestModelLimiter_RemoveLimits(t *testing.T) {
-	cleanup := setupTestStore(t)
-	defer cleanup()
-
-	l := DefaultLimiter()
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 0},
-	})
-
-	l.RemoveLimits("auth1", "model-a")
-
-	if l.HasLimits("auth1", "model-a") {
-		t.Fatal("expected limits removed")
-	}
-	if result := l.Check("auth1", "model-a"); result != nil {
-		t.Fatal("expected nil check after removal")
-	}
-}
-
 func TestModelLimiter_RemoveAllForAuth(t *testing.T) {
 	cleanup := setupTestStore(t)
 	defer cleanup()
 
 	l := DefaultLimiter()
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 0},
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 1000, Models: []string{"model-a"}},
 	})
-	l.UpdateLimits("auth1", "model-b", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 2000, OutputTokens: 0},
-	})
-	l.UpdateLimits("auth2", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 3000, OutputTokens: 0},
+	l.UpdateLimits("auth2", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 3000, Models: []string{"model-a"}},
 	})
 
 	l.RemoveAllForAuth("auth1")
 
-	if l.HasLimits("auth1", "model-a") {
-		t.Fatal("expected auth1|model-a limits removed")
+	if l.HasLimits("auth1") {
+		t.Fatal("expected auth1 limits removed")
 	}
-	if l.HasLimits("auth1", "model-b") {
-		t.Fatal("expected auth1|model-b limits removed")
-	}
-	if !l.HasLimits("auth2", "model-a") {
-		t.Fatal("expected auth2|model-a limits preserved")
+	if !l.HasLimits("auth2") {
+		t.Fatal("expected auth2 limits preserved")
 	}
 }
 
@@ -215,11 +190,11 @@ func TestModelLimiter_DifferentAuths_Independent(t *testing.T) {
 	defer cleanup()
 
 	l := DefaultLimiter()
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 0},
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 1000, Models: []string{"model-a"}},
 	})
-	l.UpdateLimits("auth2", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 5000, OutputTokens: 0},
+	l.UpdateLimits("auth2", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 5000, Models: []string{"model-a"}},
 	})
 
 	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-a", time.Now(), 1000, 0, 0))
@@ -233,73 +208,13 @@ func TestModelLimiter_DifferentAuths_Independent(t *testing.T) {
 	}
 }
 
-func TestModelLimiter_SyncLimitsForAuth_RemovesStaleModels(t *testing.T) {
-	cleanup := setupTestStore(t)
-	defer cleanup()
-
-	l := DefaultLimiter()
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 0},
-	})
-	l.UpdateLimits("auth1", "model-b", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 2000, OutputTokens: 0},
-	})
-
-	l.SyncLimitsForAuth("auth1", []string{"model-a"})
-
-	if !l.HasLimits("auth1", "model-a") {
-		t.Fatal("expected model-a limits preserved")
-	}
-	if l.HasLimits("auth1", "model-b") {
-		t.Fatal("expected model-b limits removed after sync")
-	}
-}
-
-func TestModelLimiter_SyncLimitsForAuth_EmptyModelsRemovesAll(t *testing.T) {
-	cleanup := setupTestStore(t)
-	defer cleanup()
-
-	l := DefaultLimiter()
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 0},
-	})
-
-	l.SyncLimitsForAuth("auth1", nil)
-
-	if l.HasLimits("auth1", "model-a") {
-		t.Fatal("expected all limits removed after sync with empty models")
-	}
-}
-
-func TestModelLimiter_SyncLimitsForAuth_PreservesOtherAuths(t *testing.T) {
-	cleanup := setupTestStore(t)
-	defer cleanup()
-
-	l := DefaultLimiter()
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 0},
-	})
-	l.UpdateLimits("auth2", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 2000, OutputTokens: 0},
-	})
-
-	l.SyncLimitsForAuth("auth1", nil)
-
-	if l.HasLimits("auth1", "model-a") {
-		t.Fatal("expected auth1 limits removed")
-	}
-	if !l.HasLimits("auth2", "model-a") {
-		t.Fatal("expected auth2 limits preserved")
-	}
-}
-
 func TestModelLimiter_CaseInsensitiveModel(t *testing.T) {
 	cleanup := setupTestStore(t)
 	defer cleanup()
 
 	l := DefaultLimiter()
-	l.UpdateLimits("auth1", "Kimi-K2", []LimitConfig{
-		{Window: 1 * time.Hour, InputTokens: 1000, OutputTokens: 0},
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 1000, Models: []string{"Kimi-K2"}},
 	})
 
 	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "kimi-k2", time.Now(), 500, 0, 0))
@@ -315,8 +230,8 @@ func TestModelLimiter_Check_CacheTokensExceeded(t *testing.T) {
 	defer cleanup()
 
 	l := DefaultLimiter()
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, CacheTokens: 500, OutputTokens: 0},
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, CacheTokens: 500, Models: []string{"model-a"}},
 	})
 
 	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-a", time.Now(), 600, 0, 500))
@@ -342,8 +257,8 @@ func TestModelLimiter_Check_PriceExceeded(t *testing.T) {
 
 	l := DefaultLimiter()
 	usage.UsageStore.SetModelPrices("auth1", "model-a", usage.ModelPrices{InputPriceM: 3.0, OutputPriceM: 15.0})
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, Price: 0.01},
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, Price: 0.01, Models: []string{"model-a"}},
 	})
 
 	// 10k input tokens at $3/M = $0.03, exceeds $0.01
@@ -364,8 +279,8 @@ func TestModelLimiter_Check_PriceCostCalculation(t *testing.T) {
 
 	l := DefaultLimiter()
 	usage.UsageStore.SetModelPrices("auth1", "model-a", usage.ModelPrices{InputPriceM: 3.0, CachePriceM: 0.3, OutputPriceM: 15.0})
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, Price: 1.0},
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, Price: 1.0, Models: []string{"model-a"}},
 	})
 
 	// 1M input (500k non-cached + 500k cached) at $3/M + $0.3/M, 100k output at $15/M
@@ -387,8 +302,8 @@ func TestModelLimiter_Check_PriceWithinLimits(t *testing.T) {
 
 	l := DefaultLimiter()
 	usage.UsageStore.SetModelPrices("auth1", "model-a", usage.ModelPrices{InputPriceM: 3.0, OutputPriceM: 15.0})
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, Price: 10.0},
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, Price: 10.0, Models: []string{"model-a"}},
 	})
 
 	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-a", time.Now(), 100000, 10000, 0))
@@ -404,8 +319,8 @@ func TestModelLimiter_Check_CachedExceedsInput(t *testing.T) {
 
 	l := DefaultLimiter()
 	usage.UsageStore.SetModelPrices("auth1", "model-a", usage.ModelPrices{InputPriceM: 3.0, CachePriceM: 0.3, OutputPriceM: 15.0})
-	l.UpdateLimits("auth1", "model-a", []LimitConfig{
-		{Window: 1 * time.Hour, Price: 1.0},
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, Price: 1.0, Models: []string{"model-a"}},
 	})
 
 	// Cached tokens exceed input tokens — nonCachedInput should clamp to 0
@@ -413,5 +328,170 @@ func TestModelLimiter_Check_CachedExceedsInput(t *testing.T) {
 
 	if result := l.Check("auth1", "model-a"); result != nil {
 		t.Fatalf("expected within limits (cached clamped), got %+v", result)
+	}
+}
+
+// --- New tests for shared-window and wildcard behavior ---
+
+func TestModelLimiter_Check_SharedWindow(t *testing.T) {
+	cleanup := setupTestStore(t)
+	defer cleanup()
+
+	l := DefaultLimiter()
+	// models: [a, b] share a window with 1000 input_tokens limit
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 1000, Models: []string{"model-a", "model-b"}},
+	})
+
+	now := time.Now()
+	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-a", now, 600, 0, 0))
+	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-b", now, 500, 0, 0))
+
+	// Combined 600+500=1100 >= 1000, should trigger for either model
+	result := l.Check("auth1", "model-a")
+	if result == nil {
+		t.Fatal("expected shared window limit exceeded for model-a")
+	}
+	if result.Current != 1100 {
+		t.Fatalf("expected current 1100 (a+b), got %d", result.Current)
+	}
+
+	result = l.Check("auth1", "model-b")
+	if result == nil {
+		t.Fatal("expected shared window limit exceeded for model-b")
+	}
+}
+
+func TestModelLimiter_Check_SharedWindow_WithinLimits(t *testing.T) {
+	cleanup := setupTestStore(t)
+	defer cleanup()
+
+	l := DefaultLimiter()
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 2000, Models: []string{"model-a", "model-b"}},
+	})
+
+	now := time.Now()
+	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-a", now, 600, 0, 0))
+	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-b", now, 500, 0, 0))
+
+	// Combined 1100 < 2000, should not trigger
+	if result := l.Check("auth1", "model-a"); result != nil {
+		t.Fatalf("expected within shared limit, got %+v", result)
+	}
+}
+
+func TestModelLimiter_Check_Wildcard(t *testing.T) {
+	cleanup := setupTestStore(t)
+	defer cleanup()
+
+	l := DefaultLimiter()
+	// Empty Models = wildcard: matches any model, aggregates all
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 1000, Models: nil},
+	})
+
+	now := time.Now()
+	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-a", now, 600, 0, 0))
+	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-b", now, 500, 0, 0))
+
+	// Wildcard matches any model; combined 1100 >= 1000
+	result := l.Check("auth1", "model-a")
+	if result == nil {
+		t.Fatal("expected wildcard limit exceeded")
+	}
+	if result.Current != 1100 {
+		t.Fatalf("expected current 1100 (all models), got %d", result.Current)
+	}
+
+	result = l.Check("auth1", "model-c")
+	if result == nil {
+		t.Fatal("expected wildcard limit exceeded for model-c too")
+	}
+}
+
+func TestModelLimiter_Check_Wildcard_WithinLimits(t *testing.T) {
+	cleanup := setupTestStore(t)
+	defer cleanup()
+
+	l := DefaultLimiter()
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 2000, Models: nil},
+	})
+
+	now := time.Now()
+	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-a", now, 500, 0, 0))
+
+	if result := l.Check("auth1", "model-b"); result != nil {
+		t.Fatalf("expected within wildcard limit, got %+v", result)
+	}
+}
+
+func TestModelLimiter_Check_ModelNotInConfig(t *testing.T) {
+	cleanup := setupTestStore(t)
+	defer cleanup()
+
+	l := DefaultLimiter()
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 1000, Models: []string{"model-a"}},
+	})
+
+	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-b", time.Now(), 5000, 0, 0))
+
+	// model-b is not in the config's models list, should not match
+	if result := l.Check("auth1", "model-b"); result != nil {
+		t.Fatalf("expected nil (model not in config), got %+v", result)
+	}
+}
+
+func TestModelLimiter_Check_MultipleConfigsForAuth(t *testing.T) {
+	cleanup := setupTestStore(t)
+	defer cleanup()
+
+	l := DefaultLimiter()
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 500, Models: []string{"model-a"}},
+		{Window: 1 * time.Hour, InputTokens: 2000, Models: nil}, // wildcard
+	})
+
+	now := time.Now()
+	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-a", now, 600, 0, 0))
+
+	// model-a matches both configs; the specific one triggers first (600 >= 500)
+	result := l.Check("auth1", "model-a")
+	if result == nil {
+		t.Fatal("expected specific config limit exceeded")
+	}
+	if result.Limit != 500 {
+		t.Fatalf("expected limit from specific config (500), got %d", result.Limit)
+	}
+
+	// model-b only matches wildcard; 600 < 2000, within limits
+	if result := l.Check("auth1", "model-b"); result != nil {
+		t.Fatalf("expected within wildcard limit for model-b, got %+v", result)
+	}
+}
+
+func TestModelLimiter_UpdateLimits_ReplacesAll(t *testing.T) {
+	cleanup := setupTestStore(t)
+	defer cleanup()
+
+	l := DefaultLimiter()
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 1000, Models: []string{"model-a"}},
+	})
+	l.UpdateLimits("auth1", []LimitConfig{
+		{Window: 1 * time.Hour, InputTokens: 5000, Models: []string{"model-b"}},
+	})
+
+	// Only model-b config should exist
+	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-a", time.Now(), 2000, 0, 0))
+	if result := l.Check("auth1", "model-a"); result != nil {
+		t.Fatalf("expected model-a no longer limited after UpdateLimits replace, got %+v", result)
+	}
+
+	usage.UsageStore.HandleUsage(nil, makeRecord("auth1", "model-b", time.Now(), 6000, 0, 0))
+	if result := l.Check("auth1", "model-b"); result == nil {
+		t.Fatal("expected model-b limit exceeded")
 	}
 }
