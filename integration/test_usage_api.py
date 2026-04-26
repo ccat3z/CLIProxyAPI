@@ -569,6 +569,273 @@ openai-compatibility:
     assert len(body["limits"]) == 0, "limits should be empty when no limits are configured"
 
 
+def test_usage_api_cost_without_limits(make_server):
+    """Cost is recorded correctly even when no limits are configured."""
+    config_no_limits = """\
+host: "{host}"
+port: {port}
+debug: true
+usage-statistics-enabled: true
+usage-db: {usage_db}
+api-keys:
+  - "{api_key}"
+remote-management:
+  allow-remote: false
+  secret-key: "test-mgmt-key"
+openai-compatibility:
+  - name: "test-upstream"
+    base-url: "{upstream_url}"
+    api-key-entries:
+      - api-key: "{upstream_key}"
+    models:
+      - name: "{upstream_model}"
+        alias: "test-haiku"
+        input_price_m: 3
+        output_price_m: 15
+        cache_price_m: 0.3
+"""
+    srv = make_server(config_no_limits)
+    srv.start()
+
+    status, _, _ = srv.chat_completions("test-haiku")
+    assert status == 200
+
+    body = _fetch_usage(srv)
+    usage = body["usage"]
+
+    # cost_by_day should have positive cost
+    cost_by_day = usage["cost_by_day"]
+    total_cost_day = sum(cost_by_day.values())
+    assert total_cost_day > 0, "Total cost_by_day should be > 0 without limits"
+
+    # Find a detail entry and verify cost matches the price formula
+    detail = None
+    for _ak, api_data in usage["apis"].items():
+        for _mk, model_data in api_data["models"].items():
+            if model_data["details"]:
+                detail = model_data["details"][0]
+                break
+        if detail:
+            break
+
+    assert detail is not None, "Should have at least one detail entry"
+    assert detail["cost"] > 0, "Detail cost should be > 0 without limits"
+
+    # cost = (non_cached * 3 + cached * 0.3 + output * 15) / 1M
+    tokens = detail["tokens"]
+    non_cached = tokens["input_tokens"] - tokens["cached_tokens"]
+    expected_cost = (non_cached * 3.0 + tokens["cached_tokens"] * 0.3 +
+                     tokens["output_tokens"] * 15.0) / 1_000_000
+    assert abs(detail["cost"] - expected_cost) < 0.000001, \
+        f"Detail cost {detail['cost']} != expected {expected_cost}"
+
+
+RELOAD_WAIT = 3  # seconds to wait for hot-reload (debounce + reload)
+
+_CONFIG_PRICE_A_NO_LIMITS = """\
+host: "{host}"
+port: {port}
+debug: true
+usage-statistics-enabled: true
+usage-db: {usage_db}
+api-keys:
+  - "{api_key}"
+remote-management:
+  allow-remote: false
+  secret-key: "test-mgmt-key"
+openai-compatibility:
+  - name: "test-upstream"
+    base-url: "{upstream_url}"
+    api-key-entries:
+      - api-key: "{upstream_key}"
+    models:
+      - name: "{upstream_model}"
+        alias: "test-haiku"
+        input_price_m: 1
+        output_price_m: 2
+        cache_price_m: 0.1
+"""
+
+_CONFIG_PRICE_B_NO_LIMITS = """\
+host: "{host}"
+port: {port}
+debug: true
+usage-statistics-enabled: true
+usage-db: {usage_db}
+api-keys:
+  - "{api_key}"
+remote-management:
+  allow-remote: false
+  secret-key: "test-mgmt-key"
+openai-compatibility:
+  - name: "test-upstream"
+    base-url: "{upstream_url}"
+    api-key-entries:
+      - api-key: "{upstream_key}"
+    models:
+      - name: "{upstream_model}"
+        alias: "test-haiku"
+        input_price_m: 10
+        output_price_m: 20
+        cache_price_m: 1.0
+"""
+
+_CONFIG_NO_PRICE_NO_LIMITS = """\
+host: "{host}"
+port: {port}
+debug: true
+usage-statistics-enabled: true
+usage-db: {usage_db}
+api-keys:
+  - "{api_key}"
+remote-management:
+  allow-remote: false
+  secret-key: "test-mgmt-key"
+openai-compatibility:
+  - name: "test-upstream"
+    base-url: "{upstream_url}"
+    api-key-entries:
+      - api-key: "{upstream_key}"
+    models:
+      - name: "{upstream_model}"
+        alias: "test-haiku"
+"""
+
+_CONFIG_PRICE_ADDED_NO_LIMITS = """\
+host: "{host}"
+port: {port}
+debug: true
+usage-statistics-enabled: true
+usage-db: {usage_db}
+api-keys:
+  - "{api_key}"
+remote-management:
+  allow-remote: false
+  secret-key: "test-mgmt-key"
+openai-compatibility:
+  - name: "test-upstream"
+    base-url: "{upstream_url}"
+    api-key-entries:
+      - api-key: "{upstream_key}"
+    models:
+      - name: "{upstream_model}"
+        alias: "test-haiku"
+        input_price_m: 5
+        output_price_m: 10
+        cache_price_m: 0.5
+"""
+
+
+def _latest_detail(usage):
+    """Return the last detail entry from usage data."""
+    for _ak, api_data in usage["apis"].items():
+        for _mk, model_data in api_data["models"].items():
+            if model_data["details"]:
+                return model_data["details"][-1]
+    return None
+
+
+def test_usage_api_price_modify_via_reload(make_server):
+    """Modified prices take effect after hot-reload without limits."""
+    srv = make_server(_CONFIG_PRICE_A_NO_LIMITS)
+    srv.start()
+
+    # Request with price A
+    status, _, _ = srv.chat_completions("test-haiku")
+    assert status == 200
+
+    body = _fetch_usage(srv)
+    detail = _latest_detail(body["usage"])
+    assert detail is not None and detail["cost"] > 0
+    tokens = detail["tokens"]
+    non_cached = tokens["input_tokens"] - tokens["cached_tokens"]
+    expected_a = (non_cached * 1.0 + tokens["cached_tokens"] * 0.1 +
+                  tokens["output_tokens"] * 2.0) / 1_000_000
+    assert abs(detail["cost"] - expected_a) < 0.000001, \
+        f"Cost with price A: {detail['cost']} != expected {expected_a}"
+
+    # Hot-reload to price B
+    srv.write_config(_CONFIG_PRICE_B_NO_LIMITS)
+    time.sleep(RELOAD_WAIT)
+
+    # Request with price B
+    status, _, _ = srv.chat_completions("test-haiku")
+    assert status == 200
+
+    body = _fetch_usage(srv)
+    detail = _latest_detail(body["usage"])
+    assert detail is not None and detail["cost"] > 0
+    tokens = detail["tokens"]
+    non_cached = tokens["input_tokens"] - tokens["cached_tokens"]
+    expected_b = (non_cached * 10.0 + tokens["cached_tokens"] * 1.0 +
+                  tokens["output_tokens"] * 20.0) / 1_000_000
+    assert abs(detail["cost"] - expected_b) < 0.000001, \
+        f"Cost with price B: {detail['cost']} != expected {expected_b}"
+
+    # Price B should produce higher cost than price A for similar tokens
+    assert expected_b > expected_a
+
+
+def test_usage_api_price_delete_via_reload(make_server):
+    """Removing price config results in zero cost for subsequent requests."""
+    srv = make_server(_CONFIG_PRICE_A_NO_LIMITS)
+    srv.start()
+
+    # Request with price configured — cost > 0
+    status, _, _ = srv.chat_completions("test-haiku")
+    assert status == 200
+
+    body = _fetch_usage(srv)
+    detail = _latest_detail(body["usage"])
+    assert detail["cost"] > 0, "Cost should be > 0 with prices configured"
+
+    # Hot-reload: remove all prices
+    srv.write_config(_CONFIG_NO_PRICE_NO_LIMITS)
+    time.sleep(RELOAD_WAIT)
+
+    # Request without prices — cost should be 0
+    status, _, _ = srv.chat_completions("test-haiku")
+    assert status == 200
+
+    body = _fetch_usage(srv)
+    detail = _latest_detail(body["usage"])
+    assert detail["cost"] == 0, \
+        f"Cost should be 0 after removing prices, got {detail['cost']}"
+
+
+def test_usage_api_price_add_via_reload(make_server):
+    """Adding price config to a model without prices enables cost tracking."""
+    srv = make_server(_CONFIG_NO_PRICE_NO_LIMITS)
+    srv.start()
+
+    # Request without prices — cost should be 0
+    status, _, _ = srv.chat_completions("test-haiku")
+    assert status == 200
+
+    body = _fetch_usage(srv)
+    detail = _latest_detail(body["usage"])
+    assert detail["cost"] == 0, \
+        f"Cost should be 0 without prices, got {detail['cost']}"
+
+    # Hot-reload: add prices
+    srv.write_config(_CONFIG_PRICE_ADDED_NO_LIMITS)
+    time.sleep(RELOAD_WAIT)
+
+    # Request with prices — cost should be > 0 and match formula
+    status, _, _ = srv.chat_completions("test-haiku")
+    assert status == 200
+
+    body = _fetch_usage(srv)
+    detail = _latest_detail(body["usage"])
+    assert detail["cost"] > 0, "Cost should be > 0 after adding prices"
+    tokens = detail["tokens"]
+    non_cached = tokens["input_tokens"] - tokens["cached_tokens"]
+    expected = (non_cached * 5.0 + tokens["cached_tokens"] * 0.5 +
+                tokens["output_tokens"] * 10.0) / 1_000_000
+    assert abs(detail["cost"] - expected) < 0.000001, \
+        f"Cost after adding prices: {detail['cost']} != expected {expected}"
+
+
 def test_usage_download_log_by_request_id(make_server):
     """The /v0/management/request-log-by-id/:id endpoint downloads log files by request ID."""
     srv = make_server(CONFIG_WITH_REQUEST_LOG)

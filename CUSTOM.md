@@ -47,7 +47,7 @@ openai-compatibility:
 ### Code Changes
 
 - `internal/runtime/limiter/` — `ModelLimiter` tracks limits per `authID` with `LimitConfig` entries (each containing `Models []string`); `models: [a,b]` means a+b share one window (combined tokens count toward one limit); `models: []` or omitted means wildcard (all models for that authID); `Check()` queries `usage.UsageStore.QueryUsageMulti` for aggregate usage; `UpdateLimits` replaces all configs for an authID atomically; `RemoveAllForAuth` cleans stale entries
-- `internal/watcher/synthesizer/helpers.go` — `wireLimitsToLimiter` builds flat `[]LimitConfig` preserving model groups from config; `claudeModelPrices` / `openAICompatModelPrices` key prices by upstream name
+- `internal/watcher/synthesizer/helpers.go` — `wireLimitsToLimiter` builds flat `[]LimitConfig` preserving model groups from config; `wireModelPrices` registers model prices independently of limits (so cost tracking works without limits configured); `claudeModelPrices` / `openAICompatModelPrices` key prices by upstream name
 - `internal/config/config.go` — Limit window and price parsing; `ParsedModelLimitWindow` struct
 - `internal/config/duration_parser.go` — Parses duration strings with unit suffixes (`h`, `m`, `s`, `d`)
 - `internal/runtime/executor/*.go` — All executors call `limiter.CheckRateLimit(authID, baseModel)` before forwarding
@@ -93,7 +93,7 @@ usage-db: ./data/usage.db
 
 ### Code Changes
 
-- `internal/usage/persist_plugin.go` — `PersistPlugin`: stores records with `auth_id`, `model`, `timestamp`, tokens, `cost`, `provider`, `source`, `request_id`; `QueryUsageMulti(authID, models, from, to)` for limit checks (aggregates across models; empty models = all); `QueryFullUsageReport(from, to)` for API; `SetModelPrices(authID, model, prices)` for cost computation
+- `internal/usage/persist_plugin.go` — `PersistPlugin`: stores records with `auth_id`, `model`, `timestamp`, tokens, `cost`, `provider`, `source`, `request_id`; `QueryUsageMulti(authID, models, from, to)` for limit checks (aggregates across models; empty models = all); `QueryFullUsageReport(from, to)` for API; `SetModelPrices(authID, model, prices)` for cost computation; `ClearStaleModelPrices(authID, currentModels)` removes prices for models no longer in config
 - `internal/api/handlers/management/usage.go` — `GetUsageStatistics` handler with `limits` field via `buildLimitsResponse`; `buildPersistResponse` for SQLite path
 - `internal/runtime/limiter/limiter.go` — `GetAllLimits()` exposes configured limits; `LimitEntry` includes `Models []string`; `LimitConfig` includes `Models []string` (empty = wildcard)
 

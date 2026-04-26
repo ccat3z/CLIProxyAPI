@@ -157,6 +157,25 @@ func (p *PersistPlugin) SetModelPrices(authID, model string, mp ModelPrices) {
 	p.mu.Unlock()
 }
 
+// ClearStaleModelPrices removes prices for models under authID that are not in currentModels.
+func (p *PersistPlugin) ClearStaleModelPrices(authID string, currentModels map[string]struct{}) {
+	if p == nil {
+		return
+	}
+	prefix := authID + "|"
+	p.mu.Lock()
+	for key := range p.prices {
+		if !strings.HasPrefix(key, prefix) {
+			continue
+		}
+		model := key[len(prefix):]
+		if _, ok := currentModels[model]; !ok {
+			delete(p.prices, key)
+		}
+	}
+	p.mu.Unlock()
+}
+
 // HandleUsage implements coreusage.Plugin.
 func (p *PersistPlugin) HandleUsage(_ context.Context, record coreusage.Record) {
 	if p == nil || p.db == nil {

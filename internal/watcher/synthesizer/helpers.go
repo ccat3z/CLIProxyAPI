@@ -121,32 +121,25 @@ func addConfigHeadersToAttrs(headers map[string]string, attrs map[string]string)
 	}
 }
 
+// wireModelPrices registers model prices with the global UsageStore and clears
+// stale prices for models no longer in the config.
+func wireModelPrices(authID string, modelPrices map[string]usage.ModelPrices) {
+	if usage.UsageStore == nil {
+		return
+	}
+	currentModels := make(map[string]struct{}, len(modelPrices))
+	for m, p := range modelPrices {
+		usage.UsageStore.SetModelPrices(authID, m, p)
+		currentModels[m] = struct{}{}
+	}
+	usage.UsageStore.ClearStaleModelPrices(authID, currentModels)
+}
+
 // wireLimitsToLimiter registers parsed limit windows with the global limiter.
 // Each ParsedModelLimitWindow becomes one LimitConfig (with its Models list preserved),
 // so models in the same window share usage.
-func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []config.ParsedModelLimitWindow, modelPrices map[string]usage.ModelPrices) {
+func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []config.ParsedModelLimitWindow) {
 	lim := limiter.DefaultLimiter()
-
-	// Collect all model names mentioned in limits for price registration.
-	modelSet := make(map[string]struct{})
-	for _, w := range parsed {
-		for _, m := range w.Models {
-			modelSet[m] = struct{}{}
-		}
-	}
-
-	// Register prices for every model. If a model has no prices in
-	// modelPrices, register zero prices so stale prices from a previous config
-	// are cleared (otherwise cost computation would use outdated prices).
-	if usage.UsageStore != nil {
-		for m := range modelSet {
-			p, ok := modelPrices[m]
-			if !ok {
-				p = usage.ModelPrices{}
-			}
-			usage.UsageStore.SetModelPrices(authID, m, p)
-		}
-	}
 
 	if len(parsed) == 0 {
 		lim.UpdateLimits(authID, nil)
