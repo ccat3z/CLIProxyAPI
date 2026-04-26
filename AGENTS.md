@@ -23,6 +23,9 @@ go build -o test-output ./cmd/server && rm test-output # Verify compile (REQUIRE
 - Auth material defaults under `auths/`
 - Storage backends: file-based default; optional Postgres/git/object store (`PGSTORE_*`, `GITSTORE_*`, `OBJECTSTORE_*`)
 
+## Custom Changes
+- See [CUSTOM.md](CUSTOM.md) for all local changes on the `custom` branch that diverge from upstream.
+
 ## Architecture
 - `cmd/server/` — Server entrypoint
 - `internal/api/` — Gin HTTP API (routes, middleware, modules)
