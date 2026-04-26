@@ -17,7 +17,7 @@ openai-compatibility:
         limits:
           - window: 1h
             price: 0.01
-            models: [test-haiku]
+            models: ["{upstream_model}"]
     models:
       - name: "{upstream_model}"
         alias: "test-haiku"

@@ -122,39 +122,28 @@ func addConfigHeadersToAttrs(headers map[string]string, attrs map[string]string)
 }
 
 // wireLimitsToLimiter registers parsed limit windows with the global limiter.
-// It resolves each model in the limits config to its upstream name using aliasMap,
-// so limits are always keyed by the upstream model name that executors and usage
-// records use. Stale limits (models that were previously limited but no longer in
-// config) are removed.
-func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []config.ParsedModelLimitWindow, modelPrices map[string]usage.ModelPrices, aliasMap map[string]string) {
+// Stale limits (models that were previously limited but no longer in config) are removed.
+func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []config.ParsedModelLimitWindow, modelPrices map[string]usage.ModelPrices) {
 	lim := limiter.DefaultLimiter()
 
-	// Resolve each model in the limits config to its upstream name only.
-	// aliasMap: alias -> upstream-name (both lowercased).
-	// Executors and usage records always use the upstream name, so the
-	// limiter must be keyed the same way.
-	upstreamModels := make(map[string]struct{})
+	modelSet := make(map[string]struct{})
 	for _, w := range parsed {
 		for _, m := range w.Models {
-			upstream := m
-			if u, ok := aliasMap[m]; ok {
-				upstream = u
-			}
-			upstreamModels[upstream] = struct{}{}
+			modelSet[m] = struct{}{}
 		}
 	}
 
-	modelList := make([]string, 0, len(upstreamModels))
-	for m := range upstreamModels {
+	modelList := make([]string, 0, len(modelSet))
+	for m := range modelSet {
 		modelList = append(modelList, m)
 	}
 	lim.SyncLimitsForAuth(authID, modelList)
 
-	// Register prices for every upstream model. If a model has no prices in
+	// Register prices for every model. If a model has no prices in
 	// modelPrices, register zero prices so stale prices from a previous config
 	// are cleared (otherwise cost computation would use outdated prices).
 	if usage.UsageStore != nil {
-		for m := range upstreamModels {
+		for m := range modelSet {
 			p, ok := modelPrices[m]
 			if !ok {
 				p = usage.ModelPrices{}
@@ -166,7 +155,6 @@ func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []
 	if len(parsed) == 0 {
 		return
 	}
-	// Expand windows: one LimitConfig per upstream model name in each window's Models list
 	windowsByModel := make(map[string][]limiter.LimitConfig)
 	for _, w := range parsed {
 		cfg := limiter.LimitConfig{
@@ -177,11 +165,7 @@ func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []
 			Price:        w.Price,
 		}
 		for _, m := range w.Models {
-			upstream := m
-			if u, ok := aliasMap[m]; ok {
-				upstream = u
-			}
-			windowsByModel[upstream] = append(windowsByModel[upstream], cfg)
+			windowsByModel[m] = append(windowsByModel[m], cfg)
 		}
 	}
 	for model, windows := range windowsByModel {
@@ -190,7 +174,6 @@ func wireLimitsToLimiter(authID string, raw []config.ModelLimitWindow, parsed []
 }
 
 // claudeModelPrices builds a model→prices map from ClaudeModel definitions.
-// Prices are keyed by upstream name only, matching how usage records are stored.
 func claudeModelPrices(models []config.ClaudeModel) map[string]usage.ModelPrices {
 	out := make(map[string]usage.ModelPrices, len(models))
 	for _, m := range models {
@@ -210,7 +193,6 @@ func claudeModelPrices(models []config.ClaudeModel) map[string]usage.ModelPrices
 }
 
 // openAICompatModelPrices builds a model→prices map from OpenAICompatibilityModel definitions.
-// Prices are keyed by upstream name only, matching how usage records are stored.
 func openAICompatModelPrices(models []config.OpenAICompatibilityModel) map[string]usage.ModelPrices {
 	out := make(map[string]usage.ModelPrices, len(models))
 	for _, m := range models {
@@ -229,28 +211,3 @@ func openAICompatModelPrices(models []config.OpenAICompatibilityModel) map[strin
 	return out
 }
 
-// claudeAliasMap builds an alias→name map from ClaudeModel definitions.
-func claudeAliasMap(models []config.ClaudeModel) map[string]string {
-	out := make(map[string]string, len(models))
-	for _, m := range models {
-		name := strings.ToLower(strings.TrimSpace(m.Name))
-		alias := strings.ToLower(strings.TrimSpace(m.Alias))
-		if alias != "" && name != "" {
-			out[alias] = name
-		}
-	}
-	return out
-}
-
-// openAICompatAliasMap builds an alias→name map from OpenAICompatibilityModel definitions.
-func openAICompatAliasMap(models []config.OpenAICompatibilityModel) map[string]string {
-	out := make(map[string]string, len(models))
-	for _, m := range models {
-		name := strings.ToLower(strings.TrimSpace(m.Name))
-		alias := strings.ToLower(strings.TrimSpace(m.Alias))
-		if alias != "" && name != "" {
-			out[alias] = name
-		}
-	}
-	return out
-}

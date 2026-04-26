@@ -133,7 +133,7 @@ func (s *ConfigSynthesizer) synthesizeClaudeKeys(ctx *SynthesisContext) []*corea
 			UpdatedAt:  now,
 		}
 		ApplyAuthExcludedModelsMeta(a, cfg, ck.ExcludedModels, "apikey")
-		wireLimitsToLimiter(a.ID, ck.Limits, ck.ParsedLimits(), claudeModelPrices(ck.Models), claudeAliasMap(ck.Models))
+		wireLimitsToLimiter(a.ID, ck.Limits, ck.ParsedLimits(), claudeModelPrices(ck.Models))
 		out = append(out, a)
 	}
 	return out
@@ -243,7 +243,7 @@ func (s *ConfigSynthesizer) synthesizeOpenAICompat(ctx *SynthesisContext) []*cor
 				CreatedAt:  now,
 				UpdatedAt:  now,
 			}
-			wireLimitsToLimiter(a.ID, entry.Limits, entry.ParsedLimits(), openAICompatModelPrices(compat.Models), openAICompatAliasMap(compat.Models))
+			wireLimitsToLimiter(a.ID, entry.Limits, entry.ParsedLimits(), openAICompatModelPrices(compat.Models))
 			out = append(out, a)
 			createdEntries++
 		}

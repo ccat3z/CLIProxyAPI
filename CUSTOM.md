@@ -18,7 +18,7 @@ openai-compatibility:
       - api-key: "sk-xxx"
         limits:
           - window: 1h          # duration: 1h, 30m, 1d, 3600s
-            models: [my-alias]   # model names or aliases; resolved to upstream names internally
+            models: [upstream-model]   # upstream model names only (no aliases)
             input_tokens: 20k    # optional, 0 = unlimited
             output_tokens: 5k    # optional, 0 = unlimited
             cache_tokens: 10k    # optional, 0 = unlimited
@@ -47,7 +47,7 @@ openai-compatibility:
 ### Code Changes
 
 - `internal/runtime/limiter/` — `ModelLimiter` tracks usage per `authID|model` key with configurable sliding windows; `Check()` queries `usage.UsageStore` for current usage; `SyncLimitsForAuth` / `RemoveAllForAuth` clean stale entries
-- `internal/watcher/synthesizer/helpers.go` — `wireLimitsToLimiter` resolves config model names to upstream names via `aliasMap` and registers limits only under upstream names; `claudeModelPrices` / `openAICompatModelPrices` key prices by upstream name only
+- `internal/watcher/synthesizer/helpers.go` — `wireLimitsToLimiter` registers limits directly under the model names specified in config (must be upstream names); `claudeModelPrices` / `openAICompatModelPrices` key prices by upstream name
 - `internal/config/config.go` — Limit window and price parsing; `ParsedModelLimitWindow` struct
 - `internal/config/duration_parser.go` — Parses duration strings with unit suffixes (`h`, `m`, `s`, `d`)
 - `internal/runtime/executor/*.go` — All executors call `limiter.CheckRateLimit(authID, baseModel)` before forwarding
@@ -89,7 +89,7 @@ usage-db: ./data/usage.db
 ```
 
 - `window=N` query param: time range in hours (default 24)
-- `limits` is keyed by upstream model name; `current` reflects actual usage from SQLite
+- `limits` is keyed by the model names specified in the limits config; `current` reflects actual usage from SQLite
 
 ### Code Changes
 

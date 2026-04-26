@@ -29,7 +29,7 @@ openai-compatibility:
         limits:
           - window: 1h
             input_tokens: 3k
-            models: [test-haiku]
+            models: ["{upstream_model}"]
     models:
       - name: "{upstream_model}"
         alias: "test-haiku"
