@@ -80,7 +80,7 @@ usage-db: ./data/usage.db
   },
   "failed_requests": 0,
   "limits": [{
-    "source": "auths/xxx.yaml",
+    "source": "sk-xxx",
     "auth_index": "0",
     "config": { "window": 3600, "models": ["upstream-model"], "input_tokens": 20000, ... },
     "current": { "input_tokens": 5000, "output_tokens": 1200, "cache_tokens": 0, "price": 0.03 }
@@ -94,7 +94,8 @@ usage-db: ./data/usage.db
 ### Code Changes
 
 - `internal/usage/persist_plugin.go` — `PersistPlugin`: stores records with `auth_id`, `model`, `timestamp`, tokens, `cost`, `provider`, `source`, `request_id`; `QueryUsageMulti(authID, models, from, to)` for limit checks (aggregates across models; empty models = all); `QueryFullUsageReport(from, to)` for API; `SetModelPrices(authID, model, prices)` for cost computation; `ClearStaleModelPrices(authID, currentModels)` removes prices for models no longer in config
-- `internal/api/handlers/management/usage.go` — `GetUsageStatistics` handler with `limits` field via `buildLimitsResponse`; `buildPersistResponse` for SQLite path
+- `internal/api/handlers/management/usage.go` — `GetUsageStatistics` handler with `limits` field via `buildLimitsResponse` (uses `helps.ResolveUsageSource` for source, consistent with apis details); `buildPersistResponse` for SQLite path
+- `internal/runtime/executor/helps/usage_helpers.go` — `ResolveUsageSource` (exported) resolves the source identifier for an auth record (api_key, email, project_id, etc.); used by both detail recording and limits response
 - `internal/runtime/limiter/limiter.go` — `GetAllLimits()` exposes configured limits; `LimitEntry` includes `Models []string`; `LimitConfig` includes `Models []string` (empty = wildcard)
 
 ## Disable Config API

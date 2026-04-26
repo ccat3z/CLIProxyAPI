@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/router-for-me/CLIProxyAPI/v6/internal/runtime/executor/helps"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/runtime/limiter"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/usage"
 	coreauth "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/auth"
@@ -237,7 +238,7 @@ func buildLimitsResponse(h *Handler) []limitEntryJSON {
 		auth := authByID[entry.AuthID]
 		var source, authIndex string
 		if auth != nil {
-			source = auth.FileName
+			source = helps.ResolveUsageSource(auth, "")
 			authIndex = auth.Index
 		}
 

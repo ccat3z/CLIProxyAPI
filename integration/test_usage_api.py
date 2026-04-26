@@ -531,6 +531,35 @@ def test_usage_api_limits_multiple_rounds(make_server):
         f"Current output_tokens {current['output_tokens']} should be >= total {total_output}"
 
 
+def test_usage_api_limits_source_matches_details_source(make_server):
+    """The 'source' field in limits entries matches the 'source' in apis details."""
+    srv = make_server(CONFIG_WITH_MGMT)
+    srv.start()
+
+    status, _, _ = srv.chat_completions("test-haiku")
+    assert status == 200
+
+    body = _fetch_usage(srv)
+
+    # Collect all sources from apis details
+    detail_sources = set()
+    for _ak, api_data in body["usage"]["apis"].items():
+        for _mk, model_data in api_data["models"].items():
+            for detail in model_data["details"]:
+                detail_sources.add(detail["source"])
+
+    # Collect all sources from limits
+    limits = body["limits"]
+    assert len(limits) > 0, "limits should have at least one entry"
+
+    for entry in limits:
+        limit_source = entry["source"]
+        assert limit_source != "", \
+            f"limits[].source should not be empty, expected one of {detail_sources}"
+        assert limit_source in detail_sources, \
+            f"limits[].source '{limit_source}' not found in apis details sources {detail_sources}"
+
+
 def test_usage_api_limits_empty_when_no_limits(make_server):
     """When no limits are configured, the limits field is an empty list."""
     config_no_limits = """\

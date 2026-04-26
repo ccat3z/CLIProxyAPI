@@ -34,7 +34,7 @@ func NewUsageReporter(ctx context.Context, provider, model string, auth *cliprox
 		model:       model,
 		requestedAt: time.Now(),
 		apiKey:      apiKey,
-		source:      resolveUsageSource(auth, apiKey),
+		source:      ResolveUsageSource(auth, apiKey),
 	}
 	if auth != nil {
 		reporter.authID = auth.ID
@@ -139,7 +139,7 @@ func APIKeyFromContext(ctx context.Context) string {
 	return ""
 }
 
-func resolveUsageSource(auth *cliproxyauth.Auth, ctxAPIKey string) string {
+func ResolveUsageSource(auth *cliproxyauth.Auth, ctxAPIKey string) string {
 	if auth != nil {
 		provider := strings.TrimSpace(auth.Provider)
 		if strings.EqualFold(provider, "gemini-cli") {
