@@ -131,3 +131,5 @@ disable-config-api: true
 ## Integration Tests
 
 Full pytest integration test suite in `integration/` covering rate limits, persistence, dynamic config, management API, usage API, cost calculations, and headers.
+
+Upstream server is hardcoded: `https://llm.ccat3z.xyz` with key `sk-no-key`, models `ut-1` and `ut-2`. A liveness chat completion is sent before each test session; if the upstream is unreachable, tests are skipped automatically.

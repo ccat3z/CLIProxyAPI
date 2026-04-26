@@ -84,7 +84,7 @@ def test_usage_matches_chat_completions_response(make_server):
     num_rounds = 3
     chat_usages = []
     for i in range(num_rounds):
-        status, chat_body = srv.chat_completions("test-haiku")
+        status, _, chat_body = srv.chat_completions("test-haiku")
         assert status == 200, f"Chat round {i+1} returned {status}"
         chat_usage = chat_body.get("usage", {})
         assert "prompt_tokens" in chat_usage, f"Round {i+1} response missing usage.prompt_tokens"
@@ -173,7 +173,7 @@ def test_usage_api_response_structure(make_server):
     srv = make_server(CONFIG_WITH_MGMT)
     srv.start()
 
-    status, _ = srv.chat_completions("test-haiku")
+    status, _, _ = srv.chat_completions("test-haiku")
     assert status == 200
 
     body = _fetch_usage(srv)
@@ -236,7 +236,7 @@ def test_usage_api_detail_entry_fields(make_server):
     srv = make_server(CONFIG_WITH_MGMT)
     srv.start()
 
-    status, _ = srv.chat_completions("test-haiku")
+    status, _, _ = srv.chat_completions("test-haiku")
     assert status == 200
 
     body = _fetch_usage(srv)
@@ -295,7 +295,7 @@ def test_usage_api_cost_values(make_server):
     srv = make_server(CONFIG_WITH_MGMT)
     srv.start()
 
-    status, _ = srv.chat_completions("test-haiku")
+    status, _, _ = srv.chat_completions("test-haiku")
     assert status == 200
 
     body = _fetch_usage(srv)
@@ -346,7 +346,7 @@ def test_usage_api_request_id_with_request_log(make_server):
     srv = make_server(CONFIG_WITH_REQUEST_LOG)
     srv.start()
 
-    status, _ = srv.chat_completions("test-haiku")
+    status, _, _ = srv.chat_completions("test-haiku")
     assert status == 200
 
     body = _fetch_usage(srv)
@@ -374,7 +374,7 @@ def test_usage_api_window_param(make_server):
     srv = make_server(CONFIG_WITH_MGMT)
     srv.start()
 
-    status, _ = srv.chat_completions("test-haiku")
+    status, _, _ = srv.chat_completions("test-haiku")
     assert status == 200
 
     time.sleep(1)
@@ -405,7 +405,7 @@ def test_usage_api_counters_consistent(make_server):
     srv = make_server(CONFIG_WITH_MGMT)
     srv.start()
 
-    status, _ = srv.chat_completions("test-haiku")
+    status, _, _ = srv.chat_completions("test-haiku")
     assert status == 200
 
     body = _fetch_usage(srv)
@@ -440,7 +440,7 @@ def test_usage_api_limits_field_structure(make_server):
     srv = make_server(CONFIG_WITH_MGMT)
     srv.start()
 
-    status, _ = srv.chat_completions("test-haiku")
+    status, _, _ = srv.chat_completions("test-haiku")
     assert status == 200
 
     body = _fetch_usage(srv)
@@ -482,7 +482,7 @@ def test_usage_api_limits_current_reflects_usage(make_server):
     srv.start()
 
     # Make a single request
-    status, chat_body = srv.chat_completions("test-haiku")
+    status, _, chat_body = srv.chat_completions("test-haiku")
     assert status == 200
 
     body = _fetch_usage(srv)
@@ -512,7 +512,7 @@ def test_usage_api_limits_multiple_rounds(make_server):
     total_input = 0
     total_output = 0
     for _ in range(num_rounds):
-        status, chat_body = srv.chat_completions("test-haiku")
+        status, _, chat_body = srv.chat_completions("test-haiku")
         assert status == 200
         chat_usage = chat_body.get("usage", {})
         total_input += chat_usage.get("prompt_tokens", 0)
@@ -559,7 +559,7 @@ openai-compatibility:
     srv = make_server(config_no_limits)
     srv.start()
 
-    status, _ = srv.chat_completions("test-haiku")
+    status, _, _ = srv.chat_completions("test-haiku")
     assert status == 200
 
     body = _fetch_usage(srv)
@@ -574,7 +574,7 @@ def test_usage_download_log_by_request_id(make_server):
     srv = make_server(CONFIG_WITH_REQUEST_LOG)
     srv.start()
 
-    status, _ = srv.chat_completions("test-haiku")
+    status, _, _ = srv.chat_completions("test-haiku")
     assert status == 200
 
     body = _fetch_usage(srv)

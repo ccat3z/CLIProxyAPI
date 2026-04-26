@@ -22,7 +22,7 @@ def test_chat_completions_success(make_server):
     """A chat completion request succeeds and returns a valid response."""
     srv = make_server(None)
     srv.start()
-    status, body = srv.chat_completions("test-haiku")
+    status, _, body = srv.chat_completions("test-haiku")
     assert status == 200
     assert "choices" in body
     assert len(body["choices"]) > 0
@@ -32,7 +32,7 @@ def test_usage_recorded_to_sqlite(make_server):
     """After a successful request, usage data is written to the SQLite DB."""
     srv = make_server(None)
     srv.start()
-    status, _ = srv.chat_completions("test-haiku")
+    status, _, _ = srv.chat_completions("test-haiku")
     assert status == 200
 
     db_path = os.path.join(srv.usage_db_dir, "usage.db")
@@ -65,5 +65,5 @@ def test_chat_completions_invalid_api_key(make_server):
     """Request with wrong API key returns 401."""
     srv = make_server(None)
     srv.start()
-    status, _ = srv.chat_completions("test-haiku", api_key="wrong-key")
+    status, _, _ = srv.chat_completions("test-haiku", api_key="wrong-key")
     assert status == 401

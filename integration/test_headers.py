@@ -25,34 +25,24 @@ openai-compatibility:
         cache_price_m: 0.3
 """
 
-import json
-
-
-def _send_chat(srv, model="test-haiku"):
-    """Send a chat request via request() to get full headers."""
-    body = json.dumps({
-        "model": model,
-        "messages": [{"role": "user", "content": "Hi"}],
-        "max_tokens": 10,
-    }).encode()
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {srv.API_KEY}",
-    }
-    return srv.request("/v1/chat/completions", method="POST", body=body, headers=headers)
-
 
 def test_429_has_no_retry_after_header(make_server):
     """429 responses must not include a Retry-After header."""
     srv = make_server(LIMITED_CONFIG)
     srv.start()
 
-    for _ in range(20):
-        status, headers, _ = _send_chat(srv)
+    total_input = 0
+    for _ in range(10):
+        status, headers, body = srv.chat_completions("test-haiku")
         if status == 429:
             break
+        if status != 200:
+            break
+        total_input += body.get("usage", {}).get("prompt_tokens", 0)
     else:
-        raise AssertionError("Expected 429 but never got one")
+        raise AssertionError(
+            f"Expected 429 but never got one (accumulated {total_input} input tokens)"
+        )
 
     assert status == 429
     assert headers.get("Retry-After") is None, "429 must not include Retry-After header"

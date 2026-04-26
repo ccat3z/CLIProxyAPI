@@ -104,19 +104,23 @@ def test_removing_limits_clears_rate_limit(make_server):
 
     # Hit rate limit
     got_429 = False
-    for _ in range(20):
-        status, _ = srv.chat_completions("test-haiku")
+    total_input = 0
+    for _ in range(10):
+        status, _, body = srv.chat_completions("test-haiku")
         if status == 429:
             got_429 = True
             break
-    assert got_429, "Should hit rate limit with limits configured"
+        if status != 200:
+            break
+        total_input += body.get("usage", {}).get("prompt_tokens", 0)
+    assert got_429, f"Should hit rate limit with limits configured (accumulated {total_input})"
 
     # Remove limits via hot-reload
     srv.write_config(CONFIG_WITHOUT_LIMITS)
     time.sleep(RELOAD_WAIT)
 
     # Request should now succeed
-    status, _ = srv.chat_completions("test-haiku")
+    status, _, _ = srv.chat_completions("test-haiku")
     assert status == 200, f"Expected 200 after removing limits, got {status}"
 
 

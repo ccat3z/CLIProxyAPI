@@ -32,13 +32,16 @@ def test_price_limit_returns_429(make_server):
     srv = make_server(PRICE_LIMIT_CONFIG)
     srv.start()
 
-    got_429 = False
+    total_input = 0
     for _ in range(10):
-        status, body = srv.chat_completions("test-haiku")
+        status, _, body = srv.chat_completions("test-haiku")
         if status == 429:
-            got_429 = True
-            error = body.get("error", {})
-            msg = error.get("message", "")
+            msg = body.get("error", {}).get("message", "")
             assert "price" in msg, f"Expected price in error, got: {msg}"
+            return
+        if status != 200:
             break
-    assert got_429, "Should hit price limit with $0.01 cap"
+        total_input += body.get("usage", {}).get("prompt_tokens", 0)
+    raise AssertionError(
+        f"Should hit price limit with $0.01 cap (accumulated {total_input} input tokens)"
+    )

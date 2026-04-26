@@ -40,13 +40,17 @@ def test_different_keys_share_same_limit_pool(make_server):
 
     # Exhaust limit with key-low
     got_429 = False
-    for _ in range(20):
-        status, _ = srv.chat_completions("test-haiku", api_key="key-low")
+    total_input = 0
+    for _ in range(10):
+        status, _, body = srv.chat_completions("test-haiku", api_key="key-low")
         if status == 429:
             got_429 = True
             break
-    assert got_429, "key-low should hit rate limit"
+        if status != 200:
+            break
+        total_input += body.get("usage", {}).get("prompt_tokens", 0)
+    assert got_429, f"key-low should hit rate limit (accumulated {total_input})"
 
     # key-high should also be limited (same upstream pool)
-    status, _ = srv.chat_completions("test-haiku", api_key="key-high")
+    status, _, _ = srv.chat_completions("test-haiku", api_key="key-high")
     assert status == 429, "key-high should also be limited (shared upstream pool)"
