@@ -2,6 +2,9 @@
 
 This directory documents all local changes on the `custom` branch that diverge from upstream.
 
+- **Upstream**: https://github.com/router-for-me/CLIProxyAPI.git
+- **Based on upstream commit**: `2884a67e` (feat(videos): add support for video_url extraction and validation in handlers)
+
 ## Features
 
 - [Per-API-Key Model Usage Limits](./usage-limits.md)
