@@ -19,6 +19,7 @@ import (
 type UsageReporter struct {
 	provider    string
 	model       string
+	alias       string
 	authID      string
 	authIndex   string
 	authType    string
@@ -30,9 +31,14 @@ type UsageReporter struct {
 
 func NewUsageReporter(ctx context.Context, provider, model string, auth *cliproxyauth.Auth) *UsageReporter {
 	apiKey := APIKeyFromContext(ctx)
+	alias := usage.RequestedModelAliasFromContext(ctx)
+	if alias == "" {
+		alias = model
+	}
 	reporter := &UsageReporter{
 		provider:    provider,
 		model:       model,
+		alias:       strings.TrimSpace(alias),
 		requestedAt: time.Now(),
 		apiKey:      apiKey,
 		source:      ResolveUsageSource(auth, apiKey),
@@ -140,6 +146,7 @@ func (r *UsageReporter) buildRecordForModel(ctx context.Context, model string, d
 	return usage.Record{
 		Provider:    r.provider,
 		Model:       model,
+		Alias:       r.alias,
 		Source:      r.source,
 		APIKey:      r.apiKey,
 		AuthID:      r.authID,
