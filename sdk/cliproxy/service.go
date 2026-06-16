@@ -1001,6 +1001,7 @@ func (s *Service) registerModelsForAuth(a *coreauth.Auth) {
 							DisplayName: modelID,
 							UserDefined: false,
 							Thinking:    thinking,
+							Extra:       m.Extra,
 						})
 					}
 					// Register and return
@@ -1347,6 +1348,7 @@ func matchWildcard(pattern, value string) bool {
 type modelEntry interface {
 	GetName() string
 	GetAlias() string
+	GetExtra() map[string]any
 }
 
 func buildConfigModels[T modelEntry](models []T, ownedBy, modelType string) []*ModelInfo {
@@ -1383,6 +1385,9 @@ func buildConfigModels[T modelEntry](models []T, ownedBy, modelType string) []*M
 			Type:        modelType,
 			DisplayName: display,
 			UserDefined: true,
+		}
+		if extra := model.GetExtra(); len(extra) > 0 {
+			info.Extra = extra
 		}
 		if name != "" {
 			if upstream := registry.LookupStaticModelInfo(name); upstream != nil && upstream.Thinking != nil {

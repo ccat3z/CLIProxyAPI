@@ -442,10 +442,14 @@ type ClaudeModel struct {
 	// Compat lists compatibility transforms to apply for models with non-standard API behavior.
 	// Supported values: "extract-tool-result-images" (extract images from tool_result into separate user messages).
 	Compat []string `yaml:"compat,omitempty" json:"compat,omitempty"`
+
+	// Extra holds custom key-value pairs included in the /v1/models response for this model.
+	Extra map[string]any `yaml:"extra,omitempty" json:"extra,omitempty"`
 }
 
 func (m ClaudeModel) GetName() string  { return m.Name }
 func (m ClaudeModel) GetAlias() string { return m.Alias }
+func (m ClaudeModel) GetExtra() map[string]any { return m.Extra }
 
 // FindClaudeModelCompat resolves the ClaudeKey entry matching apiKey+baseURL,
 // then returns the Compat list for the model with the given name.
@@ -519,10 +523,14 @@ type CodexModel struct {
 
 	// Alias is the client-facing model name that maps to Name.
 	Alias string `yaml:"alias" json:"alias"`
+
+	// Extra holds custom key-value pairs included in the /v1/models response for this model.
+	Extra map[string]any `yaml:"extra,omitempty" json:"extra,omitempty"`
 }
 
 func (m CodexModel) GetName() string  { return m.Name }
 func (m CodexModel) GetAlias() string { return m.Alias }
+func (m CodexModel) GetExtra() map[string]any { return m.Extra }
 
 // GeminiKey represents the configuration for a Gemini API key,
 // including optional overrides for upstream base URL, proxy routing, and headers.
@@ -563,10 +571,14 @@ type GeminiModel struct {
 
 	// Alias is the client-facing model name that maps to Name.
 	Alias string `yaml:"alias" json:"alias"`
+
+	// Extra holds custom key-value pairs included in the /v1/models response for this model.
+	Extra map[string]any `yaml:"extra,omitempty" json:"extra,omitempty"`
 }
 
 func (m GeminiModel) GetName() string  { return m.Name }
 func (m GeminiModel) GetAlias() string { return m.Alias }
+func (m GeminiModel) GetExtra() map[string]any { return m.Extra }
 
 // OpenAICompatibility represents the configuration for OpenAI API compatibility
 // with external providers, allowing model aliases to be routed through OpenAI API format.
@@ -662,10 +674,14 @@ type OpenAICompatibilityModel struct {
 
 	// CachePriceM is the price per 1M cached input tokens.
 	CachePriceM float64 `yaml:"cache_price_m,omitempty" json:"cache_price_m,omitempty"`
+
+	// Extra holds custom key-value pairs included in the /v1/models response for this model.
+	Extra map[string]any `yaml:"extra,omitempty" json:"extra,omitempty"`
 }
 
 func (m OpenAICompatibilityModel) GetName() string  { return m.Name }
 func (m OpenAICompatibilityModel) GetAlias() string { return m.Alias }
+func (m OpenAICompatibilityModel) GetExtra() map[string]any { return m.Extra }
 
 // parsedLimitsCache caches the result of ParsedLimits for OpenAICompatibilityAPIKey.
 type parsedLimitsCache struct {

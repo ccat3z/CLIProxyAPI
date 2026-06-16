@@ -60,6 +60,9 @@ type ModelInfo struct {
 	// array (e.g., openai-compatibility.*.models[], *-api-key.models[]).
 	// UserDefined models have thinking configuration passed through without validation.
 	UserDefined bool `json:"-"`
+
+	// Extra holds custom key-value pairs from config, included in the /v1/models response.
+	Extra map[string]any `json:"extra,omitempty"`
 }
 
 type availableModelsCacheEntry struct {
@@ -1141,6 +1144,9 @@ func (r *ModelRegistry) convertModelToMap(model *ModelInfo, handlerType string) 
 		if len(model.SupportedParameters) > 0 {
 			result["supported_parameters"] = append([]string(nil), model.SupportedParameters...)
 		}
+		if len(model.Extra) > 0 {
+			result["extra"] = model.Extra
+		}
 		return result
 
 	case "claude":
@@ -1157,6 +1163,9 @@ func (r *ModelRegistry) convertModelToMap(model *ModelInfo, handlerType string) 
 		}
 		if model.DisplayName != "" {
 			result["display_name"] = model.DisplayName
+		}
+		if len(model.Extra) > 0 {
+			result["extra"] = model.Extra
 		}
 		return result
 
@@ -1207,6 +1216,9 @@ func (r *ModelRegistry) convertModelToMap(model *ModelInfo, handlerType string) 
 		}
 		if model.Created != 0 {
 			result["created"] = model.Created
+		}
+		if len(model.Extra) > 0 {
+			result["extra"] = model.Extra
 		}
 		return result
 	}

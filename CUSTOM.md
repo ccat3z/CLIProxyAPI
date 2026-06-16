@@ -140,3 +140,73 @@ Upstream server is configured via environment variables:
 - `CLI_PROXY_TEST_UPSTREAM_MODEL_2` — secondary upstream model name (for multi-model tests)
 
 If not set, `get_upstream_api()` raises a `RuntimeError` with a clear message and example export commands. A liveness chat completion is sent before each test session; if the upstream is unreachable, tests are skipped automatically.
+
+## Model `extra` Field
+
+Per-model custom metadata included in the `/v1/models` response. Any `map[string]any` key-value pairs defined in config are passed through verbatim.
+
+### Config
+
+```yaml
+openai-compatibility:
+  - name: "my-provider"
+    base-url: "..."
+    models:
+      - name: "upstream-model"
+        alias: "my-alias"
+        extra:
+          contextWindow: 1000000
+          maxTokens: 384000
+          reasoning: true
+          cost:
+            input: 3
+            output: 15
+            cacheRead: 0.3
+            cacheWrite: 0.3
+          compat:
+            supportsReasoningEffort: true
+            maxTokensField: "max_tokens"
+```
+
+Also supported on `claude-api-key.*.models[]`, `codex-api-key.*.models[]`, `gemini-api-key.*.models[]`, and `vertex-api-key.*.models[]`.
+
+### API Response
+
+```json
+{
+  "data": [
+    {
+      "id": "my-alias",
+      "object": "model",
+      "owned_by": "my-provider",
+      "extra": {
+        "contextWindow": 1000000,
+        "maxTokens": 384000,
+        "reasoning": true,
+        "cost": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheWrite": 0.3 },
+        "compat": { "supportsReasoningEffort": true, "maxTokensField": "max_tokens" }
+      }
+    }
+  ]
+}
+```
+
+### Code Changes
+
+- `internal/config/config.go` — `Extra map[string]any` field on all model config structs + `GetExtra()` method
+- `internal/config/vertex_compat.go` — `Extra` field on `VertexCompatModel` + `GetExtra()` method
+- `internal/registry/model_registry.go` — `Extra` field on `ModelInfo`; `convertModelToMap` includes `extra` in openai/claude/default handler output
+- `sdk/cliproxy/service.go` — `buildConfigModels` copies `Extra`; inline OpenAI-compat construction copies `m.Extra`; `modelEntry` interface adds `GetExtra()`
+- `sdk/api/handlers/openai/openai_handlers.go` — `OpenAIModels` includes `extra` in filtered output
+
+## Pi Agent Auto-Models Extension
+
+Extension at `~/.pi/agent/extensions/auto-models.ts` that fetches `/v1/models` from a CLIProxyAPI and auto-registers providers/models with the pi agent.
+
+### Configuration
+
+Environment variables:
+- `PI_PROXY_URL` — Base URL of the CLIProxyAPI (e.g. `http://127.0.0.1:8098/v1`)
+- `PI_PROXY_KEY` — API key for the proxy
+
+If `PI_PROXY_URL` is not set, the extension does nothing.

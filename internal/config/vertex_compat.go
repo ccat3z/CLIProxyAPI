@@ -50,10 +50,14 @@ type VertexCompatModel struct {
 
 	// Alias is the model name alias that clients will use to reference this model.
 	Alias string `yaml:"alias" json:"alias"`
+
+	// Extra holds custom key-value pairs included in the /v1/models response for this model.
+	Extra map[string]any `yaml:"extra,omitempty" json:"extra,omitempty"`
 }
 
 func (m VertexCompatModel) GetName() string  { return m.Name }
 func (m VertexCompatModel) GetAlias() string { return m.Alias }
+func (m VertexCompatModel) GetExtra() map[string]any { return m.Extra }
 
 // SanitizeVertexCompatKeys deduplicates and normalizes Vertex-compatible API key credentials.
 func (cfg *Config) SanitizeVertexCompatKeys() {
