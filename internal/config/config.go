@@ -438,10 +438,43 @@ type ClaudeModel struct {
 
 	// CachePriceM is the price per 1M cached input tokens.
 	CachePriceM float64 `yaml:"cache_price_m,omitempty" json:"cache_price_m,omitempty"`
+
+	// Compat lists compatibility transforms to apply for models with non-standard API behavior.
+	// Supported values: "extract-tool-result-images" (extract images from tool_result into separate user messages).
+	Compat []string `yaml:"compat,omitempty" json:"compat,omitempty"`
 }
 
 func (m ClaudeModel) GetName() string  { return m.Name }
 func (m ClaudeModel) GetAlias() string { return m.Alias }
+
+// FindClaudeModelCompat resolves the ClaudeKey entry matching apiKey+baseURL,
+// then returns the Compat list for the model with the given name.
+// Returns nil if no match is found. This avoids cross-key pollution when
+// multiple ClaudeKey entries define models with the same name but different compat settings.
+func FindClaudeModelCompat(cfg *Config, apiKey, baseURL, modelName string) []string {
+	if cfg == nil || len(cfg.ClaudeKey) == 0 {
+		return nil
+	}
+	ak := strings.TrimSpace(apiKey)
+	ab := strings.TrimSpace(baseURL)
+	for i := range cfg.ClaudeKey {
+		entry := &cfg.ClaudeKey[i]
+		cfgKey := strings.TrimSpace(entry.APIKey)
+		cfgBase := strings.TrimSpace(entry.BaseURL)
+		if ak != "" && cfgKey != "" && !strings.EqualFold(cfgKey, ak) {
+			continue
+		}
+		if ab != "" && cfgBase != "" && !strings.EqualFold(cfgBase, ab) {
+			continue
+		}
+		for _, m := range entry.Models {
+			if m.Name == modelName {
+				return m.Compat
+			}
+		}
+	}
+	return nil
+}
 
 // CodexKey represents the configuration for a Codex API key,
 // including the API key itself and an optional base URL for the API endpoint.

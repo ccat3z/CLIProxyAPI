@@ -174,6 +174,16 @@ func (e *ClaudeExecutor) Execute(ctx context.Context, auth *cliproxyauth.Auth, r
 	body = helps.ApplyPayloadConfigWithRoot(e.cfg, baseModel, to.String(), "", body, originalTranslated, requestedModel)
 	body = ensureModelMaxTokens(body, baseModel)
 
+	// Apply model-level compat transforms (e.g., extract images from tool_result for non-Anthropic APIs)
+	if comps := config.FindClaudeModelCompat(e.cfg, apiKey, baseURL, baseModel); len(comps) > 0 {
+		for _, c := range comps {
+			if c == "extract-tool-result-images" {
+				body = extractToolResultImages(body)
+				break
+			}
+		}
+	}
+
 	// Disable thinking if tool_choice forces tool use (Anthropic API constraint)
 	body = disableThinkingIfToolChoiceForced(body)
 	body = normalizeClaudeTemperatureForThinking(body)
@@ -364,6 +374,16 @@ func (e *ClaudeExecutor) ExecuteStream(ctx context.Context, auth *cliproxyauth.A
 	requestedModel := helps.PayloadRequestedModel(opts, req.Model)
 	body = helps.ApplyPayloadConfigWithRoot(e.cfg, baseModel, to.String(), "", body, originalTranslated, requestedModel)
 	body = ensureModelMaxTokens(body, baseModel)
+
+	// Apply model-level compat transforms (e.g., extract images from tool_result for non-Anthropic APIs)
+	if comps := config.FindClaudeModelCompat(e.cfg, apiKey, baseURL, baseModel); len(comps) > 0 {
+		for _, c := range comps {
+			if c == "extract-tool-result-images" {
+				body = extractToolResultImages(body)
+				break
+			}
+		}
+	}
 
 	// Disable thinking if tool_choice forces tool use (Anthropic API constraint)
 	body = disableThinkingIfToolChoiceForced(body)
@@ -2316,4 +2336,134 @@ func ensureModelMaxTokens(body []byte, modelID string) []byte {
 	}
 
 	return body
+}
+
+// extractToolResultImages extracts image content blocks from tool_result messages
+// and emits them as separate user messages. Some Claude-compatible APIs (e.g., kimi-k2.6)
+// do not support image blocks inside tool_result but do support them in user messages.
+func extractToolResultImages(body []byte) []byte {
+	if len(body) == 0 || !gjson.ValidBytes(body) {
+		return body
+	}
+
+	messages := gjson.GetBytes(body, "messages")
+	if !messages.Exists() || !messages.IsArray() {
+		return body
+	}
+
+	// Rebuild the messages array, injecting user messages after tool_results that contain images.
+	var newMsgs []string
+	changed := false
+
+	msgs := messages.Array()
+	for msgIdx := 0; msgIdx < len(msgs); msgIdx++ {
+		msg := msgs[msgIdx]
+		content := msg.Get("content")
+		if !content.Exists() || !content.IsArray() {
+			newMsgs = append(newMsgs, msg.Raw)
+			continue
+		}
+
+		// Check if any tool_result in this message contains images
+		contentArr := content.Array()
+		needsPatch := false
+		for _, part := range contentArr {
+			if part.Get("type").String() == "tool_result" {
+				inner := part.Get("content")
+				if inner.Exists() && inner.IsArray() {
+					inner.ForEach(func(_, item gjson.Result) bool {
+						if item.IsObject() && item.Get("type").String() == "image" {
+							needsPatch = true
+							return false
+						}
+						return true
+					})
+				}
+			}
+		}
+
+		if !needsPatch {
+			newMsgs = append(newMsgs, msg.Raw)
+			continue
+		}
+
+		changed = true
+
+		// Rebuild this message's content array, extracting images from tool_results
+		var newContentItems []string
+		var allExtractedImages []string
+
+		for contentIdx := range contentArr {
+			part := contentArr[contentIdx]
+			if part.Get("type").String() != "tool_result" {
+				newContentItems = append(newContentItems, part.Raw)
+				continue
+			}
+
+			inner := part.Get("content")
+			if !inner.Exists() || !inner.IsArray() {
+				newContentItems = append(newContentItems, part.Raw)
+				continue
+			}
+
+			var images []string
+			var nonImages []string
+			inner.ForEach(func(_, item gjson.Result) bool {
+				if item.IsObject() && item.Get("type").String() == "image" {
+					images = append(images, item.Raw)
+				} else {
+					nonImages = append(nonImages, item.Raw)
+				}
+				return true
+			})
+
+			if len(images) == 0 {
+				newContentItems = append(newContentItems, part.Raw)
+				continue
+			}
+
+			// Rebuild tool_result with non-image content only
+			var newInner string
+			if len(nonImages) == 0 {
+				newInner = `[{"type":"text","text":"(image result attached below)"}]`
+			} else {
+				newInner = "[" + strings.Join(nonImages, ",") + "]"
+			}
+
+			// Build patched tool_result: preserve tool_use_id and other fields
+			patchedToolResult := []byte(`{"type":"tool_result","tool_use_id":"","content":[]}`)
+			patchedToolResult, _ = sjson.SetBytes(patchedToolResult, "tool_use_id", part.Get("tool_use_id").String())
+			patchedToolResult, _ = sjson.SetRawBytes(patchedToolResult, "content", []byte(newInner))
+			// Preserve is_error if present
+			if isErr := part.Get("is_error"); isErr.Exists() {
+				patchedToolResult, _ = sjson.SetBytes(patchedToolResult, "is_error", isErr.Value())
+			}
+
+			newContentItems = append(newContentItems, string(patchedToolResult))
+			allExtractedImages = append(allExtractedImages, images...)
+		}
+
+		// Rebuild the message with patched content
+		patchedMsg := []byte(`{"role":"","content":[]}`)
+		patchedMsg, _ = sjson.SetBytes(patchedMsg, "role", msg.Get("role").String())
+		contentJSON := []byte("[" + strings.Join(newContentItems, ",") + "]")
+		patchedMsg, _ = sjson.SetRawBytes(patchedMsg, "content", contentJSON)
+		newMsgs = append(newMsgs, string(patchedMsg))
+
+		// Insert a new user message with all extracted images after this message
+		if len(allExtractedImages) > 0 {
+			imgContent := "[" + strings.Join(allExtractedImages, ",") + "]"
+			userMsg := `{"role":"user","content":` + imgContent + `}`
+			newMsgs = append(newMsgs, userMsg)
+		}
+	}
+
+	if !changed {
+		return body
+	}
+
+	// Replace messages in the body
+	newMessagesJSON := []byte("[" + strings.Join(newMsgs, ",") + "]")
+	out, _ := sjson.SetRawBytes(body, "messages", newMessagesJSON)
+	return out
 }

@@ -197,6 +197,8 @@ nonstream-keepalive-interval: 0
 #         input_price_m: 3    # Price per 1M non-cached input tokens (optional)
 #         output_price_m: 15  # Price per 1M output tokens (optional)
 #         cache_price_m: 0.3  # Price per 1M cached input tokens (optional)
+#         compat:                # optional: compatibility transforms for non-standard APIs
+#           - extract-tool-result-images  # extract images from tool_result into separate user messages
 #     excluded-models:
 #       - "claude-opus-4-5-20251101" # exclude specific models (exact match)
 #       - "claude-3-*"               # wildcard matching prefix (e.g. claude-3-7-sonnet-20250219)
