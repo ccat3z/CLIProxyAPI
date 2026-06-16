@@ -355,6 +355,7 @@ func (e *GeminiVertexExecutor) executeWithServiceAccount(ctx context.Context, au
 		requestPath := helps.PayloadRequestPath(opts)
 		body = helps.ApplyPayloadConfigWithRoot(e.cfg, baseModel, to.String(), "", body, originalTranslated, requestedModel, requestPath)
 		body, _ = sjson.SetBytes(body, "model", baseModel)
+		body = helps.StripVertexOpenAIResponsesToolCallIDs(body, from.String())
 	}
 
 	action := getVertexAction(baseModel, false)
@@ -476,6 +477,7 @@ func (e *GeminiVertexExecutor) executeWithAPIKey(ctx context.Context, auth *clip
 	requestPath := helps.PayloadRequestPath(opts)
 	body = helps.ApplyPayloadConfigWithRoot(e.cfg, baseModel, to.String(), "", body, originalTranslated, requestedModel, requestPath)
 	body, _ = sjson.SetBytes(body, "model", baseModel)
+	body = helps.StripVertexOpenAIResponsesToolCallIDs(body, from.String())
 
 	action := getVertexAction(baseModel, false)
 	if req.Metadata != nil {
@@ -587,6 +589,7 @@ func (e *GeminiVertexExecutor) executeStreamWithServiceAccount(ctx context.Conte
 	requestPath := helps.PayloadRequestPath(opts)
 	body = helps.ApplyPayloadConfigWithRoot(e.cfg, baseModel, to.String(), "", body, originalTranslated, requestedModel, requestPath)
 	body, _ = sjson.SetBytes(body, "model", baseModel)
+	body = helps.StripVertexOpenAIResponsesToolCallIDs(body, from.String())
 
 	action := getVertexAction(baseModel, true)
 	baseURL := vertexBaseURL(location)
@@ -728,6 +731,7 @@ func (e *GeminiVertexExecutor) executeStreamWithAPIKey(ctx context.Context, auth
 	requestPath := helps.PayloadRequestPath(opts)
 	body = helps.ApplyPayloadConfigWithRoot(e.cfg, baseModel, to.String(), "", body, originalTranslated, requestedModel, requestPath)
 	body, _ = sjson.SetBytes(body, "model", baseModel)
+	body = helps.StripVertexOpenAIResponsesToolCallIDs(body, from.String())
 
 	action := getVertexAction(baseModel, true)
 	// For API key auth, use simpler URL format without project/location
@@ -857,6 +861,7 @@ func (e *GeminiVertexExecutor) countTokensWithServiceAccount(ctx context.Context
 
 	translatedReq = fixGeminiImageAspectRatio(baseModel, translatedReq)
 	translatedReq, _ = sjson.SetBytes(translatedReq, "model", baseModel)
+	translatedReq = helps.StripVertexOpenAIResponsesToolCallIDs(translatedReq, from.String())
 	respCtx := context.WithValue(ctx, "alt", opts.Alt)
 	translatedReq, _ = sjson.DeleteBytes(translatedReq, "tools")
 	translatedReq, _ = sjson.DeleteBytes(translatedReq, "generationConfig")
@@ -946,6 +951,7 @@ func (e *GeminiVertexExecutor) countTokensWithAPIKey(ctx context.Context, auth *
 
 	translatedReq = fixGeminiImageAspectRatio(baseModel, translatedReq)
 	translatedReq, _ = sjson.SetBytes(translatedReq, "model", baseModel)
+	translatedReq = helps.StripVertexOpenAIResponsesToolCallIDs(translatedReq, from.String())
 	respCtx := context.WithValue(ctx, "alt", opts.Alt)
 	translatedReq, _ = sjson.DeleteBytes(translatedReq, "tools")
 	translatedReq, _ = sjson.DeleteBytes(translatedReq, "generationConfig")
