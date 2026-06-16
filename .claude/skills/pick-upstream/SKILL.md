@@ -49,71 +49,12 @@ For each commit in the pick list, spawn a subagent (Agent tool) to handle it. Th
 
 ### Subagent prompt template
 
-Provide the subagent with this context:
+Read the full subagent prompt from `references/subagent-prompt.md` (relative to this skill directory). Before spawning each subagent, replace the two placeholders in that template:
 
-```
-You are cherry-picking one upstream commit into the custom branch.
+- `<sha>` — the commit SHA being picked
+- `<message>` — the commit message (one-line summary)
 
-Commit: <sha> — <message>
-
-## Context
-- Read `docs/custom/index.md` to understand all custom features and their affected files.
-- Read `AGENTS.md` for code conventions and build/test commands.
-- The base commit in docs/custom/index.md must be updated to <sha> after a successful pick.
-
-## Instructions
-
-1. Cherry-pick the commit:
-   git cherry-pick --no-commit <sha>
-
-2. If conflicts occur:
-   - Read the conflicting files.
-   - Re-read the relevant docs/custom/ feature docs to understand what must be preserved.
-   - Resolve conflicts: preserve custom-branch logic, integrate upstream changes around it.
-   - Review with `git diff --cached`.
-
-3. Commit:
-   git commit -m "<original-commit-message>"
-
-4. Verify build:
-   go build -o test-output ./cmd/server && rm test-output
-
-5. Run unit tests:
-   go test ./...
-
-6. Run integration tests:
-   CLI_PROXY_TEST_UPSTREAM_URL=http://127.0.0.1:8098/v1 \
-   CLI_PROXY_TEST_UPSTREAM_KEY=sk-123 \
-   pytest integration/ -v
-
-   If the upstream API (http://127.0.0.1:8098/v1) is unavailable, STOP and ask the user for guidance. Do not skip or continue past a failed integration test without confirmation.
-
-7. Verify config works:
-   go run ./cmd/server --config data/config.yaml &
-   SERVER_PID=$!
-   sleep 3
-   curl -s http://localhost:3456/v1/models | head -c 200
-   kill $SERVER_PID 2>/dev/null
-
-8. Update docs:
-   - If the picked commit modifies code overlapping with a custom feature, update the relevant doc under docs/custom/.
-   - Always update the base commit in docs/custom/index.md:
-     sed -i 's/Based on upstream commit: `.*`/Based on upstream commit: `<sha>`/' docs/custom/index.md
-   - git add docs/custom/index.md (and any other doc changes)
-   - git commit --amend --no-edit
-
-9. Update the todo file:
-   Change the status for this commit in pick-upstream-todo.md from ⬜ to ✅ (or ⚠️ if conflicts were resolved, or ❌ if skipped).
-   git add pick-upstream-todo.md
-   git commit --amend --no-edit
-
-## Report
-When done, report:
-- Whether the pick was clean or had conflicts (and how resolved)
-- Build/test results (pass/fail/skip)
-- Any docs/custom/ updates made
-- Any issues encountered
-```
+Then pass the resulting text as the subagent's prompt.
 
 ### Concurrency
 
