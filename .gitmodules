@@ -1,0 +1,3 @@
+[submodule "web"]
+	path = web
+	url = git@github.com:ccat3z/Cli-Proxy-API-Management-Center.git
