@@ -5,6 +5,9 @@ This directory documents all local changes on the `custom` branch that diverge f
 - **Upstream**: https://github.com/router-for-me/CLIProxyAPI.git
 - **Based on upstream commit**: `be0fe6fa`
 
+> This directory only documents server-side changes. Web UI and other non-server component changes are excluded.
+> Bug fixes for features introduced on the `custom` branch are not documented separately.
+
 ## Features
 
 - [Per-API-Key Model Usage Limits](./usage-limits.md)
@@ -22,7 +25,6 @@ This directory documents all local changes on the `custom` branch that diverge f
 - **Auth block/unavailable logging** (`internal/runtime/executor/helps/logging_helpers.go`): Diagnostic logging for auth selection errors
 - **Empty price fields** (`internal/config/`): Treat empty/missing price fields as zero instead of skipping limits
 - **Stale model prices** (`internal/watcher/synthesizer/`): Clear stale model prices when prices removed from config
-- **Web UI request log SSE** (`web`): Assemble SSE streaming responses in request log modal instead of showing raw chunks
 
 ## Integration Tests
 
@@ -36,6 +38,4 @@ Upstream server is configured via environment variables:
 
 If not set, `get_upstream_api()` raises a `RuntimeError` with a clear message and example export commands. A liveness chat completion is sent before each test session; if the upstream is unreachable, tests are skipped automatically.
 
-## Pi Agent Integration
 
-- [Auto-Models Extension](./pi-auto-models.md)
