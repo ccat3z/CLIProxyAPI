@@ -20,11 +20,8 @@ This directory documents all local changes on the `custom` branch that diverge f
 
 ## Bug Fixes
 
-- **Stream usage null handling** (`internal/usage/`): Skip null usage nodes in stream parsers instead of crashing
 - **Claude count_tokens 404** (`internal/runtime/executor/helps/token_helpers.go`): Fall back to local token estimation when upstream returns 404
 - **Auth block/unavailable logging** (`internal/runtime/executor/helps/logging_helpers.go`): Diagnostic logging for auth selection errors
-- **Empty price fields** (`internal/config/`): Treat empty/missing price fields as zero instead of skipping limits
-- **Stale model prices** (`internal/watcher/synthesizer/`): Clear stale model prices when prices removed from config
 
 ## Integration Tests
 
