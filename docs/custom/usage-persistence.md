@@ -43,4 +43,4 @@ usage-db: ./data/usage.db
 - `internal/api/handlers/management/usage.go` — `GetUsageStatistics` handler with `limits` field via `buildLimitsResponse` (uses `helps.ResolveUsageSource` for source, consistent with apis details); `buildPersistResponse` for SQLite path
 - `internal/runtime/executor/helps/usage_helpers.go` — `ResolveUsageSource` (exported) resolves the source identifier for an auth record (api_key, email, project_id, etc.); used by both detail recording and limits response
 - `internal/runtime/limiter/limiter.go` — `GetAllLimits()` exposes configured limits; `LimitEntry` includes `Models []string`; `LimitConfig` includes `Models []string` (empty = wildcard)
-- `internal/api/handlers/management/usage.go` — `GetUsage` handler pops queued usage records from the in-memory Redis-compatible usage queue (route: `/usage-queue` with `?count=N` param); distinct from `GetUsageStatistics` which queries SQLite
+- `internal/api/handlers/management/usage.go` — `GetUsageQueue` handler pops queued usage records from the in-memory Redis-compatible usage queue (route: `/usage-queue` with `?count=N` param); distinct from `GetUsageStatistics` which queries SQLite
