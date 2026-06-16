@@ -62,6 +62,15 @@ func (h *Handler) GetUsageStatistics(c *gin.Context) {
 	})
 }
 
+type usageQueueRecord []byte
+
+func (r usageQueueRecord) MarshalJSON() ([]byte, error) {
+	if json.Valid(r) {
+		return append([]byte(nil), r...), nil
+	}
+	return json.Marshal(string(r))
+}
+
 // GetUsageQueue pops queued usage records from the usage queue.
 func (h *Handler) GetUsageQueue(c *gin.Context) {
 	if h == nil {
@@ -82,15 +91,6 @@ func (h *Handler) GetUsageQueue(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, records)
-}
-
-type usageQueueRecord []byte
-
-func (r usageQueueRecord) MarshalJSON() ([]byte, error) {
-	if json.Valid(r) {
-		return append([]byte(nil), r...), nil
-	}
-	return json.Marshal(string(r))
 }
 
 func parseUsageQueueCount(value string) (int, error) {
