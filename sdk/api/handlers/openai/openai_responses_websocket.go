@@ -393,11 +393,8 @@ func shouldReplaceWebsocketTranscript(rawJSON []byte, nextInput gjson.Result) bo
 		switch strings.TrimSpace(item.Get("type").String()) {
 		case "function_call", "custom_tool_call":
 			return true
-		case "message":
-			role := strings.TrimSpace(item.Get("role").String())
-			if role == "assistant" {
-				return true
-			}
+		case "compaction", "compaction_summary":
+			return true
 		}
 	}
 
@@ -703,29 +700,20 @@ func mergeJSONArrayRaw(existingRaw, appendRaw string) (string, error) {
 	return string(out), nil
 }
 
-// inputContainsFullTranscript returns true when the input array looks like a
-// complete conversation history rather than an incremental append.  After a
-// client-side compact the input already carries the full (compacted) transcript
-// which may include assistant messages or compaction items.  Merging that with
-// the stale lastRequest / lastResponseOutput would duplicate or break
-// function_call / function_call_output pairings, so the caller should use the
-// input as-is.
+// inputContainsFullTranscript returns true when the input array carries compact
+// replay markers that indicate the client already sent the full conversation
+// transcript. Merging that input with stale lastRequest/lastResponseOutput
+// would duplicate or break function_call/function_call_output pairings, so the
+// caller should use the input as-is.
 //
-// Heuristic: the array is a full transcript when it contains either
-//   - a message with role="assistant", or
-//   - a compaction item (type="compaction" or "compaction_summary").
-//
-// Normal incremental turns only contain user messages or function_call_output
-// items and never carry either of these signals.
+// Assistant messages alone are not enough to classify the payload as a replay:
+// incremental websocket requests may legitimately append assistant items.
 func inputContainsFullTranscript(input gjson.Result) bool {
 	if !input.IsArray() {
 		return false
 	}
 	for _, item := range input.Array() {
 		t := item.Get("type").String()
-		if t == "message" && item.Get("role").String() == "assistant" {
-			return true
-		}
 		if t == "compaction" || t == "compaction_summary" {
 			return true
 		}
