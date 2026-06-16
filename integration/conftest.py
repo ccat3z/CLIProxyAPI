@@ -68,23 +68,58 @@ class Server:
 
     @staticmethod
     def get_upstream_api():
-        """Return fixed upstream API credentials.
+        """Return upstream API credentials from environment variables.
+
+        Required environment variables:
+            CLI_PROXY_TEST_UPSTREAM_URL    - Upstream base URL (e.g. http://127.0.0.1:8098/v1)
+            CLI_PROXY_TEST_UPSTREAM_KEY    - Upstream API key
+            CLI_PROXY_TEST_UPSTREAM_MODEL  - Primary upstream model name
+            CLI_PROXY_TEST_UPSTREAM_MODEL_2 - Secondary upstream model name (for multi-model tests)
 
         Sends a liveness chat completion to verify the upstream is reachable;
         skips the test if it is not.
         """
-        url = "https://llm.ccat3z.xyz"
-        key = "sk-no-key"
-        model = "ut-1"
-        model_2 = "ut-2"
+        missing = []
+        url = os.environ.get("CLI_PROXY_TEST_UPSTREAM_URL")
+        if not url:
+            missing.append("CLI_PROXY_TEST_UPSTREAM_URL")
+
+        key = os.environ.get("CLI_PROXY_TEST_UPSTREAM_KEY")
+        if not key:
+            missing.append("CLI_PROXY_TEST_UPSTREAM_KEY")
+
+        model = os.environ.get("CLI_PROXY_TEST_UPSTREAM_MODEL")
+        if not model:
+            missing.append("CLI_PROXY_TEST_UPSTREAM_MODEL")
+
+        model_2 = os.environ.get("CLI_PROXY_TEST_UPSTREAM_MODEL_2")
+        if not model_2:
+            missing.append("CLI_PROXY_TEST_UPSTREAM_MODEL_2")
+
+        if missing:
+            raise RuntimeError(
+                "Integration test upstream API not configured. "
+                "Set the following environment variables to your own OpenAI-compatible API:\n"
+                + "\n".join(f"  export {v}=<value>" for v in missing)
+                + "\n\nExample using your local CLIProxyAPI:\n"
+                + "  export CLI_PROXY_TEST_UPSTREAM_URL=http://127.0.0.1:8098/v1\n"
+                + "  export CLI_PROXY_TEST_UPSTREAM_KEY=sk-123\n"
+                + "  export CLI_PROXY_TEST_UPSTREAM_MODEL=friday/deepseek-v4-pro\n"
+                + "  export CLI_PROXY_TEST_UPSTREAM_MODEL_2=deepseek-v4-pro\n"
+            )
+
         try:
             body = json.dumps({
                 "model": model,
                 "messages": [{"role": "user", "content": "hi"}],
                 "max_tokens": 1,
             }).encode()
+            # Strip /v1 suffix so the path is uniform; write_config re-appends /v1
+            normalized = url.rstrip("/")
+            if normalized.endswith("/v1"):
+                normalized = normalized[:-3]
             req = urllib.request.Request(
-                url.rstrip("/") + "/v1/chat/completions",
+                normalized + "/v1/chat/completions",
                 data=body,
                 headers={
                     "Content-Type": "application/json",
@@ -118,7 +153,7 @@ class Server:
         upstream = self.get_upstream_api()
         defaults = dict(
             host=HOST, port=self.port, api_key=self.API_KEY,
-            upstream_url=upstream["url"].rstrip("/") + "/v1",
+            upstream_url=upstream["url"].rstrip("/").removesuffix("/v1").rstrip("/") + "/v1",
             upstream_key=upstream["key"],
             upstream_model=upstream["model"],
             upstream_model_2=upstream["model_2"],

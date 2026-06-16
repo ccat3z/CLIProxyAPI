@@ -133,4 +133,10 @@ disable-config-api: true
 
 Full pytest integration test suite in `integration/` covering rate limits, persistence, dynamic config, management API, usage API, cost calculations, and headers.
 
-Upstream server is hardcoded: `https://llm.ccat3z.xyz` with key `sk-no-key`, models `ut-1` and `ut-2`. A liveness chat completion is sent before each test session; if the upstream is unreachable, tests are skipped automatically.
+Upstream server is configured via environment variables:
+- `CLI_PROXY_TEST_UPSTREAM_URL` — upstream base URL (e.g. `http://127.0.0.1:8098/v1`)
+- `CLI_PROXY_TEST_UPSTREAM_KEY` — upstream API key
+- `CLI_PROXY_TEST_UPSTREAM_MODEL` — primary upstream model name
+- `CLI_PROXY_TEST_UPSTREAM_MODEL_2` — secondary upstream model name (for multi-model tests)
+
+If not set, `get_upstream_api()` raises a `RuntimeError` with a clear message and example export commands. A liveness chat completion is sent before each test session; if the upstream is unreachable, tests are skipped automatically.
