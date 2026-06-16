@@ -53,6 +53,7 @@ _bmad-output/*
 /var/
 __pycache__/
 *.pyc
+/*.db
 
 # macOS
 .DS_Store
