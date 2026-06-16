@@ -24,8 +24,8 @@ go build -o test-output ./cmd/server && rm test-output # Verify compile (REQUIRE
 - Storage backends: file-based default; optional Postgres/git/object store (`PGSTORE_*`, `GITSTORE_*`, `OBJECTSTORE_*`)
 
 ## Custom Changes
-- See [CUSTOM.md](CUSTOM.md) for all local changes on the `custom` branch that diverge from upstream.
-- Every code change on the `custom` branch must be reflected in CUSTOM.md. Update it in the same commit as the code change.
+- See [docs/custom/index.md](docs/custom/index.md) for all local changes on the `custom` branch that diverge from upstream.
+- Every code change on the `custom` branch must be reflected in `docs/custom/`. Update it in the same commit as the code change.
 
 ## Architecture
 - `cmd/server/` — Server entrypoint
