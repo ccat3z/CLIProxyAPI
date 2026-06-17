@@ -310,6 +310,7 @@ nonstream-keepalive-interval: 0
 #     models: # The models supported by the provider.
 #       - name: "moonshotai/kimi-k2:free" # The actual model name.
 #         alias: "kimi-k2"               # The alias used in the API.
+#         image: false                   # optional: set true to allow this model on /v1/images/generations and /v1/images/edits
 #         thinking:                      # optional: omit to default to levels ["low","medium","high"]
 #           levels: ["low", "medium", "high"]
 #         input_price_m: 5     # Price per 1M non-cached input tokens (optional, plain float)
