@@ -30,6 +30,7 @@ type UsageReporter struct {
 	apiKey      string
 	source      string
 	reasoning   string
+	serviceTier string
 	requestedAt time.Time
 	ttftMu      sync.RWMutex
 	ttft        time.Duration
@@ -53,6 +54,7 @@ func NewUsageReporter(ctx context.Context, provider, model string, auth *cliprox
 		source:      ResolveUsageSource(auth, apiKey),
 		authType:    resolveUsageAuthType(auth),
 		reasoning:   usage.ReasoningEffortFromContext(ctx),
+		serviceTier: usage.ServiceTierFromContext(ctx),
 	}
 	if auth != nil {
 		reporter.authID = auth.ID
@@ -78,6 +80,7 @@ func (r *UsageReporter) SetTranslatedReasoningEffort(payload []byte, format stri
 		return
 	}
 	r.reasoning = thinking.ExtractTranslatedReasoningEffort(payload, format)
+	r.serviceTier = extractServiceTierFromPayload(payload)
 }
 
 func (r *UsageReporter) TrackHTTPClient(client *http.Client) *http.Client {
@@ -241,6 +244,7 @@ func (r *UsageReporter) buildRecordForModel(ctx context.Context, model string, d
 		AuthIndex:       r.authIndex,
 		AuthType:        r.authType,
 		ReasoningEffort: r.reasoning,
+		ServiceTier:     r.serviceTier,
 		RequestedAt:     r.requestedAt,
 		Latency:         r.latency(),
 		TTFT:            r.ttftDuration(),
@@ -249,6 +253,19 @@ func (r *UsageReporter) buildRecordForModel(ctx context.Context, model string, d
 		Fail:            fail,
 		Detail:          detail,
 	}
+}
+
+func extractServiceTierFromPayload(payload []byte) string {
+	if len(payload) == 0 {
+		return usage.DefaultServiceTier
+	}
+	for _, path := range []string{"service_tier", "request.service_tier", "response.service_tier"} {
+		serviceTier := strings.TrimSpace(gjson.GetBytes(payload, path).String())
+		if serviceTier != "" {
+			return serviceTier
+		}
+	}
+	return usage.DefaultServiceTier
 }
 
 func failFromErrors(errs ...error) usage.Failure {
