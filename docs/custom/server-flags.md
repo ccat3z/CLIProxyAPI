@@ -10,9 +10,8 @@ cli-proxy-api --config config.yaml --port 9000
 
 ## Default `auth-dir`
 
-Changed from `~/.cli-proxy-api` to `./auth`.
+The default auth-dir is `~/.cli-proxy-api`, matching upstream behavior (applied via `ResolveAuthDir` when the config value is empty).
 
 ## Code Changes
 
 - `cmd/server/main.go` — `-port` flag handling
-- `internal/config/config.go` — Default auth-dir change
