@@ -45,6 +45,7 @@ func TestUsageQueuePluginPayloadIncludesStableFieldsAndSuccess(t *testing.T) {
 		requireStringField(t, payload, "endpoint", "POST /v1/chat/completions")
 		requireStringField(t, payload, "auth_type", "apikey")
 		requireStringField(t, payload, "user_api_key", "test-key")
+
 		requireStringField(t, payload, "request_id", "ctx-request-id")
 		requireBoolField(t, payload, "failed", false)
 		requireFailField(t, payload, http.StatusOK, "")
@@ -87,6 +88,7 @@ func TestUsageQueuePluginPayloadIncludesStableFieldsAndFailureAndGinRequestID(t 
 		requireStringField(t, payload, "endpoint", "GET /v1/responses")
 		requireStringField(t, payload, "auth_type", "apikey")
 		requireStringField(t, payload, "user_api_key", "test-key")
+
 		requireStringField(t, payload, "request_id", "gin-request-id")
 		requireBoolField(t, payload, "failed", true)
 		requireFailField(t, payload, http.StatusInternalServerError, "upstream failed")
@@ -136,6 +138,7 @@ func TestUsageQueuePluginAsyncIgnoresRecycledGinContext(t *testing.T) {
 		requireStringField(t, payload, "endpoint", "POST /v1/chat/completions")
 		requireStringField(t, payload, "alias", "client-gpt")
 		requireStringField(t, payload, "user_api_key", "test-key")
+
 		requireStringField(t, payload, "request_id", "ctx-request-id")
 		requireBoolField(t, payload, "failed", true)
 		requireFailField(t, payload, http.StatusBadGateway, "bad gateway")

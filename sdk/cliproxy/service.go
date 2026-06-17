@@ -19,6 +19,7 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/runtime/executor"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/runtime/limiter"
 	iusage "github.com/router-for-me/CLIProxyAPI/v7/internal/usage"
+
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/watcher"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/wsrelay"
 	sdkaccess "github.com/router-for-me/CLIProxyAPI/v7/sdk/access"
@@ -744,6 +745,7 @@ func (s *Service) Run(ctx context.Context) error {
 			log.Warnf("failed to init usage persist store: %v", err)
 		}
 	}
+
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer shutdownCancel()

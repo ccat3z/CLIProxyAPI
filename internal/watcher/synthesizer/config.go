@@ -151,6 +151,7 @@ func (s *ConfigSynthesizer) synthesizeClaudeKeys(ctx *SynthesisContext) []*corea
 		}
 		wireModelPrices(a.ID, claudeModelPrices(ck.Models))
 		wireLimitsToLimiter(a.ID, ck.Limits, ck.ParsedLimits())
+
 		out = append(out, a)
 	}
 	return out
@@ -282,6 +283,7 @@ func (s *ConfigSynthesizer) synthesizeOpenAICompat(ctx *SynthesisContext) []*cor
 			}
 			wireModelPrices(a.ID, openAICompatModelPrices(compat.Models))
 			wireLimitsToLimiter(a.ID, entry.Limits, entry.ParsedLimits())
+
 			out = append(out, a)
 			createdEntries++
 		}
@@ -321,6 +323,7 @@ func (s *ConfigSynthesizer) synthesizeOpenAICompat(ctx *SynthesisContext) []*cor
 				a.Metadata = nil
 			}
 			wireModelPrices(a.ID, openAICompatModelPrices(compat.Models))
+
 			out = append(out, a)
 		}
 	}

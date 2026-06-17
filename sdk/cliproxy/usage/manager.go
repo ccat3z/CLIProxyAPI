@@ -23,6 +23,7 @@ type Record struct {
 	Latency     time.Duration
 	Failed      bool
 	RequestID   string
+
 	Fail        Failure
 	Detail      Detail
 }
