@@ -722,6 +722,7 @@ func (s *Service) applyCoreAuthRemoval(ctx context.Context, id string) {
 		executor.CloseCodexWebsocketSessionsForAuthID(id, "auth_removed")
 	}
 	limiter.DefaultLimiter().RemoveAllForAuth(id)
+
 	s.syncPluginRuntime(ctx)
 }
 
