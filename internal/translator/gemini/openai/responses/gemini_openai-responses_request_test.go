@@ -55,6 +55,80 @@ func TestConvertOpenAIResponsesRequestToGemini_ReasoningSignatureCompatibility(t
 	}
 }
 
+func TestConvertOpenAIResponsesRequestToGemini_SystemAndDeveloperRoles(t *testing.T) {
+	tests := []struct {
+		name     string
+		role     string
+		wantText string
+	}{
+		{
+			name:     "system role",
+			role:     "system",
+			wantText: "System message text",
+		},
+		{
+			name:     "developer role",
+			role:     "developer",
+			wantText: "Developer message text",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := []byte(`{
+				"instructions": "Be a helpful assistant",
+				"input": [
+					{
+						"type": "message",
+						"role": "` + tt.role + `",
+						"content": [
+							{
+								"type": "input_text",
+								"text": "` + tt.wantText + `"
+							}
+						]
+					},
+					{
+						"type": "message",
+						"role": "user",
+						"content": [
+							{
+								"type": "input_text",
+								"text": "Hello"
+							}
+						]
+					}
+				]
+			}`)
+
+			output := ConvertOpenAIResponsesRequestToGemini("gemini-3.5-flash", input, false)
+			result := gjson.ParseBytes(output)
+
+			systemInstruction := result.Get("systemInstruction")
+			if !systemInstruction.Exists() {
+				t.Fatalf("systemInstruction missing. Output: %s", output)
+			}
+			parts := systemInstruction.Get("parts")
+			if got := parts.Get("#").Int(); got != 2 {
+				t.Fatalf("systemInstruction parts = %d, want 2. Output: %s", got, output)
+			}
+			if got := parts.Get("0.text").String(); got != "Be a helpful assistant" {
+				t.Fatalf("first systemInstruction part = %q, want %q. Output: %s", got, "Be a helpful assistant", output)
+			}
+			if got := parts.Get("1.text").String(); got != tt.wantText {
+				t.Fatalf("second systemInstruction part = %q, want %q. Output: %s", got, tt.wantText, output)
+			}
+
+			result.Get("contents").ForEach(func(_, value gjson.Result) bool {
+				if role := value.Get("role").String(); role == tt.role {
+					t.Fatalf("role %q leaked into contents array. Output: %s", tt.role, output)
+				}
+				return true
+			})
+		})
+	}
+}
+
 func validResponsesGPTReasoningSignature() string {
 	raw := make([]byte, 1+8+16+16+32)
 	raw[0] = 0x80
@@ -63,106 +137,4 @@ func validResponsesGPTReasoningSignature() string {
 		raw[i] = byte(i)
 	}
 	return base64.URLEncoding.EncodeToString(raw)
-}
-
-func TestConvertOpenAIResponsesRequestToGemini_SystemAndDeveloperRoles(t *testing.T) {
-	// Test system role conversion
-	systemInput := []byte(`{
-		"instructions": "Be a helpful assistant",
-		"input": [
-			{
-				"type": "message",
-				"role": "system",
-				"content": [
-					{
-						"type": "input_text",
-						"text": "System message text"
-					}
-				]
-			},
-			{
-				"type": "message",
-				"role": "user",
-				"content": [
-					{
-						"type": "input_text",
-						"text": "Hello"
-					}
-				]
-			}
-		]
-	}`)
-
-	outSystem := ConvertOpenAIResponsesRequestToGemini("gemini-3.5-flash", systemInput, false)
-	resSystem := gjson.ParseBytes(outSystem)
-
-	systemInstruction := resSystem.Get("systemInstruction")
-	if !systemInstruction.Exists() {
-		t.Errorf("Expected systemInstruction field to exist")
-	}
-	parts := systemInstruction.Get("parts")
-	if parts.Get("#").Int() != 2 {
-		t.Errorf("Expected 2 parts in systemInstruction, got %d", parts.Get("#").Int())
-	}
-	if parts.Get("0.text").String() != "Be a helpful assistant" {
-		t.Errorf("Expected first part to be 'Be a helpful assistant', got '%s'", parts.Get("0.text").String())
-	}
-	if parts.Get("1.text").String() != "System message text" {
-		t.Errorf("Expected second part to be 'System message text', got '%s'", parts.Get("1.text").String())
-	}
-
-	// Test developer role conversion (which is the main bug we're addressing)
-	developerInput := []byte(`{
-		"instructions": "Be a helpful assistant",
-		"input": [
-			{
-				"type": "message",
-				"role": "developer",
-				"content": [
-					{
-						"type": "input_text",
-						"text": "Developer message text"
-					}
-				]
-			},
-			{
-				"type": "message",
-				"role": "user",
-				"content": [
-					{
-						"type": "input_text",
-						"text": "Hello"
-					}
-				]
-			}
-		]
-	}`)
-
-	outDev := ConvertOpenAIResponsesRequestToGemini("gemini-3.5-flash", developerInput, false)
-	resDev := gjson.ParseBytes(outDev)
-
-	systemInstructionDev := resDev.Get("systemInstruction")
-	if !systemInstructionDev.Exists() {
-		t.Errorf("Expected systemInstruction field to exist for developer role")
-	}
-	partsDev := systemInstructionDev.Get("parts")
-	if partsDev.Get("#").Int() != 2 {
-		t.Errorf("Expected 2 parts in systemInstruction for developer role, got %d", partsDev.Get("#").Int())
-	}
-	if partsDev.Get("0.text").String() != "Be a helpful assistant" {
-		t.Errorf("Expected first part to be 'Be a helpful assistant', got '%s'", partsDev.Get("0.text").String())
-	}
-	if partsDev.Get("1.text").String() != "Developer message text" {
-		t.Errorf("Expected second part to be 'Developer message text', got '%s'", partsDev.Get("1.text").String())
-	}
-
-	// Ensure role 'developer' is not sent inside contents array as a regular message
-	contents := resDev.Get("contents")
-	contents.ForEach(func(_, value gjson.Result) bool {
-		role := value.Get("role").String()
-		if role == "developer" {
-			t.Errorf("Role 'developer' leaked into contents array")
-		}
-		return true
-	})
 }
