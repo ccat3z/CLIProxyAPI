@@ -16,3 +16,5 @@ docker compose up -d
 - `docker-build-local.sh` — Build local Docker image and start services via Compose
 - `docker-compose.yml` — Compose configuration (supports `CLI_PROXY_IMAGE` and `CLI_PROXY_PULL_POLICY` env vars)
 - `.dockerignore` — Exclude patterns for build context
+- `docker-compose.cluster.yml` — Cluster-specific Compose configuration (Home JWT auth)
+- `.env.cluster.example` — Example environment variables for cluster deployment
