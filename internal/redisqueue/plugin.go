@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	internallogging "github.com/router-for-me/CLIProxyAPI/v6/internal/logging"
-	coreusage "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/usage"
+	internallogging "github.com/router-for-me/CLIProxyAPI/v7/internal/logging"
+	coreusage "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/usage"
 )
 
 func init() {
@@ -99,7 +99,7 @@ type queuedUsageDetail struct {
 	Alias     string `json:"alias"`
 	Endpoint  string `json:"endpoint"`
 	AuthType  string `json:"auth_type"`
-	APIKey    string `json:"api_key"`
+	APIKey    string `json:"user_api_key"`
 	RequestID string `json:"request_id"`
 }
 

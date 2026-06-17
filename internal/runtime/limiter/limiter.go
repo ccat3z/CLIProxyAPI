@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/usage"
+	"github.com/router-for-me/CLIProxyAPI/v7/internal/usage"
 )
 
 // LimitConfig defines a sliding-window token limit for a set of models.

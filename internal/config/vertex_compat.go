@@ -55,8 +55,8 @@ type VertexCompatModel struct {
 	Extra map[string]any `yaml:"extra,omitempty" json:"extra,omitempty"`
 }
 
-func (m VertexCompatModel) GetName() string  { return m.Name }
-func (m VertexCompatModel) GetAlias() string { return m.Alias }
+func (m VertexCompatModel) GetName() string          { return m.Name }
+func (m VertexCompatModel) GetAlias() string         { return m.Alias }
 func (m VertexCompatModel) GetExtra() map[string]any { return m.Extra }
 
 // SanitizeVertexCompatKeys deduplicates and normalizes Vertex-compatible API key credentials.

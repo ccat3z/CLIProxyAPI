@@ -16,7 +16,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/registry"
+	"github.com/router-for-me/CLIProxyAPI/v7/internal/registry"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v3"
@@ -38,6 +38,9 @@ type Config struct {
 
 	// TLS config controls HTTPS server settings.
 	TLS TLSConfig `yaml:"tls" json:"tls"`
+
+	// Home config enables the Redis-based control plane integration.
+	Home HomeConfig `yaml:"home" json:"-"`
 
 	// RemoteManagement nests management-related options under 'remote-management'.
 	RemoteManagement RemoteManagement `yaml:"remote-management" json:"-"`
@@ -454,8 +457,8 @@ type ClaudeModel struct {
 	Extra map[string]any `yaml:"extra,omitempty" json:"extra,omitempty"`
 }
 
-func (m ClaudeModel) GetName() string  { return m.Name }
-func (m ClaudeModel) GetAlias() string { return m.Alias }
+func (m ClaudeModel) GetName() string          { return m.Name }
+func (m ClaudeModel) GetAlias() string         { return m.Alias }
 func (m ClaudeModel) GetExtra() map[string]any { return m.Extra }
 
 // FindClaudeModelCompat resolves the ClaudeKey entry matching apiKey+baseURL,
@@ -535,8 +538,8 @@ type CodexModel struct {
 	Extra map[string]any `yaml:"extra,omitempty" json:"extra,omitempty"`
 }
 
-func (m CodexModel) GetName() string  { return m.Name }
-func (m CodexModel) GetAlias() string { return m.Alias }
+func (m CodexModel) GetName() string          { return m.Name }
+func (m CodexModel) GetAlias() string         { return m.Alias }
 func (m CodexModel) GetExtra() map[string]any { return m.Extra }
 
 // GeminiKey represents the configuration for a Gemini API key,
@@ -583,8 +586,8 @@ type GeminiModel struct {
 	Extra map[string]any `yaml:"extra,omitempty" json:"extra,omitempty"`
 }
 
-func (m GeminiModel) GetName() string  { return m.Name }
-func (m GeminiModel) GetAlias() string { return m.Alias }
+func (m GeminiModel) GetName() string          { return m.Name }
+func (m GeminiModel) GetAlias() string         { return m.Alias }
 func (m GeminiModel) GetExtra() map[string]any { return m.Extra }
 
 // OpenAICompatibility represents the configuration for OpenAI API compatibility
@@ -689,8 +692,8 @@ type OpenAICompatibilityModel struct {
 	Extra map[string]any `yaml:"extra,omitempty" json:"extra,omitempty"`
 }
 
-func (m OpenAICompatibilityModel) GetName() string  { return m.Name }
-func (m OpenAICompatibilityModel) GetAlias() string { return m.Alias }
+func (m OpenAICompatibilityModel) GetName() string          { return m.Name }
+func (m OpenAICompatibilityModel) GetAlias() string         { return m.Alias }
 func (m OpenAICompatibilityModel) GetExtra() map[string]any { return m.Extra }
 
 // parsedLimitsCache caches the result of ParsedLimits for OpenAICompatibilityAPIKey.
