@@ -166,8 +166,8 @@ func TestManagerExecuteStream_CodexOnlyDoesNotEnterAntigravityCreditsFallback(t 
 	}
 
 	for _, message := range hook.messages {
-		if strings.Contains(message, "shouldAttemptAntigravityCreditsFallback") {
-			t.Fatalf("codex-only request entered antigravity credits fallback gate; messages=%v", hook.messages)
+		if strings.Contains(message, "tryAntigravityCredits") {
+			t.Fatalf("codex-only request entered antigravity credits fallback; messages=%v", hook.messages)
 		}
 	}
 }

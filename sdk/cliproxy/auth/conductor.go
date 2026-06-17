@@ -1247,7 +1247,7 @@ func (m *Manager) Execute(ctx context.Context, providers []string, req cliproxye
 		}
 	}
 	if lastErr != nil {
-		if hasAntigravityProvider(normalized) && shouldAttemptAntigravityCreditsFallback(m, lastErr, normalized) {
+		if shouldAttemptAntigravityCreditsFallback(m, lastErr, normalized) {
 			if resp, ok := m.tryAntigravityCreditsExecute(ctx, req, opts); ok {
 				return resp, nil
 			}
@@ -1313,7 +1313,7 @@ func (m *Manager) ExecuteStream(ctx context.Context, providers []string, req cli
 		}
 	}
 	if lastErr != nil {
-		if hasAntigravityProvider(normalized) && shouldAttemptAntigravityCreditsFallback(m, lastErr, normalized) {
+		if shouldAttemptAntigravityCreditsFallback(m, lastErr, normalized) {
 			if result, ok := m.tryAntigravityCreditsExecuteStream(ctx, req, opts); ok {
 				return result, nil
 			}
@@ -2380,24 +2380,6 @@ func (m *Manager) MarkResult(ctx context.Context, result Result) {
 							state.NextRetryAfter = time.Time{}
 						}
 					}
-
-					blockReasonStr := "other"
-					if state.Quota.Exceeded {
-						blockReasonStr = "cooldown"
-					}
-					nextRetryStr := "none"
-					if !state.NextRetryAfter.IsZero() {
-						nextRetryStr = state.NextRetryAfter.Format(time.RFC3339)
-					}
-					log.WithFields(log.Fields{
-						"auth_id":        result.AuthID,
-						"model":          result.Model,
-						"status_code":    statusCode,
-						"next_retry_at":  nextRetryStr,
-						"suspend_reason": suspendReason,
-						"quota_exceeded": state.Quota.Exceeded,
-						"block_reason":   blockReasonStr,
-					}).Debug("MarkResult: auth model marked unavailable")
 
 					auth.Status = StatusError
 					auth.UpdatedAt = now
@@ -3725,15 +3707,6 @@ type creditsCandidateEntry struct {
 	provider string
 }
 
-func hasAntigravityProvider(providers []string) bool {
-	for _, p := range providers {
-		if strings.EqualFold(strings.TrimSpace(p), "antigravity") {
-			return true
-		}
-	}
-	return false
-}
-
 func shouldAttemptAntigravityCreditsFallback(m *Manager, lastErr error, providers []string) bool {
 	status := statusCodeFromError(lastErr)
 	log.WithFields(log.Fields{
@@ -3743,6 +3716,18 @@ func shouldAttemptAntigravityCreditsFallback(m *Manager, lastErr error, provider
 	}).Debug("shouldAttemptAntigravityCreditsFallback")
 	if m == nil || lastErr == nil {
 		return false
+	}
+	if len(providers) > 0 {
+		hasAntigravity := false
+		for _, p := range providers {
+			if strings.EqualFold(strings.TrimSpace(p), "antigravity") {
+				hasAntigravity = true
+				break
+			}
+		}
+		if !hasAntigravity {
+			return false
+		}
 	}
 	cfg, _ := m.runtimeConfig.Load().(*internalconfig.Config)
 	if cfg == nil || !cfg.QuotaExceeded.AntigravityCredits {
