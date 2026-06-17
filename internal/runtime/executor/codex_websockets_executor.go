@@ -847,7 +847,7 @@ func applyCodexPromptCacheHeaders(from sdktranslator.Format, req cliproxyexecuto
 
 	if cache.ID != "" {
 		rawJSON, _ = sjson.SetBytes(rawJSON, "prompt_cache_key", cache.ID)
-		setHeaderCasePreserved(headers, "Session_id", cache.ID)
+		setHeaderCasePreserved(headers, "session_id", cache.ID)
 		headers.Set("Conversation_id", cache.ID)
 	}
 
@@ -889,14 +889,11 @@ func applyCodexWebsocketHeaders(ctx context.Context, headers http.Header, auth *
 		betaHeader = codexResponsesWebsocketBetaHeaderValue
 	}
 	headers.Set("OpenAI-Beta", betaHeader)
-	// Map hyphenated Session-Id from source to Session_id (custom branch preserves underscore form).
-	if val := strings.TrimSpace(headerValueCaseInsensitive(ginHeaders, "Session-Id")); val != "" && headerValueCaseInsensitive(headers, "Session_id") == "" {
-		setHeaderCasePreserved(headers, "Session_id", val)
-	}
+	sessionFallback := ""
 	if strings.Contains(headers.Get("User-Agent"), "Mac OS") {
-		ensureHeaderCasePreserved(headers, ginHeaders, "Session_id", "", uuid.NewString())
+		sessionFallback = uuid.NewString()
 	}
-	ensureHeaderCasePreserved(headers, ginHeaders, "Session_id", "", "")
+	ensureCodexWebsocketSessionHeader(headers, ginHeaders, sessionFallback)
 	if originator := strings.TrimSpace(ginHeaders.Get("Originator")); originator != "" {
 		headers.Set("Originator", originator)
 	} else if !isAPIKey {
