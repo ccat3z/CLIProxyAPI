@@ -61,6 +61,8 @@ var corsExposedResponseHeaders = []string{
 	"X-SERVER-BUILD-DATE",
 }
 
+var corsExposedResponseHeadersJoined = strings.Join(corsExposedResponseHeaders, ", ")
+
 type serverOptionConfig struct {
 	extraMiddleware      []gin.HandlerFunc
 	engineConfigurator   func(*gin.Engine)
@@ -1483,7 +1485,7 @@ func corsMiddleware() gin.HandlerFunc {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "*")
-		c.Header("Access-Control-Expose-Headers", strings.Join(corsExposedResponseHeaders, ", "))
+		c.Header("Access-Control-Expose-Headers", corsExposedResponseHeadersJoined)
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(http.StatusNoContent)
