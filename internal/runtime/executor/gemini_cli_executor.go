@@ -150,6 +150,7 @@ func (e *GeminiCLIExecutor) Execute(ctx context.Context, auth *cliproxyauth.Auth
 	requestPath := helps.PayloadRequestPath(opts)
 	basePayload = helps.ApplyPayloadConfigWithRequest(e.cfg, baseModel, "gemini", from.String(), "request", basePayload, originalTranslated, requestedModel, requestPath, opts.Headers)
 	basePayload = cleanGeminiCLIRequestSchemas(basePayload)
+	reporter.SetTranslatedReasoningEffort(basePayload, to.String())
 
 	action := "generateContent"
 	if req.Metadata != nil {
@@ -313,6 +314,7 @@ func (e *GeminiCLIExecutor) ExecuteStream(ctx context.Context, auth *cliproxyaut
 	requestPath := helps.PayloadRequestPath(opts)
 	basePayload = helps.ApplyPayloadConfigWithRequest(e.cfg, baseModel, "gemini", from.String(), "request", basePayload, originalTranslated, requestedModel, requestPath, opts.Headers)
 	basePayload = cleanGeminiCLIRequestSchemas(basePayload)
+	reporter.SetTranslatedReasoningEffort(basePayload, to.String())
 
 	projectID := resolveGeminiProjectID(auth)
 
