@@ -56,6 +56,13 @@ Read the full subagent prompt from `references/subagent-prompt.md` (relative to 
 
 Then pass the resulting text as the subagent's prompt.
 
+### Integration Test
+
+Intergration test will take very long time. Enable intergration test only when:
+
+- **Every 20th commit** (#20, #40, #60, ...)
+- **The last commit** (regardless of its number)
+
 ### Concurrency
 
 Process one commit at a time — do not run subagents in parallel. Each commit depends on the previous one being committed first. Wait for each subagent to complete and report before spawning the next one.

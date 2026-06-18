@@ -11,6 +11,8 @@ Commit: <sha> — <message>
 
 1. Cherry-pick the commit:
    git cherry-pick --no-commit <sha>
+   For merge commits, use: git cherry-pick --no-commit -m 1 <sha>
+   If a merge commit produces an empty diff, create an empty commit with the original message.
 
 2. If conflicts occur:
    - Read the conflicting files.
@@ -27,25 +29,23 @@ Commit: <sha> — <message>
 5. Run unit tests:
    go test ./...
 
-6. Run integration tests (this step is MANDATORY — it may never be skipped):
+6. Run integration tests, you MUST execute them — this step is MANDATORY and may NEVER be skipped or marked as passed without actually running the tests:
    CLI_PROXY_TEST_UPSTREAM_MODEL=glm-5.1 \
    CLI_PROXY_TEST_UPSTREAM_MODEL_2=kimi-k2.6 \
    CLI_PROXY_TEST_UPSTREAM_URL=http://127.0.0.1:8098/v1 \
    CLI_PROXY_TEST_UPSTREAM_KEY=sk-123 \
    pytest integration/ -v
-
-   If the upstream API (http://127.0.0.1:8098/v1) is unavailable or the tests fail, STOP and ask the user for guidance. Under no circumstances may this step be skipped or marked as passed without actually running the tests.
+   If the upstream API is unavailable or the tests fail, STOP and ask the user for guidance.
 
 7. Smoke test the running server (two sub-steps, both must pass):
    a. Start the server and find an available model:
-      go run ./cmd/server --config data/config.yaml &
+      go run ./cmd/server --config data/config.yaml -port 3456 &
       SERVER_PID=$!
       sleep 3
       MODEL=$(curl -s http://localhost:3456/v1/models | python3 -c "import sys,json; data=json.load(sys.stdin); models=[m['id'] for m in data.get('data',[])]; print(models[0] if models else '')" 2>/dev/null)
       if [ -z "$MODEL" ]; then
         echo "ERROR: No models available from /v1/models"
         kill $SERVER_PID 2>/dev/null
-        # This is a test failure — do not skip, ask the user for guidance
       else
         echo "Found model: $MODEL"
       fi
@@ -65,7 +65,7 @@ Commit: <sha> — <message>
      sed -i 's/Based on upstream commit: `.*`/Based on upstream commit: `<sha>`/' docs/custom/index.md
    - Verify the update took effect:
      grep 'Based on upstream commit' docs/custom/index.md
-   - git add docs/custom/index.md (and any other doc changes)
+   - git add -f docs/custom/index.md (and any other doc changes)
    - git commit --amend --no-edit
 
 9. Update the todo file:
@@ -82,7 +82,7 @@ Commit: <sha> — <message>
    | 3 | Committed with original message | ☐ |
    | 4 | Build passes (`go build`) | ☐ |
    | 5 | Unit tests pass (`go test ./...`) | ☐ |
-   | 6 | Integration tests pass (`pytest`) | ☐ |
+   | 6 | Integration tests passed | ☐ |
    | 7a | Smoke test: /v1/models returns a usable model | ☐ |
    | 7b | Smoke test: chat completion succeeds with that model | ☐ |
    | 8 | Base commit updated in docs/custom/index.md and verified | ☐ |
