@@ -133,21 +133,65 @@ class Server:
         return {"url": url, "key": key, "model": model, "model_2": model_2}
 
     def wait_for_server(self, timeout=30):
-        """Poll until the server responds, the process exits, or timeout."""
-        url = self.base_url + "/healthz"
+        """Poll until the server responds and models are registered, the process exits, or timeout."""
+        healthz_url = self.base_url + "/healthz"
+        models_url = self.base_url + "/v1/models"
         deadline = time.time() + timeout
+        # Phase 1: wait for healthz
         while time.time() < deadline:
             if self.process.poll() is not None:
                 raise RuntimeError(
                     f"Server process exited with code {self.process.returncode}"
                 )
             try:
-                req = urllib.request.Request(url)
+                req = urllib.request.Request(healthz_url)
                 with urllib.request.urlopen(req, timeout=2):
-                    return True
+                    break
             except (urllib.error.URLError, ConnectionError, OSError):
                 time.sleep(0.5)
-        raise RuntimeError(f"Server did not start within {timeout}s")
+        else:
+            raise RuntimeError(f"Server did not start within {timeout}s")
+        # Phase 2: wait for models to be registered.
+        # Use the first api-key from the written config so auth works regardless
+        # of which keys the test template defines.
+        first_api_key = self._first_api_key()
+        while time.time() < deadline:
+            if self.process.poll() is not None:
+                raise RuntimeError(
+                    f"Server process exited with code {self.process.returncode}"
+                )
+            try:
+                headers = {}
+                if first_api_key:
+                    headers["Authorization"] = f"Bearer {first_api_key}"
+                req = urllib.request.Request(models_url, headers=headers)
+                with urllib.request.urlopen(req, timeout=2) as resp:
+                    data = json.loads(resp.read())
+                    if data.get("data"):
+                        return True
+            except urllib.error.HTTPError:
+                # Auth or other HTTP error — server is up, keep polling for models.
+                pass
+            except (urllib.error.URLError, ConnectionError, OSError):
+                pass
+            time.sleep(0.5)
+        raise RuntimeError(f"Models not registered within {timeout}s")
+
+    def _first_api_key(self):
+        """Return the first api-key from the written config, or empty string."""
+        with open(self.config_path) as f:
+            in_keys = False
+            for line in f:
+                stripped = line.strip()
+                if stripped.startswith("api-keys:"):
+                    in_keys = True
+                    continue
+                if in_keys:
+                    if stripped.startswith("- "):
+                        return stripped[2:].strip().strip('"').strip("'")
+                    if stripped and not stripped.startswith("#"):
+                        break
+        return ""
 
     def write_config(self, template, **overrides):
         upstream = self.get_upstream_api()
