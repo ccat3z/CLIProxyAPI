@@ -73,7 +73,7 @@ Total: 109 commits
 | 65 | 09179a70 | feat(registry): add "max" level and remove deprecated Gemini models | ✅ picked (added "max" level to claude-sonnet-4-6; Gemini/Grok model hunks already removed on custom) |
 | 66 | 35c3d80a | feat(translator): add support for handling video URLs in Gemini requests | ❌ skipped (Gemini translator code removed on custom branch) |
 | 67 | eb8d0d06 | Merge pull request #3900 from sususu98/fix/antigravity-replay-fc-order-upstream-dev | ❌ skipped (antigravity code removed on custom branch; only surviving change is .gitignore entries already present from prior commits #26/#28) |
-| 68 | bb414de3 | feat(api): add "max" reasoning depth and `service_tiers` to Codex client models | ⬜ pending |
+| 68 | bb414de3 | feat(api): add "max" reasoning depth and `service_tiers` to Codex client models | ✅ picked (clean cherry-pick; added "max" reasoning level + service_tiers to codex client models + test) |
 | 69 | 9a8098d2 | feat(api): prioritize non-template Codex client models and adjust priority calculation logic | ⬜ pending |
 | 70 | 1f21f946 | feat(api): implement support for multi-auth expansion in plugin systems | ⬜ pending |
 | 71 | 31549af1 | fix(watcher): update Gemini provider name to "gemini-cli" in file synthesizer logic | ⬜ pending |
