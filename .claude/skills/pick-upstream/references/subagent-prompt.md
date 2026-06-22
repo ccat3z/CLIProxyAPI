@@ -30,12 +30,8 @@ Commit: <sha> — <message>
    go test ./...
 
 6. Run integration tests, you MUST execute them — this step is MANDATORY and may NEVER be skipped or marked as passed without actually running the tests:
-   CLI_PROXY_TEST_UPSTREAM_MODEL=glm-5.1 \
-   CLI_PROXY_TEST_UPSTREAM_MODEL_2=kimi-k2.6 \
-   CLI_PROXY_TEST_UPSTREAM_URL=http://127.0.0.1:8098/v1 \
-   CLI_PROXY_TEST_UPSTREAM_KEY=sk-123 \
    pytest integration/ -v
-   If the upstream API is unavailable or the tests fail, STOP and ask the user for guidance.
+   If the tests fail, STOP and ask the user for guidance.
 
 7. Smoke test the running server (two sub-steps, both must pass):
    a. Start the server and find an available model:
