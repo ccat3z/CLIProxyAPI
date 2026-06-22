@@ -21,7 +21,7 @@ Commit: <sha> — <message>
    - Review with `git diff --cached`.
 
 3. Commit:
-   git commit -m "<original-commit-message>"
+   git commit -m "<original-commit-message>" --author "<original-author>"
 
 4. Verify build:
    go build -o test-output ./cmd/server && rm test-output
