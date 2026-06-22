@@ -30,6 +30,7 @@ This directory documents all local changes on the `custom` branch that diverge f
 - [Removed: WebSocket Relay, GeminiCLI Runtime, and Non-File Store Backends](./removed-wsrelay-store.md)
 - [Removed: Non-Essential Providers, OAuth Flows, Browser Login](./removed-providers-oauth.md)
 - [Removed: Claude Executor OAuth Code Paths](./removed-claude-oauth-paths.md)
+- [Removed: Unused Config Fields and Dependencies](./removed-config-fields.md)
 
 ## Integration Tests
 
