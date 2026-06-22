@@ -92,7 +92,6 @@ func TestParseOpenAIStreamUsage_NoUsage(t *testing.T) {
 	}
 }
 
-
 func TestParseOpenAIStreamUsageIgnoresNullUsage(t *testing.T) {
 	line := []byte(`data: {"id":"chunk_1","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"hi"},"finish_reason":null}],"usage":null}`)
 	if detail, ok := ParseOpenAIStreamUsage(line); ok {
@@ -202,7 +201,6 @@ func TestParseClaudeUsageFallsBackCachedTokensToCacheCreation(t *testing.T) {
 		t.Fatalf("total tokens = %d, want %d", detail.TotalTokens, 22852)
 	}
 }
-
 
 func TestParseGeminiCLIUsage_TopLevelUsageMetadata(t *testing.T) {
 	data := []byte(`{"usageMetadata":{"promptTokenCount":11,"candidatesTokenCount":7,"thoughtsTokenCount":3,"totalTokenCount":21,"cachedContentTokenCount":5}}`)

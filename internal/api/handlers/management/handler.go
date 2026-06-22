@@ -222,7 +222,6 @@ func (h *Handler) ConfigWriteBlockMiddleware() gin.HandlerFunc {
 	}
 }
 
-
 // SetPostAuthPersistHook registers a hook to be called after auth persistence.
 func (h *Handler) SetPostAuthPersistHook(hook coreauth.PostAuthHook) {
 	h.postAuthPersistHook = hook

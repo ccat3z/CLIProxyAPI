@@ -29,13 +29,13 @@ type Record struct {
 	ReasoningEffort string
 	// ServiceTier stores the client-requested service tier for request event logs.
 	ServiceTier string
-	RequestedAt     time.Time
-	Latency         time.Duration
-	TTFT            time.Duration
-	Failed          bool
-	RequestID       string
-	Fail            Failure
-	Detail          Detail
+	RequestedAt time.Time
+	Latency     time.Duration
+	TTFT        time.Duration
+	Failed      bool
+	RequestID   string
+	Fail        Failure
+	Detail      Detail
 	// ResponseHeaders stores a snapshot of upstream response headers for usage sinks.
 	ResponseHeaders http.Header
 }

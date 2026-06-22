@@ -469,7 +469,6 @@ type ClaudeKey struct {
 	// parsedLimits caches the result of ParsedLimits(). Not serialized.
 	parsedLimits parsedLimitsCache
 
-
 	// Cloak configures request cloaking for non-Claude-Code clients.
 	Cloak *CloakConfig `yaml:"cloak,omitempty" json:"cloak,omitempty"`
 

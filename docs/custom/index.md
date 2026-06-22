@@ -23,6 +23,10 @@ This directory documents all local changes on the `custom` branch that diverge f
 - **Claude count_tokens 404** (`internal/runtime/executor/helps/token_helpers.go`): Fall back to local token estimation when upstream returns 404
 - **Auth block/unavailable logging** (`internal/runtime/executor/helps/logging_helpers.go`): Diagnostic logging for auth selection errors
 
+## Removed Modules
+
+- [Removed: TUI and Utility Commands](./removed-tui.md)
+
 ## Integration Tests
 
 Full pytest integration test suite in `integration/` covering rate limits, persistence, dynamic config, management API, usage API, cost calculations, and headers.
