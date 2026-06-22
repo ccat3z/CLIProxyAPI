@@ -192,7 +192,7 @@ def _drain_until_429(srv, model, api_key=None):
 
 def test_input_tokens_limit_returns_429(make_server):
     """When input token usage reaches the configured 3k limit, next request gets 429."""
-    srv = make_server(None)
+    srv = make_server(None, model="small")
     srv.start()
     status, body, total_input = _drain_until_429(srv, "test-haiku")
     assert status == 429, (
@@ -203,7 +203,7 @@ def test_input_tokens_limit_returns_429(make_server):
 
 def test_limit_error_includes_details(make_server):
     """429 response body includes limit type, current, and limit values."""
-    srv = make_server(None)
+    srv = make_server(None, model="small")
     srv.start()
     status, body, _ = _drain_until_429(srv, "test-haiku")
     assert status == 429, "Expected 429 to check error details"
@@ -214,7 +214,7 @@ def test_limit_error_includes_details(make_server):
 
 def test_shared_window_models_trigger_429(make_server):
     """Models in the same limit window share usage: combined tokens trigger 429."""
-    srv = make_server(_MULTI_MODEL_TEMPLATE)
+    srv = make_server(_MULTI_MODEL_TEMPLATE, model="small")
     srv.start()
     total_input = 0
     got_429 = False
@@ -235,7 +235,7 @@ def test_shared_window_models_trigger_429(make_server):
 
 def test_wildcard_limit_trigger_429(make_server):
     """Wildcard (empty models) limit applies to all models for the authID."""
-    srv = make_server(_WILDCARD_TEMPLATE)
+    srv = make_server(_WILDCARD_TEMPLATE, model="small")
     srv.start()
     status, body, total_input = _drain_until_429(srv, "test-haiku")
     assert status == 429, (
@@ -246,7 +246,7 @@ def test_wildcard_limit_trigger_429(make_server):
 
 def test_price_limit_returns_429(make_server):
     """When accumulated cost exceeds the price limit, 429 is returned."""
-    srv = make_server(_PRICE_LIMIT_CONFIG)
+    srv = make_server(_PRICE_LIMIT_CONFIG, model="small")
     srv.start()
 
     total_input = 0
@@ -266,7 +266,7 @@ def test_price_limit_returns_429(make_server):
 
 def test_429_has_no_retry_after_header(make_server):
     """429 responses must not include a Retry-After header."""
-    srv = make_server(_1K_LIMIT_CONFIG)
+    srv = make_server(_1K_LIMIT_CONFIG, model="small")
     srv.start()
 
     total_input = 0
@@ -288,7 +288,7 @@ def test_429_has_no_retry_after_header(make_server):
 
 def test_different_keys_share_same_limit_pool(make_server):
     """Two API keys under the same upstream key share the limit pool."""
-    srv = make_server(_TWO_KEY_CONFIG)
+    srv = make_server(_TWO_KEY_CONFIG, model="small")
     srv.start()
 
     # Exhaust limit with key-low
@@ -311,7 +311,7 @@ def test_different_keys_share_same_limit_pool(make_server):
 
 def test_limits_persist_across_restart(make_server):
     """After restarting the server, previously accumulated usage is still enforced."""
-    srv = make_server(None)
+    srv = make_server(None, model="small")
     srv.start()
 
     # Send requests until rate limited
@@ -337,7 +337,7 @@ def test_limits_persist_across_restart(make_server):
 
 def test_removing_limits_clears_rate_limit(make_server):
     """After removing limits from config, requests that were 429 should succeed."""
-    srv = make_server(_1K_LIMIT_CONFIG)
+    srv = make_server(_1K_LIMIT_CONFIG, model="small")
     srv.start()
 
     # Hit rate limit

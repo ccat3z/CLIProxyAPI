@@ -37,6 +37,15 @@ LLAMA_BIN_SHA1 = "343e16d3fe755887eda869c2767e998772d08002"
 #   extra_args: llama-server flags appended after --port/-m/-mm
 MODEL_OPTIONS = {
     "tiny": {
+        "model_url": "https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories260K.gguf",
+        "model_sha1": "307f7acf113c33f369df626421fb4d3bcac345c1",
+        "model_filename": "stories260K.gguf",
+        "mmproj_url": None,
+        "mmproj_sha1": None,
+        "mmproj_filename": None,
+        "extra_args": [],
+    },
+    "small": {
         "model_url": "https://huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-f16.gguf",
         "model_sha1": "80f1ddfdbfc21773b548de403046a2971e30bd3c",
         "model_filename": "smollm2-135m-f16.gguf",
@@ -169,20 +178,14 @@ def _stop_process(proc):
         proc.wait()
 
 
-@pytest.fixture(scope="session")
-def llama_server():
-    """Session-scoped self-hosted llama-server upstream.
+def start_llama_server(model_name):
+    """Start a llama-server with the given model option. Returns (upstream_dict, cleanup).
 
-    Yields a dict with ``url``, ``key``, ``model``, ``model_2`` pointing at the
-    in-process llama-server. The subprocess is cleaned up on session teardown.
-
-    Model selection: set the ``LLAMA_MODEL`` env var to a key in
-    ``MODEL_OPTIONS`` (default: ``tiny``).
+    ``cleanup`` is a no-arg callable that stops the subprocess and closes logs.
     """
-    model_name = os.environ.get("LLAMA_MODEL", DEFAULT_MODEL)
     if model_name not in MODEL_OPTIONS:
         raise RuntimeError(
-            f"unknown LLAMA_MODEL={model_name!r}; choose one of {list(MODEL_OPTIONS)}"
+            f"unknown model {model_name!r}; choose one of {list(MODEL_OPTIONS)}"
         )
     opt = MODEL_OPTIONS[model_name]
     log.info("using model option %r", model_name)
@@ -216,22 +219,45 @@ def llama_server():
         start_new_session=True,
         env=env,
     )
+
+    def cleanup():
+        _stop_process(proc)
+        stdout_log.close()
+        stderr_log.close()
+
     try:
         wait_for_http(base_url + "/health", timeout=180)
     except Exception:
-        _stop_process(proc)
-        stdout_log.close()
-        stderr_log.close()
+        cleanup()
         raise
 
+    return {
+        "url": base_url + "/v1",
+        "key": "test-llama-key",
+        "model": "test-model",
+        "model_2": "test-model-2",
+    }, cleanup
+
+
+@pytest.fixture(scope="session")
+def llama_servers():
+    """Session-scoped cache of running llama-server instances keyed by model name.
+
+    Yields a function ``get(model_name=DEFAULT_MODEL)`` that returns the upstream
+    dict for ``model_name``, starting the server on first use and reusing it
+    afterward. All started servers are stopped at session teardown.
+    """
+    cache = {}
+
+    def get(model_name=None):
+        if model_name is None:
+            model_name = os.environ.get("LLAMA_MODEL", DEFAULT_MODEL)
+        if model_name not in cache:
+            cache[model_name] = start_llama_server(model_name)
+        return cache[model_name][0]
+
     try:
-        yield {
-            "url": base_url + "/v1",
-            "key": "test-llama-key",
-            "model": "test-model",
-            "model_2": "test-model-2",
-        }
+        yield get
     finally:
-        _stop_process(proc)
-        stdout_log.close()
-        stderr_log.close()
+        for _, cleanup in cache.values():
+            cleanup()

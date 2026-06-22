@@ -18,7 +18,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 
-from llama import llama_server  # noqa: F401  (re-exported fixture)
+from llama import llama_servers  # noqa: F401  (re-exported fixture)
 from misc import find_free_port
 
 
@@ -244,27 +244,30 @@ class Server:
 
 
 @pytest.fixture
-def make_server(tmp_path, llama_server):
+def make_server(tmp_path, llama_servers):
     """Factory fixture to create a Server with a custom config template.
 
     Usage:
-        srv = make_server(None)             # default CONFIG_TEMPLATE
-        srv = make_server(my_template)      # custom template
+        srv = make_server(None)                       # default template, default model
+        srv = make_server(None, model="small")        # default template, SmolLM2-135M
+        srv = make_server(my_template)                # custom template, default model
+        srv = make_server(my_template, model="small") # custom template, SmolLM2-135M
         srv.start()
         ...
         srv.stop()
 
     The server is NOT started automatically — call start() when ready.
-    Each server gets a unique free port. Upstream is the session-scoped
-    self-hosted llama-server.
+    Each server gets a unique free port. Upstream is a session-scoped
+    self-hosted llama-server; ``model`` selects which one (cached per model).
     """
     servers = []
 
-    def _make_server(template=None):
+    def _make_server(template=None, model=None):
         if template is None:
             template = CONFIG_TEMPLATE
 
-        srv = Server(str(tmp_path / f"server_{len(servers)}"), template, llama_server)
+        upstream = llama_servers(model)
+        srv = Server(str(tmp_path / f"server_{len(servers)}"), template, upstream)
         servers.append(srv)
         return srv
 
