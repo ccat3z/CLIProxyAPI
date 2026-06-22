@@ -83,7 +83,7 @@ Total: 109 commits
 | 75 | 1f2504eb | fix(claude): bypass signature sanitizer for non-Claude models (#3946) | ✅ done |
 | 76 | 079ec51f | feat(cliproxy): optimize API key alias rebuild with deferred execution and caching | ⚠️ partial (integrated `RefreshAPIKeyModelAlias`/deferred-rebuild context, `openAICompatibilityRegistrationCache`, dynamic worker limits, and `!forceReplace` executor cache check; dropped `registerModelRefreshCallback` + `refreshModelRegistrationForAuth*`/`latestAuthForModelRegistration` (depend on removed `registry.SetModelRefreshCallback`), `hasNativeOpenAICompatExecutorConfig` (only caller is removed pluginHost block), pluginHost check + `appendPluginModels` calls, and `syncPluginRuntime`→`reregisterExecutors` rename) |
 | 77 | 36ed0e5c | fix(codex): strip model prefix for websocket payloads | ❌ skipped (codex executor code removed on custom branch) |
-| 78 | 290f421f | Merge pull request #3959 from fdreamsu/codex/fix-codex-ws-prefix | ⬜ pending |
+| 78 | 290f421f | Merge pull request #3959 from fdreamsu/codex/fix-codex-ws-prefix | ✅ done (merge: empty net diff on custom — codex subsystem removed; empty commit to advance base pointer) |
 | 79 | c58da381 | feat(plugins): sync home plugin manifests | ⬜ pending |
 | 80 | 5d9ea166 | Merge pull request #3963 from router-for-me/home | ⬜ pending |
 | 81 | bd646819 | test(translator, runtime): ensure empty text parts are skipped without null values | ⬜ pending |
