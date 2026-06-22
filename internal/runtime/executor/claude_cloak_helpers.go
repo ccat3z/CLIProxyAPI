@@ -1,9 +1,9 @@
 // Package executor helpers retained from the deleted helps package.
 //
 // These constants and helpers support Claude Code-compatible request cloaking
-// (OAuth tool remapping, system prompt injection, fake user ID generation).
-// They were inlined here when the dedicated helps files were removed in the
-// custom branch cleanup. Phase 5 may consolidate them further.
+// (system prompt injection, fake user ID generation, sensitive word
+// obfuscation). They were inlined here when the dedicated helps files were
+// removed in the custom branch cleanup.
 package executor
 
 import (
@@ -266,43 +266,4 @@ func obfuscateMessages(payload []byte, matcher *sensitiveWordMatcher) []byte {
 	})
 
 	return payload
-}
-
-// defaultClaudeBuiltinToolNames is the seed list of Claude Code built-in tools.
-var defaultClaudeBuiltinToolNames = []string{
-	"web_search",
-	"code_execution",
-	"text_editor",
-	"computer",
-}
-
-func newClaudeBuiltinToolRegistry() map[string]bool {
-	registry := make(map[string]bool, len(defaultClaudeBuiltinToolNames))
-	for _, name := range defaultClaudeBuiltinToolNames {
-		registry[name] = true
-	}
-	return registry
-}
-
-// augmentClaudeBuiltinToolRegistry returns the authoritative built-in tool name
-// set seeded with the known built-ins and augmented with any typed built-ins
-// present in the request body.
-func augmentClaudeBuiltinToolRegistry(body []byte, registry map[string]bool) map[string]bool {
-	if registry == nil {
-		registry = newClaudeBuiltinToolRegistry()
-	}
-	tools := gjson.GetBytes(body, "tools")
-	if !tools.Exists() || !tools.IsArray() {
-		return registry
-	}
-	tools.ForEach(func(_, tool gjson.Result) bool {
-		if tool.Get("type").String() == "" {
-			return true
-		}
-		if name := tool.Get("name").String(); name != "" {
-			registry[name] = true
-		}
-		return true
-	})
-	return registry
 }
