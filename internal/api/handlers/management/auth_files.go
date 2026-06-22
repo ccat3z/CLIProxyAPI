@@ -35,7 +35,6 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/util"
 	sdkAuth "github.com/router-for-me/CLIProxyAPI/v7/sdk/auth"
 	coreauth "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/auth"
-	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginapi"
 	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 	"golang.org/x/oauth2"
@@ -263,54 +262,7 @@ func pluginAuthProviderFromPath(path string) (string, bool) {
 }
 
 func (h *Handler) ServePluginAuthURL(c *gin.Context) bool {
-	if h == nil || c == nil || c.Request == nil || c.Request.URL == nil {
-		return false
-	}
-	h.mu.Lock()
-	host := h.pluginHost
-	h.mu.Unlock()
-	if host == nil {
-		return false
-	}
-	provider, ok := pluginAuthProviderFromPath(c.Request.URL.Path)
-	if !ok || !host.HasAuthProvider(provider) {
-		return false
-	}
-
-	ctx := PopulateAuthContext(context.Background(), c)
-	baseURL, errBaseURL := h.managementCallbackURL("/v0/management/oauth-callback")
-	if errBaseURL != nil {
-		log.WithError(errBaseURL).Error("failed to compute plugin auth callback URL")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate authorization url"})
-		return true
-	}
-	resp, handled, errStart := host.StartLogin(ctx, provider, baseURL)
-	if !handled {
-		return false
-	}
-	if errStart != nil {
-		log.WithError(errStart).Error("failed to start plugin auth login")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate authorization url"})
-		return true
-	}
-	state := strings.TrimSpace(resp.State)
-	if state == "" {
-		log.WithField("provider", provider).Error("plugin auth provider returned empty state")
-		c.JSON(http.StatusBadGateway, gin.H{"error": "invalid oauth state"})
-		return true
-	}
-	if errState := ValidateOAuthState(state); errState != nil {
-		log.WithError(errState).WithField("provider", provider).Error("plugin auth provider returned invalid state")
-		c.JSON(http.StatusBadGateway, gin.H{"error": "invalid oauth state"})
-		return true
-	}
-	if errRegister := RegisterPluginOAuthSession(state, provider, resp.Metadata); errRegister != nil {
-		log.WithError(errRegister).WithField("provider", provider).Error("failed to register plugin oauth session")
-		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to generate authorization url"})
-		return true
-	}
-	c.JSON(http.StatusOK, gin.H{"status": "ok", "url": resp.URL, "state": state})
-	return true
+	return false
 }
 
 func (h *Handler) ListAuthFiles(c *gin.Context) {
@@ -3099,7 +3051,7 @@ func (h *Handler) GetAuthStatus(c *gin.Context) {
 		return
 	}
 
-	provider, status, isPlugin, metadata, ok := GetOAuthSessionDetails(state)
+	_, status, _, _, ok := GetOAuthSessionDetails(state)
 	if !ok {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		return
@@ -3108,56 +3060,7 @@ func (h *Handler) GetAuthStatus(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "error", "error": status})
 		return
 	}
-	h.mu.Lock()
-	host := h.pluginHost
-	h.mu.Unlock()
-	if isPlugin && host != nil && host.HasAuthProvider(provider) {
-		ctx := PopulateAuthContext(context.Background(), c)
-		resp, handled, errPoll := host.PollLogin(ctx, provider, state, metadata)
-		if handled {
-			if errPoll != nil {
-				message := strings.TrimSpace(errPoll.Error())
-				if message == "" {
-					message = "Authentication failed"
-				}
-				SetOAuthSessionError(state, message)
-				c.JSON(http.StatusOK, gin.H{"status": "error", "error": message})
-				return
-			}
-			switch resp.Status {
-			case "", pluginapi.AuthLoginStatusPending:
-				c.JSON(http.StatusOK, gin.H{"status": "wait"})
-				return
-			case pluginapi.AuthLoginStatusError:
-				message := strings.TrimSpace(resp.Message)
-				if message == "" {
-					message = "Authentication failed"
-				}
-				SetOAuthSessionError(state, message)
-				c.JSON(http.StatusOK, gin.H{"status": "error", "error": message})
-				return
-			case pluginapi.AuthLoginStatusSuccess:
-				record := host.AuthDataToCoreAuth(resp.Auth, "", "")
-				if record == nil {
-					SetOAuthSessionError(state, "Authentication failed")
-					c.JSON(http.StatusOK, gin.H{"status": "error", "error": "Authentication failed"})
-					return
-				}
-				if _, errSave := h.saveTokenRecord(ctx, record); errSave != nil {
-					log.WithError(errSave).WithField("provider", provider).Error("failed to save plugin auth tokens")
-					SetOAuthSessionError(state, "Failed to save authentication tokens")
-					c.JSON(http.StatusOK, gin.H{"status": "error", "error": "Failed to save authentication tokens"})
-					return
-				}
-				CompleteOAuthSession(state)
-				c.JSON(http.StatusOK, gin.H{"status": "ok"})
-				return
-			default:
-				c.JSON(http.StatusOK, gin.H{"status": "wait"})
-				return
-			}
-		}
-	}
+	// plugin auth is no longer supported
 	c.JSON(http.StatusOK, gin.H{"status": "wait"})
 }
 

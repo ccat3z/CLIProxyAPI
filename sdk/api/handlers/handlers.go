@@ -1748,7 +1748,7 @@ func modelRoutersEnabled(host PluginModelRouterHost, skipPluginID string) bool {
 		return detector.HasModelRouters()
 	}
 	// No detector: treat routing as disabled (same conservative default as before any
-	// ModelRouter existed). Hosts that route must implement HasModelRouters (pluginhost.Host does).
+	// ModelRouter existed).
 	return false
 }
 

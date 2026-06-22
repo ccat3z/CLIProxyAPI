@@ -26,6 +26,7 @@ This directory documents all local changes on the `custom` branch that diverge f
 ## Removed Modules
 
 - [Removed: TUI and Utility Commands](./removed-tui.md)
+- [Removed: Plugin System (pluginhost + pluginstore)](./removed-plugins.md)
 
 ## Integration Tests
 

@@ -13,7 +13,6 @@ import (
 	gin "github.com/gin-gonic/gin"
 	proxyconfig "github.com/router-for-me/CLIProxyAPI/v7/internal/config"
 	internallogging "github.com/router-for-me/CLIProxyAPI/v7/internal/logging"
-	"github.com/router-for-me/CLIProxyAPI/v7/internal/pluginhost"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/redisqueue"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/registry"
 	sdkaccess "github.com/router-for-me/CLIProxyAPI/v7/sdk/access"
@@ -92,7 +91,7 @@ func TestHealthz(t *testing.T) {
 	})
 }
 
-func TestManagementResponseExposesPluginSupportHeaderForCORS(t *testing.T) {
+func TestManagementResponseExposesCORSHeaders(t *testing.T) {
 	t.Setenv("MANAGEMENT_PASSWORD", "test-management-key")
 
 	server := newTestServer(t)
@@ -103,9 +102,6 @@ func TestManagementResponseExposesPluginSupportHeaderForCORS(t *testing.T) {
 
 	if rr.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d body=%s", rr.Code, http.StatusUnauthorized, rr.Body.String())
-	}
-	if got := rr.Header().Get("X-CPA-SUPPORT-PLUGIN"); got != pluginhost.SupportPluginHeaderValue() {
-		t.Fatalf("X-CPA-SUPPORT-PLUGIN = %q, want %q", got, pluginhost.SupportPluginHeaderValue())
 	}
 
 	exposedHeaders := make(map[string]struct{})
@@ -122,27 +118,18 @@ func TestManagementResponseExposesPluginSupportHeaderForCORS(t *testing.T) {
 	}
 }
 
-func TestNewServerWithPluginHostInjectsHandlerInterceptors(t *testing.T) {
-	host := pluginhost.New()
-	server := newTestServerWithOptions(t, WithPluginHost(host))
+func TestManagementPluginsRouteReturns404(t *testing.T) {
+	t.Setenv("MANAGEMENT_PASSWORD", "test-management-key")
 
-	if server.handlers == nil {
-		t.Fatal("server handlers = nil")
-	}
-	got, ok := server.handlers.PluginHost.(*pluginhost.Host)
-	if !ok || got != host {
-		t.Fatalf("handler plugin host = %#v, want configured host", server.handlers.PluginHost)
-	}
-}
-
-func TestNewServerWithoutPluginHostLeavesHandlerInterceptorsDisabled(t *testing.T) {
 	server := newTestServer(t)
 
-	if server.handlers == nil {
-		t.Fatal("server handlers = nil")
-	}
-	if server.handlers.PluginHost != nil {
-		t.Fatalf("handler plugin host = %#v, want nil", server.handlers.PluginHost)
+	req := httptest.NewRequest(http.MethodGet, "/v0/management/plugins", nil)
+	req.Header.Set("Authorization", "Bearer test-management-key")
+	rr := httptest.NewRecorder()
+	server.engine.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d body=%s", rr.Code, http.StatusNotFound, rr.Body.String())
 	}
 }
 
@@ -197,65 +184,6 @@ func TestManagementUsageRequiresManagementAuthAndPopsArray(t *testing.T) {
 
 	if remaining := redisqueue.PopOldest(1); len(remaining) != 0 {
 		t.Fatalf("remaining queue = %q, want empty", remaining)
-	}
-}
-
-func TestManagementPluginsRouteRegistered(t *testing.T) {
-	t.Setenv("MANAGEMENT_PASSWORD", "test-management-key")
-
-	server := newTestServer(t)
-	enabled := true
-	server.cfg.Plugins.Configs = map[string]proxyconfig.PluginInstanceConfig{
-		"sample": {Enabled: &enabled, Priority: 4},
-	}
-	if errWrite := os.WriteFile(server.configFilePath, []byte("{}\n"), 0o600); errWrite != nil {
-		t.Fatalf("failed to write config file: %v", errWrite)
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "/v0/management/plugins", nil)
-	req.Header.Set("Authorization", "Bearer test-management-key")
-	rr := httptest.NewRecorder()
-	server.engine.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d body=%s", rr.Code, http.StatusOK, rr.Body.String())
-	}
-
-	var payload struct {
-		PluginsEnabled bool  `json:"plugins_enabled"`
-		Plugins        []any `json:"plugins"`
-	}
-	if errUnmarshal := json.Unmarshal(rr.Body.Bytes(), &payload); errUnmarshal != nil {
-		t.Fatalf("unmarshal response: %v body=%s", errUnmarshal, rr.Body.String())
-	}
-	if payload.Plugins == nil {
-		t.Fatalf("plugins field = nil, want array; body=%s", rr.Body.String())
-	}
-
-	req = httptest.NewRequest(http.MethodGet, "/v0/management/plugins/sample/config", nil)
-	req.Header.Set("Authorization", "Bearer test-management-key")
-	rr = httptest.NewRecorder()
-	server.engine.ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Fatalf("config status = %d, want %d body=%s", rr.Code, http.StatusOK, rr.Body.String())
-	}
-	var configPayload struct {
-		Enabled  bool `json:"enabled"`
-		Priority int  `json:"priority"`
-	}
-	if errUnmarshal := json.Unmarshal(rr.Body.Bytes(), &configPayload); errUnmarshal != nil {
-		t.Fatalf("unmarshal config response: %v body=%s", errUnmarshal, rr.Body.String())
-	}
-	if !configPayload.Enabled || configPayload.Priority != 4 {
-		t.Fatalf("plugin config = %#v, want enabled true priority 4", configPayload)
-	}
-
-	req = httptest.NewRequest(http.MethodDelete, "/v0/management/plugins/sample", nil)
-	req.Header.Set("Authorization", "Bearer test-management-key")
-	rr = httptest.NewRecorder()
-	server.engine.ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Fatalf("delete status = %d, want %d body=%s", rr.Code, http.StatusOK, rr.Body.String())
 	}
 }
 

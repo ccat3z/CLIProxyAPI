@@ -30,7 +30,6 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/home"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/logging"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/managementasset"
-	"github.com/router-for-me/CLIProxyAPI/v7/internal/pluginhost"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/redisqueue"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/util"
 	sdkaccess "github.com/router-for-me/CLIProxyAPI/v7/sdk/access"
@@ -51,7 +50,6 @@ var corsExposedResponseHeaders = []string{
 	"X-CPA-VERSION",
 	"X-CPA-COMMIT",
 	"X-CPA-BUILD-DATE",
-	"X-CPA-SUPPORT-PLUGIN",
 	"X-CPA-HOME-VERSION",
 	"X-CPA-HOME-BUILD-DATE",
 	"X-SERVER-VERSION",
@@ -71,7 +69,6 @@ type serverOptionConfig struct {
 	keepAliveOnTimeout   func()
 	postAuthHook         auth.PostAuthHook
 	postAuthPersistHook  auth.PostAuthHook
-	pluginHost           *pluginhost.Host
 	configReloadHook     func(context.Context, *config.Config)
 }
 
@@ -158,13 +155,6 @@ func WithPostAuthPersistHook(hook auth.PostAuthHook) ServerOption {
 	}
 }
 
-// WithPluginHost registers dynamic plugin HTTP adapters with the server.
-func WithPluginHost(host *pluginhost.Host) ServerOption {
-	return func(cfg *serverOptionConfig) {
-		cfg.pluginHost = host
-	}
-}
-
 // WithConfigReloadHook registers a callback used after management saves config changes.
 func WithConfigReloadHook(hook func(context.Context, *config.Config)) ServerOption {
 	return func(cfg *serverOptionConfig) {
@@ -218,9 +208,6 @@ type Server struct {
 
 	// management handler
 	mgmt *managementHandlers.Handler
-
-	// pluginHost owns dynamic plugin Management API route dispatch.
-	pluginHost *pluginhost.Host
 
 	// managementRoutesRegistered tracks whether the management routes have been attached to the engine.
 	managementRoutesRegistered atomic.Bool
@@ -312,14 +299,8 @@ func NewServer(cfg *config.Config, authManager *auth.Manager, accessManager *sdk
 		currentPath:         wd,
 		envManagementSecret: envManagementSecret,
 		wsRoutes:            make(map[string]struct{}),
-		pluginHost:          optionState.pluginHost,
 	}
 	s.wsAuthEnabled.Store(cfg.WebsocketAuth)
-	s.handlers.SetPluginHost(optionState.pluginHost)
-	if optionState.pluginHost != nil {
-		optionState.pluginHost.SetModelExecutor(s.handlers)
-		optionState.pluginHost.SetAuthManager(authManager)
-	}
 	// Save initial YAML snapshot
 	s.oldConfigYaml, _ = yaml.Marshal(cfg)
 	s.applyAccessConfig(nil, cfg)
@@ -331,7 +312,6 @@ func NewServer(cfg *config.Config, authManager *auth.Manager, accessManager *sdk
 	applySignatureCacheConfig(nil, cfg)
 	// Initialize management handler
 	s.mgmt = managementHandlers.NewHandler(cfg, configFilePath, authManager)
-	s.mgmt.SetPluginHost(optionState.pluginHost)
 	s.mgmt.SetConfigReloadHook(optionState.configReloadHook)
 	if optionState.localPassword != "" {
 		s.mgmt.SetLocalPassword(optionState.localPassword)
@@ -371,8 +351,9 @@ func NewServer(cfg *config.Config, authManager *auth.Manager, accessManager *sdk
 	if hasManagementSecret {
 		s.registerManagementRoutes()
 	}
-	s.refreshPluginManagementRoutes()
-	engine.NoRoute(s.pluginManagementNoRoute)
+	engine.NoRoute(func(c *gin.Context) {
+		c.AbortWithStatus(http.StatusNotFound)
+	})
 
 	if optionState.keepAliveEnabled {
 		s.enableKeepAlive(optionState.keepAliveTimeout, optionState.keepAliveOnTimeout)
@@ -395,7 +376,7 @@ func (s *Server) homeHeartbeatMiddleware() gin.HandlerFunc {
 		}
 		if c != nil && c.Request != nil {
 			path := c.Request.URL.Path
-			if strings.HasPrefix(path, "/v0/management/") || path == "/v0/management" || strings.HasPrefix(path, "/v0/resource/plugins/") || path == "/management.html" {
+			if strings.HasPrefix(path, "/v0/management/") || path == "/v0/management" || path == "/management.html" {
 				c.Next()
 				return
 			}
@@ -621,14 +602,6 @@ func (s *Server) registerManagementRoutes() {
 		mgmt.GET("/config.yaml", s.mgmt.GetConfigYAML)
 		mgmt.PUT("/config.yaml", s.mgmt.PutConfigYAML)
 		mgmt.GET("/latest-version", s.mgmt.GetLatestVersion)
-		mgmt.GET("/plugins", s.mgmt.ListPlugins)
-		mgmt.GET("/plugin-store", s.mgmt.ListPluginStore)
-		mgmt.POST("/plugin-store/:id/install", s.mgmt.InstallPluginFromStore)
-		mgmt.DELETE("/plugins/:id", s.mgmt.DeletePlugin)
-		mgmt.PATCH("/plugins/:id/enabled", s.mgmt.PatchPluginEnabled)
-		mgmt.GET("/plugins/:id/config", s.mgmt.GetPluginConfig)
-		mgmt.PUT("/plugins/:id/config", s.mgmt.PutPluginConfig)
-		mgmt.PATCH("/plugins/:id/config", s.mgmt.PatchPluginConfig)
 
 		mgmt.GET("/debug", s.mgmt.GetDebug)
 		mgmt.PUT("/debug", s.mgmt.PutDebug)
@@ -778,87 +751,6 @@ func (s *Server) managementAvailable(c *gin.Context) bool {
 		return false
 	}
 	return true
-}
-
-func (s *Server) refreshPluginManagementRoutes() {
-	if s == nil || s.pluginHost == nil || s.engine == nil {
-		return
-	}
-	s.pluginHost.RegisterManagementRoutes(context.Background(), s.registeredManagementRouteKeys())
-}
-
-// RefreshPluginManagementRoutes rebuilds plugin-owned Management API routes.
-func (s *Server) RefreshPluginManagementRoutes() {
-	s.refreshPluginManagementRoutes()
-}
-
-func (s *Server) registeredManagementRouteKeys() map[string]struct{} {
-	out := make(map[string]struct{})
-	if s == nil || s.engine == nil {
-		return out
-	}
-	for _, route := range s.engine.Routes() {
-		if strings.HasPrefix(route.Path, "/v0/management/") || route.Path == "/v0/management" {
-			out[strings.ToUpper(strings.TrimSpace(route.Method))+" "+route.Path] = struct{}{}
-		}
-	}
-	return out
-}
-
-func (s *Server) pluginManagementNoRoute(c *gin.Context) {
-	if s == nil || c == nil || c.Request == nil || c.Request.URL == nil {
-		if c != nil {
-			c.AbortWithStatus(http.StatusNotFound)
-		}
-		return
-	}
-	path := c.Request.URL.Path
-	if strings.HasPrefix(path, "/v0/resource/plugins/") {
-		s.pluginResourceNoRoute(c)
-		return
-	}
-	if path != "/v0/management" && !strings.HasPrefix(path, "/v0/management/") {
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-	if s.pluginHost == nil || s.mgmt == nil {
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-	if !s.managementAvailable(c) {
-		return
-	}
-	s.mgmt.Middleware()(c)
-	if c.IsAborted() {
-		return
-	}
-	if s.mgmt.ServePluginAuthURL(c) {
-		c.Abort()
-		return
-	}
-	if s.pluginHost.ServeManagementHTTP(c.Writer, c.Request) {
-		c.Abort()
-		return
-	}
-	c.AbortWithStatus(http.StatusNotFound)
-}
-
-func (s *Server) pluginResourceNoRoute(c *gin.Context) {
-	if s == nil || c == nil || c.Request == nil || c.Request.URL == nil {
-		if c != nil {
-			c.AbortWithStatus(http.StatusNotFound)
-		}
-		return
-	}
-	if s.cfg == nil || s.cfg.Home.Enabled || s.pluginHost == nil {
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-	if s.pluginHost.ServeResourceHTTP(c.Writer, c.Request) {
-		c.Abort()
-		return
-	}
-	c.AbortWithStatus(http.StatusNotFound)
 }
 
 func (s *Server) serveManagementControlPanel(c *gin.Context) {
@@ -1662,18 +1554,11 @@ func (s *Server) UpdateClients(cfg *config.Config) {
 	s.oldConfigYaml, _ = yaml.Marshal(cfg)
 
 	s.handlers.UpdateClients(effectiveSDKConfig(cfg))
-	s.handlers.SetPluginHost(s.pluginHost)
-	if s.pluginHost != nil {
-		s.pluginHost.SetModelExecutor(s.handlers)
-		s.pluginHost.SetAuthManager(s.handlers.AuthManager)
-	}
 
 	if s.mgmt != nil {
 		s.mgmt.SetConfig(cfg)
 		s.mgmt.SetAuthManager(s.handlers.AuthManager)
-		s.mgmt.SetPluginHost(s.pluginHost)
 	}
-	s.refreshPluginManagementRoutes()
 
 	// Count client sources from configuration and auth store.
 	authEntries := 0

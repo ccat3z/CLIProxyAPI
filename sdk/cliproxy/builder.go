@@ -11,7 +11,6 @@ import (
 
 	configaccess "github.com/router-for-me/CLIProxyAPI/v7/internal/access/config_access"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/api"
-	"github.com/router-for-me/CLIProxyAPI/v7/internal/pluginhost"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/watcher"
 	sdkaccess "github.com/router-for-me/CLIProxyAPI/v7/sdk/access"
 	sdkAuth "github.com/router-for-me/CLIProxyAPI/v7/sdk/auth"
@@ -49,9 +48,6 @@ type Builder struct {
 
 	// coreManager handles core authentication and execution.
 	coreManager *coreauth.Manager
-
-	// pluginHost owns dynamic plugin lifecycle and adapters.
-	pluginHost *pluginhost.Host
 
 	// postAuthHook is called after auth record creation and before persistence.
 	postAuthHook coreauth.PostAuthHook
@@ -148,12 +144,6 @@ func (b *Builder) WithCoreAuthManager(mgr *coreauth.Manager) *Builder {
 	return b
 }
 
-// WithPluginHost overrides the dynamic plugin host used by the service.
-func (b *Builder) WithPluginHost(host *pluginhost.Host) *Builder {
-	b.pluginHost = host
-	return b
-}
-
 // WithServerOptions appends server configuration options used during construction.
 func (b *Builder) WithServerOptions(opts ...api.ServerOption) *Builder {
 	b.serverOptions = append(b.serverOptions, opts...)
@@ -214,14 +204,6 @@ func (b *Builder) Build() (*Service, error) {
 	}
 
 	configaccess.Register(&b.cfg.SDKConfig)
-	pluginHost := b.pluginHost
-	if pluginHost == nil {
-		pluginHost = pluginhost.New()
-	}
-	if b.cfg != nil {
-		pluginHost.ApplyConfig(context.Background(), b.cfg)
-		pluginHost.RegisterFrontendAuthProviders()
-	}
 	accessManager.SetProviders(sdkaccess.RegisteredProviders())
 
 	coreManager := b.coreManager
@@ -267,9 +249,6 @@ func (b *Builder) Build() (*Service, error) {
 	coreManager.SetRoundTripperProvider(newDefaultRoundTripperProvider())
 	coreManager.SetConfig(b.cfg)
 	coreManager.SetOAuthModelAlias(b.cfg.OAuthModelAlias)
-	if pluginHost != nil {
-		coreManager.SetPluginScheduler(pluginHost)
-	}
 
 	service := &Service{
 		cfg:            b.cfg,
@@ -281,7 +260,6 @@ func (b *Builder) Build() (*Service, error) {
 		authManager:    authManager,
 		accessManager:  accessManager,
 		coreManager:    coreManager,
-		pluginHost:     pluginHost,
 		serverOptions:  append([]api.ServerOption(nil), b.serverOptions...),
 	}
 	if b.postAuthHook != nil {
@@ -289,7 +267,6 @@ func (b *Builder) Build() (*Service, error) {
 	}
 	service.serverOptions = append(service.serverOptions,
 		api.WithPostAuthPersistHook(service.runtimeAuthSyncHook()),
-		api.WithPluginHost(pluginHost),
 		api.WithConfigReloadHook(func(ctx context.Context, cfg *config.Config) {
 			service.applyConfigUpdate(cfg)
 		}),

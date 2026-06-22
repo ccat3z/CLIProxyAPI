@@ -15,7 +15,6 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/api"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/home"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/logging"
-	"github.com/router-for-me/CLIProxyAPI/v7/internal/pluginhost"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/redisqueue"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/runtime/executor"
@@ -96,9 +95,6 @@ type Service struct {
 	// coreManager handles core authentication and execution.
 	coreManager *coreauth.Manager
 
-	// pluginHost owns dynamic plugin lifecycle and runtime capability adapters.
-	pluginHost *pluginhost.Host
-
 	// shutdownOnce ensures shutdown is called only once.
 	shutdownOnce sync.Once
 
@@ -130,13 +126,6 @@ type executorRegistrationOptions struct {
 	auths             []*coreauth.Auth
 }
 
-var registerPluginExecutors = func(host *pluginhost.Host, manager *coreauth.Manager) {
-	if host == nil || manager == nil {
-		return
-	}
-	host.RegisterExecutors(manager, registry.GetGlobalRegistry())
-}
-
 // RegisterUsagePlugin registers a usage plugin on the global usage manager.
 // This allows external code to monitor API usage and token consumption.
 //
@@ -144,17 +133,6 @@ var registerPluginExecutors = func(host *pluginhost.Host, manager *coreauth.Mana
 //   - plugin: The usage plugin to register
 func (s *Service) RegisterUsagePlugin(plugin usage.Plugin) {
 	usage.RegisterPlugin(plugin)
-}
-
-func (s *Service) registerPluginAuthParser() {
-	var parser PluginAuthParser
-	if s != nil && s.pluginHost != nil {
-		parser = s.pluginHost
-	}
-	sdkAuth.RegisterPluginAuthParser(parser)
-	if s != nil && s.watcher != nil {
-		s.watcher.SetPluginAuthParser(parser)
-	}
 }
 
 func (s *Service) syncPluginRuntime(ctx context.Context) {
@@ -173,55 +151,30 @@ func (s *Service) syncPluginRuntimeConfig(ctx context.Context) bool {
 		ctx = context.Background()
 	}
 
-	s.cfgMu.RLock()
-	cfg := s.cfg
-	s.cfgMu.RUnlock()
-
-	if s.pluginHost != nil {
-		s.pluginHost.ApplyConfig(ctx, cfg)
-	}
 	if s.coreManager != nil {
-		s.coreManager.SetPluginScheduler(s.pluginHost)
+		s.coreManager.SetPluginScheduler(nil)
 	}
-	s.registerPluginAuthParser()
-	if s.pluginHost == nil {
-		return false
+	sdkAuth.RegisterPluginAuthParser(nil)
+	if s.watcher != nil {
+		s.watcher.SetPluginAuthParser(nil)
 	}
-	s.pluginHost.RegisterFrontendAuthProviders()
-	if s.accessManager != nil {
-		s.accessManager.SetProviders(sdkaccess.RegisteredProviders())
-	}
-	s.pluginHost.RegisterUsagePlugins()
-	sdktranslator.SetPluginHooks(s.pluginHost)
-	if s.server != nil {
-		s.server.RefreshPluginManagementRoutes()
-	}
-	return true
+	return false
 }
 
 func (s *Service) syncPluginModelRuntime(ctx context.Context) {
-	if s == nil || s.pluginHost == nil || s.coreManager == nil {
+	if s == nil || s.coreManager == nil {
 		return
 	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	s.pluginHost.RegisterModels(ctx, registry.GetGlobalRegistry())
 	s.registerAvailableExecutors(ctx, executorRegistrationOptions{
 		includeBaseline:   s.cfg != nil && s.cfg.Home.Enabled,
-		includePlugins:    true,
+		includePlugins:    false,
 		forceReplaceAuths: true,
 		auths:             s.coreManager.List(),
 	})
-	s.refreshPluginModelRegistrations(ctx)
 	s.coreManager.RefreshSchedulerAll()
-}
-
-func (s *Service) refreshPluginModelRegistrations(ctx context.Context) {
-	if s == nil || s.pluginHost == nil || s.coreManager == nil {
-		return
-	}
-	s.registerModelsForAuthBatch(ctx, s.coreManager.List())
 }
 
 func (s *Service) registerModelsForAuthBatch(ctx context.Context, auths []*coreauth.Auth) {
@@ -767,57 +720,6 @@ func openAICompatInfoFromAuth(a *coreauth.Auth) (providerKey string, compatName 
 	return "", "", false
 }
 
-func (s *Service) hasNativeOpenAICompatExecutorConfig(a *coreauth.Auth, providerKey string) bool {
-	if a == nil {
-		return false
-	}
-	providerKey = strings.ToLower(strings.TrimSpace(providerKey))
-	if a.Attributes != nil {
-		if strings.TrimSpace(a.Attributes["base_url"]) != "" {
-			return true
-		}
-		if strings.TrimSpace(a.Attributes["compat_name"]) != "" {
-			return true
-		}
-	}
-	if strings.EqualFold(strings.TrimSpace(a.Provider), "openai-compatibility") {
-		return true
-	}
-	if s == nil || s.cfg == nil {
-		return false
-	}
-
-	candidates := make([]string, 0, 3)
-	if providerKey != "" {
-		candidates = append(candidates, providerKey)
-	}
-	if a.Attributes != nil {
-		if v := strings.TrimSpace(a.Attributes["provider_key"]); v != "" {
-			candidates = append(candidates, strings.ToLower(v))
-		}
-	}
-	if provider := strings.TrimSpace(a.Provider); provider != "" {
-		candidates = append(candidates, strings.ToLower(provider))
-	}
-
-	for i := range s.cfg.OpenAICompatibility {
-		compat := &s.cfg.OpenAICompatibility[i]
-		if compat.Disabled {
-			continue
-		}
-		name := strings.ToLower(strings.TrimSpace(compat.Name))
-		if name == "" {
-			continue
-		}
-		for _, candidate := range candidates {
-			if candidate != "" && candidate == name {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func (s *Service) ensureExecutorsForAuth(a *coreauth.Auth) {
 	s.ensureExecutorsForAuthWithMode(a, false)
 }
@@ -840,15 +742,12 @@ func (s *Service) registerAvailableExecutors(ctx context.Context, opts executorR
 		ctx = context.Background()
 	}
 	// Keep all Service-owned executor registration paths here so native, Home,
-	// auth-derived, and plugin executors stay in the same binding order.
+	// and auth-derived executors stay in the same binding order.
 	if opts.includeBaseline {
 		s.registerExecutorsForAuths(baselineExecutorAuths(), true)
 	}
 	if len(opts.auths) > 0 {
 		s.registerExecutorsForAuths(opts.auths, opts.forceReplaceAuths)
-	}
-	if opts.includePlugins && s.pluginHost != nil {
-		registerPluginExecutors(s.pluginHost, s.coreManager)
 	}
 }
 
@@ -950,11 +849,6 @@ func (s *Service) registerExecutorForAuth(a *coreauth.Auth, forceReplace bool) {
 		if providerKey == "" {
 			providerKey = "openai-compatibility"
 		}
-		if s.pluginHost != nil &&
-			s.pluginHost.HasExecutorCandidateProvider(providerKey) &&
-			!s.hasNativeOpenAICompatExecutorConfig(a, providerKey) {
-			return
-		}
 		s.coreManager.RegisterExecutor(executor.NewOpenAICompatExecutor(providerKey, s.cfg))
 	}
 }
@@ -986,117 +880,6 @@ func (s *Service) registerResolvedModelsForAuth(a *coreauth.Auth, providerKey st
 		return
 	}
 	GlobalModelRegistry().RegisterClient(a.ID, providerKey, normalizedModels)
-}
-
-func (s *Service) pluginModelsForProvider(providerKey string) []*ModelInfo {
-	if s == nil || s.pluginHost == nil {
-		return nil
-	}
-	return s.pluginHost.ModelsForProvider(providerKey)
-}
-
-func (s *Service) appendPluginModels(providerKey string, models []*ModelInfo) []*ModelInfo {
-	pluginModels := s.pluginModelsForProvider(providerKey)
-	if len(pluginModels) == 0 {
-		return models
-	}
-	out := make([]*ModelInfo, 0, len(models)+len(pluginModels))
-	seen := make(map[string]struct{}, len(models)+len(pluginModels))
-	for _, model := range models {
-		if model == nil {
-			continue
-		}
-		modelID := strings.TrimSpace(model.ID)
-		if modelID != "" {
-			seen[modelID] = struct{}{}
-		}
-		out = append(out, model)
-	}
-	for _, model := range pluginModels {
-		if model == nil {
-			continue
-		}
-		modelID := strings.TrimSpace(model.ID)
-		if modelID == "" {
-			continue
-		}
-		if _, exists := seen[modelID]; exists {
-			continue
-		}
-		seen[modelID] = struct{}{}
-		out = append(out, model)
-	}
-	return out
-}
-
-func (s *Service) tryRegisterPluginModelsForAuth(ctx context.Context, a *coreauth.Auth, provider, authKind string, excluded []string) bool {
-	if s == nil || s.pluginHost == nil || a == nil {
-		return false
-	}
-	result := s.pluginHost.ModelsForAuth(ctx, a)
-	if !result.Handled {
-		return false
-	}
-	if result.Err != nil {
-		return true
-	}
-	activeAuth := a
-	providerKey := strings.ToLower(strings.TrimSpace(result.Provider))
-	if providerKey == "" {
-		providerKey = strings.ToLower(strings.TrimSpace(provider))
-	}
-	if result.Auth != nil && s.coreManager != nil {
-		result.Auth.ID = a.ID
-		if result.Auth.Provider == "" {
-			result.Auth.Provider = a.Provider
-		}
-		if result.Auth.FileName == "" {
-			result.Auth.FileName = a.FileName
-		}
-		if result.Auth.Attributes == nil {
-			result.Auth.Attributes = make(map[string]string)
-		}
-		for key, value := range a.Attributes {
-			if _, exists := result.Auth.Attributes[key]; !exists {
-				result.Auth.Attributes[key] = value
-			}
-		}
-		if updated, errUpdate := s.coreManager.Update(context.Background(), result.Auth); errUpdate == nil && updated != nil {
-			activeAuth = updated.Clone()
-		}
-	}
-	if activeAuth == nil {
-		activeAuth = a
-	}
-	if activeProvider := strings.ToLower(strings.TrimSpace(activeAuth.Provider)); activeProvider != "" {
-		providerKey = activeProvider
-	}
-	if providerKey == "" {
-		providerKey = strings.ToLower(strings.TrimSpace(provider))
-	}
-	activeAuthKind := strings.ToLower(strings.TrimSpace(activeAuth.Attributes["auth_kind"]))
-	if activeAuthKind == "" {
-		if kind, _ := activeAuth.AccountInfo(); strings.EqualFold(kind, "api_key") {
-			activeAuthKind = "apikey"
-		}
-	}
-	activeExcluded := s.oauthExcludedModels(providerKey, activeAuthKind)
-	if a == activeAuth && len(activeExcluded) == 0 {
-		activeExcluded = excluded
-	}
-	if activeAuth.Attributes != nil {
-		if val, ok := activeAuth.Attributes["excluded_models"]; ok && strings.TrimSpace(val) != "" {
-			activeExcluded = strings.Split(val, ",")
-		}
-	}
-	models := applyExcludedModels(result.Models, activeExcluded)
-	models = applyOAuthModelAlias(s.cfg, providerKey, activeAuthKind, models)
-	if len(models) > 0 {
-		s.registerResolvedModelsForAuth(activeAuth, providerKey, applyModelPrefixes(models, activeAuth.Prefix, s.cfg != nil && s.cfg.ForceModelPrefix))
-		return true
-	}
-	GlobalModelRegistry().UnregisterClient(activeAuth.ID)
-	return true
 }
 
 func (s *Service) applyConfigUpdate(newCfg *config.Config) {
@@ -1446,7 +1229,6 @@ func (s *Service) Run(ctx context.Context) error {
 
 	s.applyRetryConfig(s.cfg)
 
-	s.registerPluginAuthParser()
 	if s.coreManager != nil && !homeEnabled {
 		if errLoad := s.coreManager.Load(ctx); errLoad != nil {
 			log.Warnf("failed to load auth store: %v", errLoad)
@@ -1553,7 +1335,6 @@ func (s *Service) Run(ctx context.Context) error {
 			watcherWrapper.SetAuthUpdateQueue(s.authUpdates)
 		}
 		watcherWrapper.SetConfig(s.cfg)
-		s.registerPluginAuthParser()
 
 		watcherCtx, watcherCancel := context.WithCancel(context.Background())
 		s.watcherCancel = watcherCancel
@@ -1663,22 +1444,10 @@ func (s *Service) Shutdown(ctx context.Context) error {
 		}
 
 		iusage.ClosePersistStore()
-		if s.pluginHost != nil {
-			sdktranslator.SetPluginHooks(nil)
-			sdkAuth.RegisterPluginAuthParser(nil)
-			if s.watcher != nil {
-				s.watcher.SetPluginAuthParser(nil)
-			}
-			s.pluginHost.ApplyConfig(ctx, &config.Config{})
-			s.pluginHost.RegisterModels(ctx, registry.GetGlobalRegistry())
-			s.registerAvailableExecutors(ctx, executorRegistrationOptions{
-				includePlugins: true,
-			})
-			s.pluginHost.RegisterFrontendAuthProviders()
-			s.pluginHost.ShutdownAll()
-			if s.accessManager != nil {
-				s.accessManager.SetProviders(sdkaccess.RegisteredProviders())
-			}
+		sdktranslator.SetPluginHooks(nil)
+		sdkAuth.RegisterPluginAuthParser(nil)
+		if s.watcher != nil {
+			s.watcher.SetPluginAuthParser(nil)
 		}
 
 		usage.StopDefault()
@@ -1748,9 +1517,6 @@ func (s *Service) registerModelsForAuth(ctx context.Context, a *coreauth.Auth) {
 		if val, ok := a.Attributes["excluded_models"]; ok && strings.TrimSpace(val) != "" {
 			excluded = strings.Split(val, ",")
 		}
-	}
-	if s.tryRegisterPluginModelsForAuth(ctx, a, provider, authKind, excluded) {
-		return
 	}
 	var models []*ModelInfo
 	switch provider {
@@ -1882,22 +1648,14 @@ func (s *Service) registerModelsForAuth(ctx context.Context, a *coreauth.Auth) {
 						if providerKey == "" {
 							providerKey = "openai-compatibility"
 						}
-						ms = s.appendPluginModels(providerKey, ms)
 						s.registerResolvedModelsForAuth(a, providerKey, applyModelPrefixes(ms, a.Prefix, s.cfg.ForceModelPrefix))
 					} else {
-						// Ensure stale registrations are cleared when model list becomes empty.
-						ms = s.appendPluginModels(providerKey, nil)
-						if len(ms) > 0 {
-							s.registerResolvedModelsForAuth(a, providerKey, applyModelPrefixes(ms, a.Prefix, s.cfg.ForceModelPrefix))
-						} else {
-							GlobalModelRegistry().UnregisterClient(a.ID)
-						}
+						GlobalModelRegistry().UnregisterClient(a.ID)
 					}
 					return
 				}
 			}
 			if isCompatAuth {
-				models = s.appendPluginModels(providerKey, nil)
 				if len(models) > 0 {
 					s.registerResolvedModelsForAuth(a, providerKey, applyModelPrefixes(models, a.Prefix, s.cfg != nil && s.cfg.ForceModelPrefix))
 				} else {
@@ -1913,7 +1671,6 @@ func (s *Service) registerModelsForAuth(ctx context.Context, a *coreauth.Auth) {
 	if key == "" {
 		key = strings.ToLower(strings.TrimSpace(a.Provider))
 	}
-	models = s.appendPluginModels(key, models)
 	if len(models) > 0 {
 		s.registerResolvedModelsForAuth(a, key, applyModelPrefixes(models, a.Prefix, s.cfg != nil && s.cfg.ForceModelPrefix))
 		return

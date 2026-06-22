@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/config"
-	"github.com/router-for-me/CLIProxyAPI/v7/internal/pluginhost"
 )
 
 func TestAuthenticateManagementKey_LocalhostIPBan_BlocksCorrectKeyDuringBan(t *testing.T) {
@@ -40,7 +39,7 @@ func TestAuthenticateManagementKey_LocalhostIPBan_BlocksCorrectKeyDuringBan(t *t
 	}
 }
 
-func TestMiddlewareSetsSupportPluginHeader(t *testing.T) {
+func TestMiddlewareSetsVersionHeaders(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	h := &Handler{
@@ -50,7 +49,7 @@ func TestMiddlewareSetsSupportPluginHeader(t *testing.T) {
 	}
 	middleware := h.Middleware()
 
-	t.Run("invalid key", func(t *testing.T) {
+	t.Run("invalid key returns unauthorized", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(rec)
 		c.Request = httptest.NewRequest(http.MethodGet, "/v0/management/config", nil)
@@ -62,12 +61,9 @@ func TestMiddlewareSetsSupportPluginHeader(t *testing.T) {
 		if rec.Code != http.StatusUnauthorized {
 			t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 		}
-		if got := rec.Header().Get("X-CPA-SUPPORT-PLUGIN"); got != pluginhost.SupportPluginHeaderValue() {
-			t.Fatalf("X-CPA-SUPPORT-PLUGIN = %q, want %q", got, pluginhost.SupportPluginHeaderValue())
-		}
 	})
 
-	t.Run("valid key", func(t *testing.T) {
+	t.Run("valid key returns ok", func(t *testing.T) {
 		engine := gin.New()
 		engine.GET("/v0/management/config", middleware, func(c *gin.Context) {
 			c.Status(http.StatusOK)
@@ -81,9 +77,6 @@ func TestMiddlewareSetsSupportPluginHeader(t *testing.T) {
 
 		if rec.Code != http.StatusOK {
 			t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-		}
-		if got := rec.Header().Get("X-CPA-SUPPORT-PLUGIN"); got != pluginhost.SupportPluginHeaderValue() {
-			t.Fatalf("X-CPA-SUPPORT-PLUGIN = %q, want %q", got, pluginhost.SupportPluginHeaderValue())
 		}
 	})
 }
