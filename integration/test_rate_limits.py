@@ -15,13 +15,6 @@ def _make_long_prompt():
       Nulla libero lacus, consectetur et justo vitae, pharetra ornare nisi. Morbi commodo nunc et facilisis mattis. Morbi in molestie quam. Curabitur nisi risus, luctus in consectetur vel, convallis eget lorem. Etiam aliquet vitae libero in condimentum. Donec tempor, urna sed hendrerit viverra, enim felis malesuada eros, sed dictum felis risus vitae justo. Donec tristique enim ut commodo rhoncus. Nullam mollis justo non ipsum scelerisque, sollicitudin euismod neque semper.
       Ut porta congue ex, sit amet ultricies elit consectetur non. Aliquam dolor nisi, mollis non elit a, aliquam bibendum quam. Maecenas quis felis quam. Morbi eu tortor vitae lacus sodales aliquam ut a libero. Donec elit urna, ultrices sed molestie ac, sagittis et justo. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Nulla facilisi.
       Sed interdum felis at sem pellentesque, volutpat dictum mi condimentum. Quisque non laoreet justo. Nunc dictum velit vel orci aliquam pellentesque. Mauris at tortor in augue mollis eleifend. Aliquam nec nibh non augue tincidunt congue. Quisque vel semper nisi. Vivamus sagittis erat nisi, ut placerat libero tempus sed. Vestibulum blandit a lorem ac posuere.
-      Fusce vitae varius lorem. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer ac dui nec dolor condimentum vulputate nec porttitor ante. Sed posuere interdum arcu, vel iaculis mauris vestibulum sed. Sed et nibh tincidunt, scelerisque lorem nec, pretium turpis. Aliquam vehicula ut dui id efficitur. Maecenas massa dolor, volutpat quis libero ut, euismod aliquet mauris. In dignissim, lorem id dignissim suscipit, dolor ligula cursus ex, at maximus arcu nunc quis mauris. Phasellus sit amet enim lacus. Aliquam sed semper lacus, sit amet hendrerit felis. Praesent gravida placerat mauris vel vehicula.
-      Ut blandit lorem eu lacus faucibus bibendum. Vestibulum magna elit, placerat sit amet convallis et, convallis ut orci. Mauris eu scelerisque mauris. Fusce sed risus a purus facilisis vestibulum eu ut justo. Maecenas nisl augue, porttitor quis sem sed, scelerisque viverra sapien. Vestibulum fringilla magna non ipsum sollicitudin condimentum. Sed ultricies orci nunc, sit amet accumsan ipsum porta in. Vestibulum fringilla pharetra ipsum quis rhoncus. Morbi elementum tincidunt ligula sed tincidunt. Donec commodo commodo dolor eu ullamcorper.
-      Morbi molestie quam quis sem malesuada, ut congue ligula sodales. Fusce rhoncus venenatis vestibulum. Suspendisse non nisl elit. Vivamus dictum, nibh eget egestas auctor, mauris erat porttitor leo, consequat gravida sapien ligula eu mi. Aenean eu velit pulvinar, mollis libero at, ultrices metus. Donec hendrerit orci semper, venenatis magna eget, aliquam libero. Sed ac nisi ac mi ultricies ornare maximus aliquam nunc. Praesent condimentum finibus urna id dictum. Nam vel diam eu felis sodales tincidunt. Sed condimentum, ante eget porttitor hendrerit, nisi arcu tincidunt neque, vitae rhoncus ipsum eros in justo. Aliquam erat volutpat. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas.
-      Praesent ut massa a enim iaculis lacinia sed pulvinar libero. Etiam viverra, purus nec pharetra consequat, enim ipsum vehicula erat, ac elementum metus lacus id risus. Curabitur ligula mauris, vulputate non ullamcorper imperdiet, bibendum vitae neque. Integer tincidunt aliquet luctus. Vestibulum leo nulla, consequat vitae nibh eget, semper eleifend urna. Ut ultricies felis lorem, elementum molestie est egestas nec. Sed nec magna ut magna sollicitudin mattis eu eget risus. Aenean feugiat nisl ut tellus viverra, id pulvinar arcu auctor. Pellentesque est ipsum, sagittis vel massa ut, elementum consectetur augue. Interdum et malesuada fames ac ante ipsum primis in faucibus. Donec commodo, magna ut tempor pulvinar, elit ligula posuere nibh, quis auctor lacus sapien ac mi. Proin lacinia, risus eu porta maximus, velit felis dictum magna, eget viverra nulla ex a lacus. Quisque imperdiet, neque eget viverra cursus, orci diam luctus odio, eu pretium augue mi non ex. Nulla posuere volutpat felis quis porttitor. Aenean consequat, libero in convallis luctus, nisi odio porta ante, ac euismod sem mi non magna.
-      Etiam finibus quis erat id dapibus. Ut enim justo, luctus nec ex at, tempor dignissim mauris. Suspendisse nec molestie arcu. Aenean ante libero, semper hendrerit metus eu, vestibulum tempus nisi. Mauris rutrum pulvinar porta. Ut venenatis elementum ante. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Donec blandit ex eget orci lobortis, a ultrices dolor faucibus. Donec sit amet metus fermentum, rhoncus sem id, consequat risus. Nam eu sapien tempor justo ornare aliquam.
-      Aenean massa dolor, placerat in augue et, consequat pharetra nunc. Etiam convallis tempor ipsum. Praesent vehicula rhoncus rhoncus. Morbi ligula magna, mollis sit amet finibus sit amet, auctor ac enim. Nunc scelerisque, odio non congue lobortis, dui risus faucibus eros, sit amet consequat nisl purus vel lorem. Proin eget varius enim, condimentum pretium dui. Interdum et malesuada fames ac ante ipsum primis in faucibus. Sed sed gravida justo, a consequat risus. Aliquam condimentum odio nibh, ullamcorper rutrum odio auctor ac. Cras sem orci, posuere id elit a, scelerisque varius diam. Mauris malesuada diam in odio sodales rutrum. Phasellus tempor orci id elit congue, quis aliquet orci accumsan. Praesent a libero interdum, luctus lectus at, consequat urna. Vivamus arcu lorem, rhoncus gravida gravida dictum, interdum eget nisl. Vivamus aliquam mi in malesuada tempus.
-      Vestibulum varius dapibus lobortis. In mattis accumsan neque, vitae ornare orci. Vivamus in molestie risus. Mauris ipsum metus, luctus molestie blandit a, rutrum vel erat. Vestibulum eget urna commodo, molestie urna non, rutrum nisi. Maecenas condimentum vitae nisl vel porttitor. In lacinia, nibh et fermentum gravida, sem mi iaculis velit, quis pharetra leo lorem eget lectus. Pellentesque condimentum vel odio ac tincidunt. Nam risus urna, hendrerit mattis sagittis.
     """
 
 
@@ -192,7 +185,7 @@ def _drain_until_429(srv, model, api_key=None):
 
 def test_input_tokens_limit_returns_429(make_server):
     """When input token usage reaches the configured 3k limit, next request gets 429."""
-    srv = make_server(None, model="small")
+    srv = make_server(None)
     srv.start()
     status, body, total_input = _drain_until_429(srv, "test-haiku")
     assert status == 429, (
@@ -203,7 +196,7 @@ def test_input_tokens_limit_returns_429(make_server):
 
 def test_limit_error_includes_details(make_server):
     """429 response body includes limit type, current, and limit values."""
-    srv = make_server(None, model="small")
+    srv = make_server(None)
     srv.start()
     status, body, _ = _drain_until_429(srv, "test-haiku")
     assert status == 429, "Expected 429 to check error details"
@@ -214,7 +207,7 @@ def test_limit_error_includes_details(make_server):
 
 def test_shared_window_models_trigger_429(make_server):
     """Models in the same limit window share usage: combined tokens trigger 429."""
-    srv = make_server(_MULTI_MODEL_TEMPLATE, model="small")
+    srv = make_server(_MULTI_MODEL_TEMPLATE)
     srv.start()
     total_input = 0
     got_429 = False
@@ -235,7 +228,7 @@ def test_shared_window_models_trigger_429(make_server):
 
 def test_wildcard_limit_trigger_429(make_server):
     """Wildcard (empty models) limit applies to all models for the authID."""
-    srv = make_server(_WILDCARD_TEMPLATE, model="small")
+    srv = make_server(_WILDCARD_TEMPLATE)
     srv.start()
     status, body, total_input = _drain_until_429(srv, "test-haiku")
     assert status == 429, (
@@ -246,7 +239,7 @@ def test_wildcard_limit_trigger_429(make_server):
 
 def test_price_limit_returns_429(make_server):
     """When accumulated cost exceeds the price limit, 429 is returned."""
-    srv = make_server(_PRICE_LIMIT_CONFIG, model="small")
+    srv = make_server(_PRICE_LIMIT_CONFIG)
     srv.start()
 
     total_input = 0
@@ -266,7 +259,7 @@ def test_price_limit_returns_429(make_server):
 
 def test_429_has_no_retry_after_header(make_server):
     """429 responses must not include a Retry-After header."""
-    srv = make_server(_1K_LIMIT_CONFIG, model="small")
+    srv = make_server(_1K_LIMIT_CONFIG)
     srv.start()
 
     total_input = 0
@@ -288,7 +281,7 @@ def test_429_has_no_retry_after_header(make_server):
 
 def test_different_keys_share_same_limit_pool(make_server):
     """Two API keys under the same upstream key share the limit pool."""
-    srv = make_server(_TWO_KEY_CONFIG, model="small")
+    srv = make_server(_TWO_KEY_CONFIG)
     srv.start()
 
     # Exhaust limit with key-low
@@ -311,7 +304,7 @@ def test_different_keys_share_same_limit_pool(make_server):
 
 def test_limits_persist_across_restart(make_server):
     """After restarting the server, previously accumulated usage is still enforced."""
-    srv = make_server(None, model="small")
+    srv = make_server(None)
     srv.start()
 
     # Send requests until rate limited
@@ -337,7 +330,7 @@ def test_limits_persist_across_restart(make_server):
 
 def test_removing_limits_clears_rate_limit(make_server):
     """After removing limits from config, requests that were 429 should succeed."""
-    srv = make_server(_1K_LIMIT_CONFIG, model="small")
+    srv = make_server(_1K_LIMIT_CONFIG)
     srv.start()
 
     # Hit rate limit
