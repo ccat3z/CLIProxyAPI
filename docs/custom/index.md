@@ -31,6 +31,7 @@ This directory documents all local changes on the `custom` branch that diverge f
 - [Removed: Non-Essential Providers, OAuth Flows, Browser Login](./removed-providers-oauth.md)
 - [Removed: Claude Executor OAuth Code Paths](./removed-claude-oauth-paths.md)
 - [Removed: Unused Config Fields and Dependencies](./removed-config-fields.md)
+- [Removed: Dead Code (Phase 7 Batch 1)](./removed-dead-code.md)
 
 ## Integration Tests
 
