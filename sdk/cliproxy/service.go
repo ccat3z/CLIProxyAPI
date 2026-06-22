@@ -24,7 +24,6 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/watcher"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/watcher/diff"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/watcher/synthesizer"
-	"github.com/router-for-me/CLIProxyAPI/v7/internal/wsrelay"
 	sdkaccess "github.com/router-for-me/CLIProxyAPI/v7/sdk/access"
 	sdkAuth "github.com/router-for-me/CLIProxyAPI/v7/sdk/auth"
 	coreauth "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/auth"
@@ -97,9 +96,6 @@ type Service struct {
 
 	// shutdownOnce ensures shutdown is called only once.
 	shutdownOnce sync.Once
-
-	// wsGateway manages websocket Gemini providers.
-	wsGateway *wsrelay.Manager
 
 	homeClient       *home.Client
 	homeCancel       context.CancelFunc
@@ -536,77 +532,6 @@ func authUpdateID(update watcher.AuthUpdate) string {
 	return ""
 }
 
-func (s *Service) ensureWebsocketGateway() {
-	if s == nil {
-		return
-	}
-	if s.wsGateway != nil {
-		return
-	}
-	opts := wsrelay.Options{
-		Path:           "/v1/ws",
-		OnConnected:    s.wsOnConnected,
-		OnDisconnected: s.wsOnDisconnected,
-		LogDebugf:      log.Debugf,
-		LogInfof:       log.Infof,
-		LogWarnf:       log.Warnf,
-	}
-	s.wsGateway = wsrelay.NewManager(opts)
-}
-
-func (s *Service) wsOnConnected(channelID string) {
-	if s == nil || channelID == "" {
-		return
-	}
-	if !strings.HasPrefix(strings.ToLower(channelID), "aistudio-") {
-		return
-	}
-	if s.coreManager != nil {
-		if existing, ok := s.coreManager.GetByID(channelID); ok && existing != nil {
-			if !existing.Disabled && existing.Status == coreauth.StatusActive {
-				return
-			}
-		}
-	}
-	now := time.Now().UTC()
-	auth := &coreauth.Auth{
-		ID:         channelID,  // keep channel identifier as ID
-		Provider:   "aistudio", // logical provider for switch routing
-		Label:      channelID,  // display original channel id
-		Status:     coreauth.StatusActive,
-		CreatedAt:  now,
-		UpdatedAt:  now,
-		Attributes: map[string]string{"runtime_only": "true"},
-		Metadata:   map[string]any{"email": channelID}, // metadata drives logging and usage tracking
-	}
-	log.Infof("websocket provider connected: %s", channelID)
-	s.emitAuthUpdate(context.Background(), watcher.AuthUpdate{
-		Action: watcher.AuthUpdateActionAdd,
-		ID:     auth.ID,
-		Auth:   auth,
-	})
-}
-
-func (s *Service) wsOnDisconnected(channelID string, reason error) {
-	if s == nil || channelID == "" {
-		return
-	}
-	if reason != nil {
-		if strings.Contains(reason.Error(), "replaced by new connection") {
-			log.Infof("websocket provider replaced: %s", channelID)
-			return
-		}
-		log.Warnf("websocket provider disconnected: %s (%v)", channelID, reason)
-	} else {
-		log.Infof("websocket provider disconnected: %s", channelID)
-	}
-	ctx := context.Background()
-	s.emitAuthUpdate(ctx, watcher.AuthUpdate{
-		Action: watcher.AuthUpdateActionDelete,
-		ID:     channelID,
-	})
-}
-
 func (s *Service) applyCoreAuthAddOrUpdate(ctx context.Context, auth *coreauth.Auth) {
 	auth = s.prepareCoreAuthForModelRegistration(ctx, auth)
 	if auth == nil {
@@ -829,13 +754,6 @@ func (s *Service) registerExecutorForAuth(a *coreauth.Auth, forceReplace bool) {
 		s.coreManager.RegisterExecutor(executor.NewGeminiExecutor(s.cfg))
 	case "vertex":
 		s.coreManager.RegisterExecutor(executor.NewGeminiVertexExecutor(s.cfg))
-	case "gemini-cli":
-		s.coreManager.RegisterExecutor(executor.NewGeminiCLIExecutor(s.cfg))
-	case "aistudio":
-		if s.wsGateway != nil {
-			s.coreManager.RegisterExecutor(executor.NewAIStudioExecutor(s.cfg, a.ID, s.wsGateway))
-		}
-		return
 	case "antigravity":
 		s.coreManager.RegisterExecutor(executor.NewAntigravityExecutor(s.cfg))
 	case "claude":
@@ -1255,7 +1173,6 @@ func (s *Service) Run(ctx context.Context) error {
 
 	// legacy clients removed; no caches to refresh
 
-	s.ensureWebsocketGateway()
 	if homeEnabled {
 		s.registerAvailableExecutors(ctx, executorRegistrationOptions{
 			includeBaseline: true,
@@ -1277,26 +1194,6 @@ func (s *Service) Run(ctx context.Context) error {
 
 	if homeEnabled {
 		s.startHomeSubscriber(ctx)
-	}
-
-	if s.server != nil && s.wsGateway != nil {
-		s.server.AttachWebsocketRoute(s.wsGateway.Path(), s.wsGateway.Handler())
-		s.server.SetWebsocketAuthChangeHandler(func(oldEnabled, newEnabled bool) {
-			if oldEnabled == newEnabled {
-				return
-			}
-			if !oldEnabled && newEnabled {
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				if errStop := s.wsGateway.Stop(ctx); errStop != nil {
-					log.Warnf("failed to reset websocket connections after ws-auth change %t -> %t: %v", oldEnabled, newEnabled, errStop)
-					return
-				}
-				log.Debugf("ws-auth enabled; existing websocket sessions terminated to enforce authentication")
-				return
-			}
-			log.Debugf("ws-auth disabled; existing websocket sessions remain connected")
-		})
 	}
 
 	if s.hooks.OnBeforeStart != nil {
@@ -1408,14 +1305,6 @@ func (s *Service) Shutdown(ctx context.Context) error {
 			if err := s.watcher.Stop(); err != nil {
 				log.Errorf("failed to stop file watcher: %v", err)
 				shutdownErr = err
-			}
-		}
-		if s.wsGateway != nil {
-			if err := s.wsGateway.Stop(ctx); err != nil {
-				log.Errorf("failed to stop websocket gateway: %v", err)
-				if shutdownErr == nil {
-					shutdownErr = err
-				}
 			}
 		}
 		if s.authQueueStop != nil {

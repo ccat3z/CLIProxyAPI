@@ -27,6 +27,7 @@ This directory documents all local changes on the `custom` branch that diverge f
 
 - [Removed: TUI and Utility Commands](./removed-tui.md)
 - [Removed: Plugin System (pluginhost + pluginstore)](./removed-plugins.md)
+- [Removed: WebSocket Relay, GeminiCLI Runtime, and Non-File Store Backends](./removed-wsrelay-store.md)
 
 ## Integration Tests
 

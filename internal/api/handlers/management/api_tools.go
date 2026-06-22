@@ -12,7 +12,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/config"
-	"github.com/router-for-me/CLIProxyAPI/v7/internal/runtime/geminicli"
 	coreauth "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/auth"
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/proxyutil"
 	log "github.com/sirupsen/logrus"
@@ -237,11 +236,6 @@ func tokenValueForAuth(auth *coreauth.Auth) string {
 	}
 	if auth.Attributes != nil {
 		if v := strings.TrimSpace(auth.Attributes["api_key"]); v != "" {
-			return v
-		}
-	}
-	if shared := geminicli.ResolveSharedCredential(auth.Runtime); shared != nil {
-		if v := tokenValueFromMetadata(shared.MetadataSnapshot()); v != "" {
 			return v
 		}
 	}
@@ -494,10 +488,6 @@ func int64Value(raw any) int64 {
 func geminiOAuthMetadata(auth *coreauth.Auth) (map[string]any, func(map[string]any)) {
 	if auth == nil {
 		return nil, nil
-	}
-	if shared := geminicli.ResolveSharedCredential(auth.Runtime); shared != nil {
-		snapshot := shared.MetadataSnapshot()
-		return snapshot, func(fields map[string]any) { shared.MergeMetadata(fields) }
 	}
 	return auth.Metadata, func(fields map[string]any) {
 		if auth.Metadata == nil {
