@@ -30,14 +30,44 @@ LIBEXEC_DIR = os.path.join(LLAMA_DIR, "libexec")
 LLAMA_BIN_URL = "https://github.com/ggml-org/llama.cpp/releases/download/b9754/llama-b9754-bin-ubuntu-x64.tar.gz"
 LLAMA_BIN_SHA1 = "343e16d3fe755887eda869c2767e998772d08002"
 
-MODEL_URL = "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q8_0.gguf"
-MODEL_SHA1 = "e5a44d6680b254974574a6a0ce5212813abd102c"
+# Model options. Select via the ``LLAMA_MODEL`` env var (default: ``tiny``).
+# Each entry has:
+#   model_url, model_sha1, model_filename: the GGUF weights
+#   mmproj_url, mmproj_sha1, mmproj_filename: optional multimodal projector
+#   extra_args: llama-server flags appended after --port/-m/-mm
+MODEL_OPTIONS = {
+    "tiny": {
+        "model_url": "https://huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-f16.gguf",
+        "model_sha1": "80f1ddfdbfc21773b548de403046a2971e30bd3c",
+        "model_filename": "smollm2-135m-f16.gguf",
+        "mmproj_url": None,
+        "mmproj_sha1": None,
+        "mmproj_filename": None,
+        "extra_args": [
+            "--presence-penalty", "0.5",
+            "--repeat-penalty", "1.05",
+        ],
+    },
+    "mllm": {
+        "model_url": "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q8_0.gguf",
+        "model_sha1": "e5a44d6680b254974574a6a0ce5212813abd102c",
+        "model_filename": "qwen3.5-0.8b-q8_0.gguf",
+        "mmproj_url": "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/mmproj-BF16.gguf",
+        "mmproj_sha1": "0341e1c3889dca4b30a482f213f1f427a67c4824",
+        "mmproj_filename": "mmproj-bf16.gguf",
+        "extra_args": [
+            "--temp", "0.6",
+            "--top-p", "0.95",
+            "--top-k", "20",
+            "--min-p", "0.00",
+            "--presence-penalty", "1.5",
+            "--repeat-penalty", "1.0",
+            "--ctx-size", "4096",
+        ],
+    },
+}
 
-MMPROJ_URL = "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/mmproj-BF16.gguf"
-MMPROJ_SHA1 = "0341e1c3889dca4b30a482f213f1f427a67c4824"
-
-MODEL_PATH = os.path.join(LLAMA_DIR, "qwen3.5-0.8b-q8_0.gguf")
-MMPROJ_PATH = os.path.join(LLAMA_DIR, "mmproj-bf16.gguf")
+DEFAULT_MODEL = "tiny"
 
 
 def _sha1(path):
@@ -145,10 +175,26 @@ def llama_server():
 
     Yields a dict with ``url``, ``key``, ``model``, ``model_2`` pointing at the
     in-process llama-server. The subprocess is cleaned up on session teardown.
+
+    Model selection: set the ``LLAMA_MODEL`` env var to a key in
+    ``MODEL_OPTIONS`` (default: ``tiny``).
     """
+    model_name = os.environ.get("LLAMA_MODEL", DEFAULT_MODEL)
+    if model_name not in MODEL_OPTIONS:
+        raise RuntimeError(
+            f"unknown LLAMA_MODEL={model_name!r}; choose one of {list(MODEL_OPTIONS)}"
+        )
+    opt = MODEL_OPTIONS[model_name]
+    log.info("using model option %r", model_name)
+
     bin_path, lib_dir = ensure_llama_server_binary()
-    _download(MODEL_URL, MODEL_PATH, MODEL_SHA1)
-    _download(MMPROJ_URL, MMPROJ_PATH, MMPROJ_SHA1)
+    model_path = os.path.join(LLAMA_DIR, opt["model_filename"])
+    _download(opt["model_url"], model_path, opt["model_sha1"])
+    if opt["mmproj_url"]:
+        mmproj_path = os.path.join(LLAMA_DIR, opt["mmproj_filename"])
+        _download(opt["mmproj_url"], mmproj_path, opt["mmproj_sha1"])
+    else:
+        mmproj_path = None
 
     port = find_free_port()
     base_url = f"http://127.0.0.1:{port}"
@@ -157,19 +203,10 @@ def llama_server():
     stdout_log = open(os.path.join(log_dir, f"llama_{port}.stdout.log"), "a")
     stderr_log = open(os.path.join(log_dir, f"llama_{port}.stderr.log"), "a")
 
-    cmd = [
-        bin_path,
-        "--port", str(port),
-        "-m", MODEL_PATH,
-        "-mm", MMPROJ_PATH,
-        "--temp", "0.6",
-        "--top-p", "0.95",
-        "--top-k", "20",
-        "--min-p", "0.00",
-        "--presence-penalty", "1.5",
-        "--repeat-penalty", "1.0",
-        "--ctx-size", "4096",
-    ]
+    cmd = [bin_path, "--port", str(port), "-m", model_path]
+    if mmproj_path:
+        cmd += ["-mm", mmproj_path]
+    cmd += opt["extra_args"]
     env = os.environ.copy()
     env["LD_LIBRARY_PATH"] = lib_dir + (":" + env["LD_LIBRARY_PATH"] if env.get("LD_LIBRARY_PATH") else "")
     proc = subprocess.Popen(
