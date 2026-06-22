@@ -1,18 +1,25 @@
 """Shared fixtures for CLIProxyAPI integration tests."""
 
 import json
+import logging
 import os
 import signal
-import socket
-import string
 import subprocess
+import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 
 import pytest
 
-HOST = "127.0.0.1"
+logging.basicConfig(
+    level=logging.INFO,
+    stream=sys.stderr,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+
+from llama import llama_server  # noqa: F401  (re-exported fixture)
+from misc import find_free_port
 
 
 CONFIG_TEMPLATE = """\
@@ -40,97 +47,26 @@ openai-compatibility:
         cache_price_m: 0.3
 """
 
+
 class Server:
     """Manages a CLIProxyAPI subprocess for integration testing."""
 
     API_KEY = "integration-test-key"
 
-    def __init__(self, workdir, template):
+    def __init__(self, workdir, template, upstream):
         self.workdir = workdir
+        self.upstream = upstream
         self.config_dir = os.path.join(workdir, "config")
         self.usage_db_dir = os.path.join(workdir, "usage_db")
         os.makedirs(self.config_dir, exist_ok=True)
         os.makedirs(self.usage_db_dir, exist_ok=True)
 
-        self.port = self.find_free_port()
-        self.base_url = f"http://{HOST}:{self.port}"
+        self.port = find_free_port()
+        self.base_url = f"http://127.0.0.1:{self.port}"
         self.process = None
         self.config_path = os.path.join(self.config_dir, "config.yaml")
 
         self.write_config(template)
-
-    @staticmethod
-    def find_free_port():
-        """Find a free TCP port on localhost."""
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind((HOST, 0))
-            return s.getsockname()[1]
-
-    @staticmethod
-    def get_upstream_api():
-        """Return upstream API credentials from environment variables.
-
-        Required environment variables:
-            CLI_PROXY_TEST_UPSTREAM_URL    - Upstream base URL (e.g. http://127.0.0.1:8098/v1)
-            CLI_PROXY_TEST_UPSTREAM_KEY    - Upstream API key
-            CLI_PROXY_TEST_UPSTREAM_MODEL  - Primary upstream model name
-            CLI_PROXY_TEST_UPSTREAM_MODEL_2 - Secondary upstream model name (for multi-model tests)
-
-        Sends a liveness chat completion to verify the upstream is reachable;
-        skips the test if it is not.
-        """
-        missing = []
-        url = os.environ.get("CLI_PROXY_TEST_UPSTREAM_URL")
-        if not url:
-            missing.append("CLI_PROXY_TEST_UPSTREAM_URL")
-
-        key = os.environ.get("CLI_PROXY_TEST_UPSTREAM_KEY")
-        if not key:
-            missing.append("CLI_PROXY_TEST_UPSTREAM_KEY")
-
-        model = os.environ.get("CLI_PROXY_TEST_UPSTREAM_MODEL")
-        if not model:
-            missing.append("CLI_PROXY_TEST_UPSTREAM_MODEL")
-
-        model_2 = os.environ.get("CLI_PROXY_TEST_UPSTREAM_MODEL_2")
-        if not model_2:
-            missing.append("CLI_PROXY_TEST_UPSTREAM_MODEL_2")
-
-        if missing:
-            raise RuntimeError(
-                "Integration test upstream API not configured. "
-                "Set the following environment variables to your own OpenAI-compatible API:\n"
-                + "\n".join(f"  export {v}=<value>" for v in missing)
-                + "\n\nExample using your local CLIProxyAPI:\n"
-                + "  export CLI_PROXY_TEST_UPSTREAM_URL=http://127.0.0.1:8098/v1\n"
-                + "  export CLI_PROXY_TEST_UPSTREAM_KEY=sk-123\n"
-                + "  export CLI_PROXY_TEST_UPSTREAM_MODEL=friday/deepseek-v4-pro\n"
-                + "  export CLI_PROXY_TEST_UPSTREAM_MODEL_2=deepseek-v4-pro\n"
-            )
-
-        try:
-            body = json.dumps({
-                "model": model,
-                "messages": [{"role": "user", "content": "hi"}],
-                "max_tokens": 1,
-            }).encode()
-            # Strip /v1 suffix so the path is uniform; write_config re-appends /v1
-            normalized = url.rstrip("/")
-            if normalized.endswith("/v1"):
-                normalized = normalized[:-3]
-            req = urllib.request.Request(
-                normalized + "/v1/chat/completions",
-                data=body,
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {key}",
-                },
-            )
-            with urllib.request.urlopen(req, timeout=30):
-                pass
-        except (urllib.error.URLError, ConnectionError, OSError) as e:
-            pytest.skip(f"Upstream {url} unreachable: {e}")
-        return {"url": url, "key": key, "model": model, "model_2": model_2}
 
     def wait_for_server(self, timeout=30):
         """Poll until the server responds and models are registered, the process exits, or timeout."""
@@ -194,9 +130,9 @@ class Server:
         return ""
 
     def write_config(self, template, **overrides):
-        upstream = self.get_upstream_api()
+        upstream = self.upstream
         defaults = dict(
-            host=HOST, port=self.port, api_key=self.API_KEY,
+            host="127.0.0.1", port=self.port, api_key=self.API_KEY,
             upstream_url=upstream["url"].rstrip("/").removesuffix("/v1").rstrip("/") + "/v1",
             upstream_key=upstream["key"],
             upstream_model=upstream["model"],
@@ -308,7 +244,7 @@ class Server:
 
 
 @pytest.fixture
-def make_server(tmp_path):
+def make_server(tmp_path, llama_server):
     """Factory fixture to create a Server with a custom config template.
 
     Usage:
@@ -319,7 +255,8 @@ def make_server(tmp_path):
         srv.stop()
 
     The server is NOT started automatically — call start() when ready.
-    Each server gets a unique free port.
+    Each server gets a unique free port. Upstream is the session-scoped
+    self-hosted llama-server.
     """
     servers = []
 
@@ -327,7 +264,7 @@ def make_server(tmp_path):
         if template is None:
             template = CONFIG_TEMPLATE
 
-        srv = Server(str(tmp_path / f"server_{len(servers)}"), template)
+        srv = Server(str(tmp_path / f"server_{len(servers)}"), template, llama_server)
         servers.append(srv)
         return srv
 
