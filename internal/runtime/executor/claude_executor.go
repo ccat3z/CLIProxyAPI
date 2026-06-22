@@ -11,13 +11,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 	"strings"
-	"time"
 
 	"github.com/andybalholm/brotli"
 	"github.com/google/uuid"
 	"github.com/klauspost/compress/zstd"
-	claudeauth "github.com/router-for-me/CLIProxyAPI/v7/internal/auth/claude"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/config"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/misc"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/registry"
@@ -833,35 +832,11 @@ func (e *ClaudeExecutor) Refresh(ctx context.Context, auth *cliproxyauth.Auth) (
 	if refreshed, handled, err := helps.RefreshAuthViaHome(ctx, e.cfg, auth); handled {
 		return refreshed, err
 	}
+	// OAuth token refresh is no longer supported on the custom branch.
+	// Callers relying on refresh must configure API-key auth instead.
 	if auth == nil {
 		return nil, fmt.Errorf("claude executor: auth is nil")
 	}
-	var refreshToken string
-	if auth.Metadata != nil {
-		if v, ok := auth.Metadata["refresh_token"].(string); ok && v != "" {
-			refreshToken = v
-		}
-	}
-	if refreshToken == "" {
-		return auth, nil
-	}
-	svc := claudeauth.NewClaudeAuthWithProxyURL(e.cfg, auth.ProxyURL)
-	td, err := svc.RefreshTokensWithRetry(ctx, refreshToken, 3)
-	if err != nil {
-		return nil, err
-	}
-	if auth.Metadata == nil {
-		auth.Metadata = make(map[string]any)
-	}
-	auth.Metadata["access_token"] = td.AccessToken
-	if td.RefreshToken != "" {
-		auth.Metadata["refresh_token"] = td.RefreshToken
-	}
-	auth.Metadata["email"] = td.Email
-	auth.Metadata["expired"] = td.Expire
-	auth.Metadata["type"] = "claude"
-	now := time.Now().Format(time.RFC3339)
-	auth.Metadata["last_refresh"] = now
 	return auth, nil
 }
 
@@ -1083,15 +1058,6 @@ func applyClaudeHeaders(r *http.Request, auth *cliproxyauth.Auth, apiKey string,
 	if ginCtx, ok := r.Context().Value("gin").(*gin.Context); ok && ginCtx != nil && ginCtx.Request != nil {
 		ginHeaders = ginCtx.Request.Header
 	}
-	stabilizeDeviceProfile := helps.ClaudeDeviceProfileStabilizationEnabled(cfg)
-	var deviceProfile helps.ClaudeDeviceProfile
-	if stabilizeDeviceProfile {
-		var errDeviceProfile error
-		deviceProfile, errDeviceProfile = helps.ResolveClaudeDeviceProfileRequired(r.Context(), auth, apiKey, ginHeaders, cfg)
-		if errDeviceProfile != nil {
-			return errDeviceProfile
-		}
-	}
 
 	baseBetas := "claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,context-management-2025-06-27,prompt-caching-scope-2026-01-05,structured-outputs-2025-12-15,fast-mode-2026-02-01,redact-thinking-2026-02-12,token-efficient-tools-2026-03-28"
 	if val := strings.TrimSpace(ginHeaders.Get("Anthropic-Beta")); val != "" {
@@ -1155,14 +1121,8 @@ func applyClaudeHeaders(r *http.Request, auth *cliproxyauth.Auth, apiKey string,
 		r.Header.Set("Accept", "application/json")
 		r.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
 	}
-	// Legacy mode keeps OS/Arch runtime-derived; stabilized mode pins OS/Arch
-	// to the configured baseline while still allowing newer official
-	// User-Agent/package/runtime tuples to upgrade the software fingerprint.
-	if stabilizeDeviceProfile {
-		helps.ApplyClaudeDeviceProfileHeaders(r, deviceProfile)
-	} else {
-		helps.ApplyClaudeLegacyDeviceHeaders(r, ginHeaders, cfg)
-	}
+	// Apply Claude Code-compatible Stainless headers using runtime-derived OS/Arch.
+	applyClaudeLegacyDeviceHeaders(r, ginHeaders, cfg)
 	var attrs map[string]string
 	if auth != nil {
 		attrs = auth.Attributes
@@ -1175,6 +1135,85 @@ func applyClaudeHeaders(r *http.Request, auth *cliproxyauth.Auth, apiKey string,
 		r.Header.Set("Accept-Encoding", "identity")
 	}
 	return nil
+}
+
+// applyClaudeLegacyDeviceHeaders mirrors the previous helps helper inline so the
+// executor can keep emitting Claude Code-compatible Stainless headers without
+// relying on the removed device-profile spoofing code paths.
+func applyClaudeLegacyDeviceHeaders(r *http.Request, ginHeaders http.Header, cfg *config.Config) {
+	if r == nil {
+		return
+	}
+	runtimeVersion := "v24.3.0"
+	packageVersion := "0.74.0"
+	if cfg != nil {
+		if v := strings.TrimSpace(cfg.ClaudeHeaderDefaults.RuntimeVersion); v != "" {
+			runtimeVersion = v
+		}
+		if v := strings.TrimSpace(cfg.ClaudeHeaderDefaults.PackageVersion); v != "" {
+			packageVersion = v
+		}
+	}
+	miscEnsure := func(name, fallback string) {
+		if strings.TrimSpace(r.Header.Get(name)) != "" {
+			return
+		}
+		if ginHeaders != nil {
+			if v := strings.TrimSpace(ginHeaders.Get(name)); v != "" {
+				r.Header.Set(name, v)
+				return
+			}
+		}
+		r.Header.Set(name, fallback)
+	}
+	miscEnsure("X-Stainless-Runtime-Version", runtimeVersion)
+	miscEnsure("X-Stainless-Package-Version", packageVersion)
+	miscEnsure("X-Stainless-Os", mapStainlessOS())
+	miscEnsure("X-Stainless-Arch", mapStainlessArch())
+	if strings.TrimSpace(r.Header.Get("User-Agent")) != "" {
+		return
+	}
+	userAgent := "claude-cli/2.1.63 (external, cli)"
+	if cfg != nil {
+		if v := strings.TrimSpace(cfg.ClaudeHeaderDefaults.UserAgent); v != "" {
+			userAgent = v
+		}
+	}
+	if ginHeaders != nil {
+		if clientUA := strings.TrimSpace(ginHeaders.Get("User-Agent")); strings.HasPrefix(clientUA, "claude-cli") {
+			r.Header.Set("User-Agent", clientUA)
+			return
+		}
+	}
+	r.Header.Set("User-Agent", userAgent)
+}
+
+func mapStainlessOS() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "MacOS"
+	case "windows":
+		return "Windows"
+	case "linux":
+		return "Linux"
+	case "freebsd":
+		return "FreeBSD"
+	default:
+		return "Other::" + runtime.GOOS
+	}
+}
+
+func mapStainlessArch() string {
+	switch runtime.GOARCH {
+	case "amd64":
+		return "x64"
+	case "arm64":
+		return "arm64"
+	case "386":
+		return "x86"
+	default:
+		return "other::" + runtime.GOARCH
+	}
 }
 
 func claudeCreds(a *cliproxyauth.Auth) (apiKey, baseURL string) {
@@ -1462,7 +1501,7 @@ func applyClaudeToolPrefix(body []byte, prefix string) []byte {
 
 	// Collect built-in tool names from the authoritative fallback seed list and
 	// augment it with any typed built-ins present in the current request body.
-	builtinTools := helps.AugmentClaudeBuiltinToolRegistry(body, nil)
+	builtinTools := augmentClaudeBuiltinToolRegistry(body, nil)
 
 	if tools := gjson.GetBytes(body, "tools"); tools.Exists() && tools.IsArray() {
 		tools.ForEach(func(index, tool gjson.Result) bool {
@@ -1718,31 +1757,21 @@ func getCloakConfigFromAuth(auth *cliproxyauth.Auth) (cloakMode string, strictMo
 
 // injectFakeUserID generates and injects a fake user ID into the request metadata.
 // When useCache is false, a new user ID is generated for every call.
+// Note: per-apiKey caching was removed with the helps/user_id_cache helper; callers
+// that request caching now fall back to generating a fresh ID on every invocation.
 func injectFakeUserID(ctx context.Context, payload []byte, apiKey string, useCache bool) ([]byte, error) {
-	generateID := func() (string, error) {
-		if useCache {
-			return helps.CachedUserIDRequired(ctx, apiKey)
-		}
-		return helps.GenerateFakeUserID(), nil
-	}
+	_ = useCache // caching removed; kept in signature for call-site compatibility.
+	newID := generateFakeUserID()
 
 	metadata := gjson.GetBytes(payload, "metadata")
 	if !metadata.Exists() {
-		userID, errUserID := generateID()
-		if errUserID != nil {
-			return nil, errUserID
-		}
-		payload, _ = sjson.SetBytes(payload, "metadata.user_id", userID)
+		payload, _ = sjson.SetBytes(payload, "metadata.user_id", newID)
 		return payload, nil
 	}
 
 	existingUserID := gjson.GetBytes(payload, "metadata.user_id").String()
-	if existingUserID == "" || !helps.IsValidUserID(existingUserID) {
-		userID, errUserID := generateID()
-		if errUserID != nil {
-			return nil, errUserID
-		}
-		payload, _ = sjson.SetBytes(payload, "metadata.user_id", userID)
+	if existingUserID == "" || !isValidUserID(existingUserID) {
+		payload, _ = sjson.SetBytes(payload, "metadata.user_id", newID)
 	}
 	return payload, nil
 }
@@ -1836,11 +1865,11 @@ func checkSystemInstructionsWithSigningMode(payload []byte, strictMode bool, exp
 	// The system prompt prefix block is sent without cache_control.
 	agentBlock := buildTextBlock("You are Claude Code, Anthropic's official CLI for Claude.", nil)
 	staticPrompt := strings.Join([]string{
-		helps.ClaudeCodeIntro,
-		helps.ClaudeCodeSystem,
-		helps.ClaudeCodeDoingTasks,
-		helps.ClaudeCodeToneAndStyle,
-		helps.ClaudeCodeOutputEfficiency,
+		claudeCodeIntro,
+		claudeCodeSystem,
+		claudeCodeDoingTasks,
+		claudeCodeToneAndStyle,
+		claudeCodeOutputEfficiency,
 	}, "\n\n")
 	staticBlock := buildTextBlock(staticPrompt, nil)
 
@@ -2006,13 +2035,13 @@ func applyCloaking(ctx context.Context, cfg *config.Config, auth *cliproxyauth.A
 	}
 
 	// Determine if cloaking should be applied
-	if !helps.ShouldCloak(cloakMode, clientUserAgent) {
+	if !shouldCloak(cloakMode, clientUserAgent) {
 		return payload, nil
 	}
 
 	// Skip system instructions for claude-3-5-haiku models
 	if !strings.HasPrefix(model, "claude-3-5-haiku") {
-		billingVersion := helps.DefaultClaudeVersion(cfg)
+		billingVersion := defaultClaudeVersion(cfg)
 		entrypoint := parseEntrypointFromUA(clientUserAgent)
 		workload := getWorkloadFromContext(ctx)
 		payload = checkSystemInstructionsWithSigningMode(payload, strictMode, useCCHSigning, oauthToken, billingVersion, entrypoint, workload)
@@ -2027,11 +2056,44 @@ func applyCloaking(ctx context.Context, cfg *config.Config, auth *cliproxyauth.A
 
 	// Apply sensitive word obfuscation
 	if len(sensitiveWords) > 0 {
-		matcher := helps.BuildSensitiveWordMatcher(sensitiveWords)
-		payload = helps.ObfuscateSensitiveWords(payload, matcher)
+		matcher := buildSensitiveWordMatcher(sensitiveWords)
+		payload = obfuscateSensitiveWords(payload, matcher)
 	}
 
 	return payload, nil
+}
+
+// defaultClaudeVersion returns the version string (e.g. "2.1.63") configured on
+// ClaudeHeaderDefaults, falling back to "2.1.63" when unset.
+func defaultClaudeVersion(cfg *config.Config) string {
+	if cfg != nil {
+		if v := strings.TrimSpace(cfg.ClaudeHeaderDefaults.UserAgent); v != "" {
+			if version, ok := parseClaudeCLIVersion(v); ok {
+				return version
+			}
+		}
+	}
+	return "2.1.63"
+}
+
+// parseClaudeCLIVersion extracts the semver portion of a Claude Code User-Agent
+// string of the form "claude-cli/<major>.<minor>.<patch> ...".
+func parseClaudeCLIVersion(userAgent string) (string, bool) {
+	trimmed := strings.TrimSpace(userAgent)
+	const prefix = "claude-cli/"
+	if !strings.HasPrefix(trimmed, prefix) {
+		return "", false
+	}
+	rest := strings.TrimPrefix(trimmed, prefix)
+	end := strings.IndexAny(rest, " /)")
+	if end < 0 {
+		end = len(rest)
+	}
+	version := strings.TrimSpace(rest[:end])
+	if version == "" {
+		return "", false
+	}
+	return version, true
 }
 
 // ensureCacheControl injects cache_control breakpoints into the payload for optimal prompt caching.

@@ -364,15 +364,11 @@ func (s *Service) registerModelRefreshCallback() {
 	})
 }
 
-// newDefaultAuthManager creates a default authentication manager with all supported providers.
+// newDefaultAuthManager creates a default authentication manager.
+// Provider-specific authenticators were removed alongside the OAuth login flows;
+// the manager now coordinates persistence only via the shared token store.
 func newDefaultAuthManager() *sdkAuth.Manager {
-	return sdkAuth.NewManager(
-		sdkAuth.GetTokenStore(),
-		sdkAuth.NewGeminiAuthenticator(),
-		sdkAuth.NewCodexAuthenticator(),
-		sdkAuth.NewClaudeAuthenticator(),
-		sdkAuth.NewXAIAuthenticator(),
-	)
+	return sdkAuth.NewManager(sdkAuth.GetTokenStore())
 }
 
 func (s *Service) ensureAuthUpdateQueue(ctx context.Context) {
@@ -601,19 +597,9 @@ func (s *Service) applyCoreAuthRemoval(ctx context.Context, id string) {
 		return
 	}
 	id = strings.TrimSpace(id)
-	var provider string
-	if existing, ok := s.coreManager.GetByID(id); ok && existing != nil {
-		provider = strings.TrimSpace(existing.Provider)
-	}
 	GlobalModelRegistry().UnregisterClient(id)
 	s.coreManager.Remove(ctx, id)
-	if strings.EqualFold(provider, "codex") {
-		executor.CloseCodexWebsocketSessionsForAuthID(id, "auth_removed")
-	}
 	limiter.DefaultLimiter().RemoveAllForAuth(id)
-	if strings.EqualFold(provider, "xai") {
-		executor.CloseXAIWebsocketSessionsForAuthID(id, "auth_removed")
-	}
 	s.syncPluginRuntime(ctx)
 }
 
@@ -678,15 +664,7 @@ func (s *Service) registerAvailableExecutors(ctx context.Context, opts executorR
 
 func baselineExecutorAuths() []*coreauth.Auth {
 	providers := []string{
-		"codex",
 		"claude",
-		"gemini",
-		"vertex",
-		"gemini-cli",
-		"aistudio",
-		"antigravity",
-		"kimi",
-		"xai",
 		"openai-compatibility",
 	}
 	auths := make([]*coreauth.Auth, 0, len(providers))
@@ -704,33 +682,13 @@ func baselineExecutorAuths() []*coreauth.Auth {
 }
 
 func (s *Service) registerExecutorsForAuths(auths []*coreauth.Auth, forceReplace bool) {
-	reboundCodex := false
 	for _, auth := range auths {
-		if auth != nil && strings.EqualFold(strings.TrimSpace(auth.Provider), "codex") {
-			if reboundCodex && forceReplace {
-				continue
-			}
-			reboundCodex = true
-		}
 		s.registerExecutorForAuth(auth, forceReplace)
 	}
 }
 
 func (s *Service) registerExecutorForAuth(a *coreauth.Auth, forceReplace bool) {
 	if s == nil || s.coreManager == nil || a == nil {
-		return
-	}
-	if strings.EqualFold(strings.TrimSpace(a.Provider), "codex") {
-		if !forceReplace {
-			existingExecutor, hasExecutor := s.coreManager.Executor("codex")
-			if hasExecutor {
-				_, isCodexAutoExecutor := existingExecutor.(*executor.CodexAutoExecutor)
-				if isCodexAutoExecutor {
-					return
-				}
-			}
-		}
-		s.coreManager.RegisterExecutor(executor.NewCodexAutoExecutor(s.cfg))
 		return
 	}
 	// Skip disabled auth entries when (re)binding executors.
@@ -750,18 +708,8 @@ func (s *Service) registerExecutorForAuth(a *coreauth.Auth, forceReplace bool) {
 		return
 	}
 	switch strings.ToLower(a.Provider) {
-	case "gemini":
-		s.coreManager.RegisterExecutor(executor.NewGeminiExecutor(s.cfg))
-	case "vertex":
-		s.coreManager.RegisterExecutor(executor.NewGeminiVertexExecutor(s.cfg))
-	case "antigravity":
-		s.coreManager.RegisterExecutor(executor.NewAntigravityExecutor(s.cfg))
 	case "claude":
 		s.coreManager.RegisterExecutor(executor.NewClaudeExecutor(s.cfg))
-	case "kimi":
-		s.coreManager.RegisterExecutor(executor.NewKimiExecutor(s.cfg))
-	case "xai":
-		s.coreManager.RegisterExecutor(executor.NewXAIAutoExecutor(s.cfg))
 	default:
 		providerKey := strings.ToLower(strings.TrimSpace(a.Provider))
 		if providerKey == "" {

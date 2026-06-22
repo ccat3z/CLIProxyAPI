@@ -149,7 +149,7 @@ class Server:
         self.stdout_log = open(os.path.join(log_dir, "stdout.log"), "w")
         self.stderr_log = open(os.path.join(log_dir, "stderr.log"), "w")
         self.process = subprocess.Popen(
-            ["go", "run", "./cmd/server", "--config", self.config_path, "--no-browser"],
+            ["go", "run", "./cmd/server", "--config", self.config_path],
             stdout=self.stdout_log, stderr=self.stderr_log,
             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             start_new_session=True,
@@ -190,7 +190,7 @@ class Server:
         self.stdout_log = open(os.path.join(log_dir, "stdout_restart.log"), "w")
         self.stderr_log = open(os.path.join(log_dir, "stderr_restart.log"), "w")
         self.process = subprocess.Popen(
-            ["go", "run", "./cmd/server", "--config", self.config_path, "--no-browser"],
+            ["go", "run", "./cmd/server", "--config", self.config_path],
             stdout=self.stdout_log, stderr=self.stderr_log,
             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             start_new_session=True,

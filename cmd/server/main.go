@@ -61,18 +61,6 @@ func main() {
 	fmt.Printf("CLIProxyAPI Version: %s, Commit: %s, BuiltAt: %s\n", buildinfo.Version, buildinfo.Commit, buildinfo.BuildDate)
 
 	// Command-line flags to control the application's behavior.
-	var login bool
-	var codexLogin bool
-	var codexDeviceLogin bool
-	var claudeLogin bool
-	var noBrowser bool
-	var oauthCallbackPort int
-	var antigravityLogin bool
-	var kimiLogin bool
-	var xaiLogin bool
-	var projectID string
-	var vertexImport string
-	var vertexImportPrefix string
 	var configPath string
 	var password string
 	var homeJWT string
@@ -81,19 +69,7 @@ func main() {
 	var port int
 
 	// Define command-line flags for different operation modes.
-	flag.BoolVar(&login, "login", false, "Login Google Account")
-	flag.BoolVar(&codexLogin, "codex-login", false, "Login to Codex using OAuth")
-	flag.BoolVar(&codexDeviceLogin, "codex-device-login", false, "Login to Codex using device code flow")
-	flag.BoolVar(&claudeLogin, "claude-login", false, "Login to Claude using OAuth")
-	flag.BoolVar(&noBrowser, "no-browser", false, "Don't open browser automatically for OAuth")
-	flag.IntVar(&oauthCallbackPort, "oauth-callback-port", 0, "Override OAuth callback port (defaults to provider-specific port)")
-	flag.BoolVar(&antigravityLogin, "antigravity-login", false, "Login to Antigravity using OAuth")
-	flag.BoolVar(&kimiLogin, "kimi-login", false, "Login to Kimi using OAuth")
-	flag.BoolVar(&xaiLogin, "xai-login", false, "Login to xAI using OAuth")
-	flag.StringVar(&projectID, "project_id", "", "Project ID (Gemini only, not required)")
 	flag.StringVar(&configPath, "config", DefaultConfigPath, "Configure File Path")
-	flag.StringVar(&vertexImport, "vertex-import", "", "Import Vertex service account key JSON file")
-	flag.StringVar(&vertexImportPrefix, "vertex-import-prefix", "", "Prefix for Vertex model namespacing (use with -vertex-import)")
 	flag.StringVar(&password, "password", "", "")
 	flag.StringVar(&homeJWT, "home-jwt", "", "Home control plane JWT for mTLS certificate bootstrap and connection")
 	flag.BoolVar(&homeDisableClusterDiscovery, "home-disable-cluster-discovery", false, "Disable Home CLUSTER NODES discovery and keep using the configured -home-jwt address")
@@ -290,13 +266,7 @@ func main() {
 	}
 	managementasset.SetCurrentConfig(cfg)
 
-	// Create login options to be used in authentication flows.
-	options := &cmd.LoginOptions{
-		NoBrowser:    noBrowser,
-		CallbackPort: oauthCallbackPort,
-	}
-
-	commandMode := vertexImport != "" || login || antigravityLogin || codexLogin || codexDeviceLogin || claudeLogin || kimiLogin || xaiLogin
+	commandMode := false
 	cloudConfigMissing := isCloudDeploy && !configFileExists
 	homeMode := configLoadedFromHome || (cfg != nil && cfg.Home.Enabled)
 	if shouldStartExampleAPIKeyWarningServer(cfg, commandMode, cloudConfigMissing, homeMode) {
@@ -313,30 +283,7 @@ func main() {
 	configaccess.Register(&cfg.SDKConfig)
 
 	// Handle different command modes based on the provided flags.
-
-	if vertexImport != "" {
-		// Handle Vertex service account import
-		cmd.DoVertexImport(cfg, vertexImport, vertexImportPrefix)
-	} else if login {
-		// Handle Google/Gemini login
-		cmd.DoLogin(cfg, projectID, options)
-	} else if antigravityLogin {
-		// Handle Antigravity login
-		cmd.DoAntigravityLogin(cfg, options)
-	} else if codexLogin {
-		// Handle Codex login
-		cmd.DoCodexLogin(cfg, options)
-	} else if codexDeviceLogin {
-		// Handle Codex device-code login
-		cmd.DoCodexDeviceLogin(cfg, options)
-	} else if claudeLogin {
-		// Handle Claude login
-		cmd.DoClaudeLogin(cfg, options)
-	} else if kimiLogin {
-		cmd.DoKimiLogin(cfg, options)
-	} else if xaiLogin {
-		cmd.DoXAILogin(cfg, options)
-	} else {
+	if true {
 		// In cloud deploy mode without config file, just wait for shutdown signals
 		if isCloudDeploy && !configFileExists {
 			// No config file available, just wait for shutdown

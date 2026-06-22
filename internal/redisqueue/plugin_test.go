@@ -26,7 +26,7 @@ func TestUsageQueuePluginPayloadIncludesStableFieldsAndSuccess(t *testing.T) {
 		plugin := &usageQueuePlugin{}
 		plugin.HandleUsage(ctx, coreusage.Record{
 			Provider:        "openai",
-			ExecutorType:    "KimiExecutor",
+			ExecutorType:    "ClaudeExecutor",
 			Model:           "gpt-5.4",
 			Alias:           "client-gpt",
 			APIKey:          "test-key",
@@ -48,7 +48,7 @@ func TestUsageQueuePluginPayloadIncludesStableFieldsAndSuccess(t *testing.T) {
 
 		payload := popSinglePayload(t)
 		requireStringField(t, payload, "provider", "openai")
-		requireStringField(t, payload, "executor_type", "KimiExecutor")
+		requireStringField(t, payload, "executor_type", "ClaudeExecutor")
 		requireStringField(t, payload, "model", "gpt-5.4")
 		requireStringField(t, payload, "alias", "client-gpt")
 		requireStringField(t, payload, "endpoint", "POST /v1/chat/completions")
