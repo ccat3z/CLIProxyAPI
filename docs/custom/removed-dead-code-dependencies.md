@@ -594,10 +594,59 @@ The `custom` branch only configures the `claude-api-key` and `openai-compatibili
 
 ### Out-of-scope note
 
-`SDKConfig.EnableGeminiCLIEndpoint` was **not** removed. Although the video subsystem's `VideoResultAuthCacheTTL` field shared a struct neighborhood with it, `EnableGeminiCLIEndpoint` is a separate Gemini-CLI feature (gated at `sdk/api/handlers/gemini/gemini-cli_handlers.go:53` and force-disabled in Home mode at `sdk/cliproxy/service.go:843`); it is unrelated to video generation and was left untouched.
+`SDKConfig.EnableGeminiCLIEndpoint` was **not** removed at that time. Although the video subsystem's `VideoResultAuthCacheTTL` field shared a struct neighborhood with it, `EnableGeminiCLIEndpoint` is a separate Gemini-CLI feature. It has since been removed in a follow-up cleanup — see [Removed: disabled gemini-cli /v1internal endpoint](#removed-disabled-gemini-cli-v1internal-endpoint--enablegeminicliendpoint-flag) below.
 
 ### Verification
 
 Each removed symbol was re-verified before deletion with `grep -rn 'VideosCreate\|XAIVideos\|VideosRetrieve\|VideosContent\|videoAuthBindings\|defaultXAIVideosModel\|defaultOpenAIVideosModel\|xaiVideosHandlerType\|VideoResultAuthCacheTTL\|video-result-auth-cache-ttl' --include='*.go' --include='*.yaml' .` — zero matches remained after the edits. `imagesModelParts` was separately confirmed to still have live callers in the retained images handlers. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200 with a real upstream response, `/v0/management/config` → 401, and the removed `/v1/videos` + `/openai/v1/videos` routes now returning 404) all pass.
+
+## Removed: disabled gemini-cli /v1internal endpoint + `EnableGeminiCLIEndpoint` flag
+
+The Gemini CLI internal endpoint (`POST /v1internal:method`) was a localhost-only passthrough that proxied `cloudcode-pa.googleapis.com` requests and could also dispatch `/v1internal:generateContent` / `/v1internal:streamGenerateContent` to the `GeminiCLI` provider executor. It was unconditionally dead under the active configuration.
+
+### Why it was unused
+
+The handler's very first check gated the whole feature:
+
+```go
+if h.Cfg == nil || !h.Cfg.EnableGeminiCLIEndpoint {
+    c.JSON(http.StatusForbidden, ...)
+    return
+}
+```
+
+`EnableGeminiCLIEndpoint` defaults to `false` (`SDKConfig` doc comment: "Default is false for safety; when false, /v1internal:* requests are rejected"), `data/config.yaml` does not set `enable-gemini-cli-endpoint`, and the only writer — `forceHomeRuntimeConfig` in `sdk/cliproxy/service.go` — explicitly forced it to `false` (Home mode only, not the active mode). Consequently every request to the unconditionally-registered `POST /v1internal:method` route returned `403`; the `GeminiCLI` executor branch was never triggered through this path, and no `gemini-cli` provider/executor is registered under the active config either. A grep for `v1internal` / `gemini-cli` / `gemini_cli` across `integration/` returned zero matches, confirming no integration test exercises the endpoint.
+
+The handler file was upstream-native (`git cat-file -e a5cb8832:sdk/api/handlers/gemini/gemini-cli_handlers.go` succeeds), not a custom-branch addition.
+
+### Removed file
+
+| Path | Symbols |
+| --- | --- |
+| `sdk/api/handlers/gemini/gemini-cli_handlers.go` | `GeminiCLIAPIHandler`, `NewGeminiCLIAPIHandler`, `HandlerType`, `Models`, `CLIHandler`, `handleInternalGenerateContent`, `handleInternalStreamGenerateContent`, `forwardCLIStream` |
+
+### Removed routes (`internal/api/server.go`)
+
+| Route | Disposition |
+| --- | --- |
+| `POST /v1internal:method` (`geminiCLIHandlers.CLIHandler`) | Removed. The `geminiCLIHandlers := gemini.NewGeminiCLIAPIHandler(s.handlers)` instantiation was also removed. The `gemini` package import stays — the regular `gemini.NewGeminiAPIHandler` (`/v1beta`) is still live. |
+
+### Removed config field
+
+| Item | Disposition |
+| --- | --- |
+| `SDKConfig.EnableGeminiCLIEndpoint` field + doc comment | Removed from `internal/config/sdk_config.go`. |
+| `cfg.EnableGeminiCLIEndpoint = false` write | Removed from `forceHomeRuntimeConfig` in `sdk/cliproxy/service.go`. |
+| `enable-gemini-cli-endpoint: false` example entry + comment | Removed from `config.example.yaml`. |
+
+### Kept
+
+- `sdk/api/handlers/gemini/gemini_handlers.go` (the regular `/v1beta` Gemini handler) is retained — it is reachable and registered.
+- The `GeminiCLI` constant in `internal/constant` is retained; it is still used by `internal/registry/model_definitions.go` (gemini-cli catalog), `internal/registry/model_catalog.go`, and `internal/misc/header_utils.go` (User-Agent).
+- The translator `FormatGeminiCLI` constant, the `gemini-cli` case in `sdk/translator/formats.go`, and the `gemini-cli` provider branches in `sdk/cliproxy/auth/selector.go`, `sdk/cliproxy/auth/types.go`, and `sdk/cliproxy/auth/conductor.go` are left untouched — they live in the translator/auth-infra layer, which is out of scope per the AGENTS.md translator rule and is a shared auth concern across all requests.
+
+### Verification
+
+Each removed symbol/field was re-verified before deletion: `grep -rn 'GeminiCLIAPIHandler\|NewGeminiCLIAPIHandler\|v1internal\|EnableGeminiCLIEndpoint\|enable-gemini-cli-endpoint' --include='*.go' --include='*.yaml' .` returned zero matches after the edits. `GeminiCLI` (the constant) was separately confirmed to still have live callers in the registry, translator, and auth conductor. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200 with a real upstream response, `/v0/management/config` → 401, and the removed `/v1internal:generateContent` route now returning 404) all pass.
 
 
