@@ -11,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/config"
-	"github.com/router-for-me/CLIProxyAPI/v7/internal/util"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -133,21 +132,7 @@ func isDirWritable(dir string) bool {
 // ResolveLogDirectory determines the directory used for application logs.
 func ResolveLogDirectory(cfg *config.Config) string {
 	logDir := "logs"
-	if base := util.WritablePath(); base != "" {
-		return filepath.Join(base, "logs")
-	}
-	if cfg == nil {
-		return logDir
-	}
-	if !isDirWritable(logDir) {
-		authDir, err := util.ResolveAuthDir(cfg.AuthDir)
-		if err != nil {
-			log.Warnf("Failed to resolve auth-dir %q for log directory: %v", cfg.AuthDir, err)
-		}
-		if authDir != "" {
-			logDir = filepath.Join(authDir, "logs")
-		}
-	}
+	_ = cfg
 	return logDir
 }
 

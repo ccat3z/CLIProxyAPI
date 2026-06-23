@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -824,10 +823,6 @@ func (s *Service) Run(ctx context.Context) error {
 		}
 	}()
 
-	if errEnsureAuthDir := s.ensureAuthDir(); errEnsureAuthDir != nil {
-		return errEnsureAuthDir
-	}
-
 	s.applyRetryConfig(s.cfg)
 
 	if s.coreManager != nil {
@@ -882,7 +877,7 @@ func (s *Service) Run(ctx context.Context) error {
 	var watcherWrapper *WatcherWrapper
 	reloadCallback := func(newCfg *config.Config) { s.applyConfigUpdate(newCfg) }
 
-	watcherWrapper, errCreate := s.watcherFactory(s.configPath, s.cfg.AuthDir, reloadCallback)
+	watcherWrapper, errCreate := s.watcherFactory(s.configPath, reloadCallback)
 	if errCreate != nil {
 		return fmt.Errorf("cliproxy: failed to create watcher: %w", errCreate)
 	}
@@ -973,24 +968,6 @@ func (s *Service) Shutdown(ctx context.Context) error {
 		usage.StopDefault()
 	})
 	return shutdownErr
-}
-
-func (s *Service) ensureAuthDir() error {
-	info, err := os.Stat(s.cfg.AuthDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			if mkErr := os.MkdirAll(s.cfg.AuthDir, 0o755); mkErr != nil {
-				return fmt.Errorf("cliproxy: failed to create auth directory %s: %w", s.cfg.AuthDir, mkErr)
-			}
-			log.Infof("created missing auth directory: %s", s.cfg.AuthDir)
-			return nil
-		}
-		return fmt.Errorf("cliproxy: error checking auth directory %s: %w", s.cfg.AuthDir, err)
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("cliproxy: auth path exists but is not a directory: %s", s.cfg.AuthDir)
-	}
-	return nil
 }
 
 // registerModelsForAuth (re)binds provider models in the global registry using the core auth ID as client identifier.

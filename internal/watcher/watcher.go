@@ -4,7 +4,6 @@ package watcher
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -24,14 +23,9 @@ type storePersister interface {
 	PersistAuthFiles(ctx context.Context, message string, paths ...string) error
 }
 
-type authDirProvider interface {
-	AuthDir() string
-}
-
 // Watcher manages file watching for configuration and authentication files
 type Watcher struct {
 	configPath        string
-	authDir           string
 	config            *config.Config
 	clientsMutex      sync.RWMutex
 	authRescanMu      sync.Mutex
@@ -58,7 +52,6 @@ type Watcher struct {
 	pendingOrder      []string
 	dispatchCancel    context.CancelFunc
 	storePersister    storePersister
-	mirroredAuthDir   string
 	oldConfigYaml     []byte
 }
 
@@ -88,14 +81,13 @@ const (
 )
 
 // NewWatcher creates a new file watcher instance
-func NewWatcher(configPath, authDir string, reloadCallback func(*config.Config)) (*Watcher, error) {
+func NewWatcher(configPath string, reloadCallback func(*config.Config)) (*Watcher, error) {
 	watcher, errNewWatcher := fsnotify.NewWatcher()
 	if errNewWatcher != nil {
 		return nil, errNewWatcher
 	}
 	w := &Watcher{
 		configPath:      configPath,
-		authDir:         authDir,
 		reloadCallback:  reloadCallback,
 		watcher:         watcher,
 		lastAuthHashes:  make(map[string]string),
@@ -106,12 +98,6 @@ func NewWatcher(configPath, authDir string, reloadCallback func(*config.Config))
 		if persister, ok := store.(storePersister); ok {
 			w.storePersister = persister
 			log.Debug("persistence-capable token store detected; watcher will propagate persisted changes")
-		}
-		if provider, ok := store.(authDirProvider); ok {
-			if fixed := strings.TrimSpace(provider.AuthDir()); fixed != "" {
-				w.mirroredAuthDir = fixed
-				log.Debugf("mirrored auth directory locked to %s", fixed)
-			}
 		}
 	}
 	return w, nil
@@ -161,7 +147,6 @@ func (w *Watcher) DispatchPersistedAuthUpdate(update AuthUpdate) bool {
 func (w *Watcher) SnapshotCoreAuths() []*coreauth.Auth {
 	w.clientsMutex.RLock()
 	cfg := w.config
-	authDir := w.authDir
 	w.clientsMutex.RUnlock()
-	return snapshotCoreAuths(cfg, authDir)
+	return snapshotCoreAuths(cfg)
 }

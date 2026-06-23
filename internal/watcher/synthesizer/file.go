@@ -2,8 +2,6 @@ package synthesizer
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -22,37 +20,8 @@ func NewFileSynthesizer() *FileSynthesizer {
 
 // Synthesize generates Auth entries from auth files in the auth directory.
 func (s *FileSynthesizer) Synthesize(ctx *SynthesisContext) ([]*coreauth.Auth, error) {
-	out := make([]*coreauth.Auth, 0, 16)
-	if ctx == nil || ctx.AuthDir == "" {
-		return out, nil
-	}
-
-	entries, err := os.ReadDir(ctx.AuthDir)
-	if err != nil {
-		// Not an error if directory doesn't exist
-		return out, nil
-	}
-
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		name := e.Name()
-		if !strings.HasSuffix(strings.ToLower(name), ".json") {
-			continue
-		}
-		full := filepath.Join(ctx.AuthDir, name)
-		data, errRead := os.ReadFile(full)
-		if errRead != nil || len(data) == 0 {
-			continue
-		}
-		auths := synthesizeFileAuths(ctx, full, data)
-		if len(auths) == 0 {
-			continue
-		}
-		out = append(out, auths...)
-	}
-	return out, nil
+	// File-based auth synthesis removed; no auth directory scanning.
+	return nil, nil
 }
 
 // SynthesizeAuthFile generates Auth entries for one auth JSON file payload.
@@ -83,13 +52,8 @@ func synthesizeFileAuths(ctx *SynthesisContext, fullPath string, data []byte) []
 	if email, _ := metadata["email"].(string); email != "" {
 		label = email
 	}
-	// Use relative path under authDir as ID to stay consistent with the file-based token store.
+	// Use the full path as ID since auth-dir is no longer used.
 	id := fullPath
-	if strings.TrimSpace(ctx.AuthDir) != "" {
-		if rel, errRel := filepath.Rel(ctx.AuthDir, fullPath); errRel == nil && rel != "" {
-			id = rel
-		}
-	}
 	if runtime.GOOS == "windows" {
 		id = strings.ToLower(id)
 	}

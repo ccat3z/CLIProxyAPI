@@ -9,8 +9,7 @@ import (
 
 func TestBuildConfigChangeDetails(t *testing.T) {
 	oldCfg := &config.Config{
-		Port:    8080,
-		AuthDir: "/tmp/auth-old",
+		Port: 8080,
 		RemoteManagement: config.RemoteManagement{
 			AllowRemote:            false,
 			SecretKey:              "old",
@@ -30,8 +29,7 @@ func TestBuildConfigChangeDetails(t *testing.T) {
 	}
 
 	newCfg := &config.Config{
-		Port:    9090,
-		AuthDir: "/tmp/auth-new",
+		Port: 9090,
 		RemoteManagement: config.RemoteManagement{
 			AllowRemote:            true,
 			SecretKey:              "new",
@@ -59,7 +57,6 @@ func TestBuildConfigChangeDetails(t *testing.T) {
 	details := BuildConfigChangeDetails(oldCfg, newCfg)
 
 	expectContains(t, details, "port: 8080 -> 9090")
-	expectContains(t, details, "auth-dir: /tmp/auth-old -> /tmp/auth-new")
 	expectContains(t, details, "remote-management.allow-remote: false -> true")
 	expectContains(t, details, "remote-management.disable-auto-update-panel: false -> true")
 	expectContains(t, details, "remote-management.secret-key: updated")
@@ -145,7 +142,6 @@ func TestBuildConfigChangeDetails_SecretsAndCounts(t *testing.T) {
 func TestBuildConfigChangeDetails_FlagsAndKeys(t *testing.T) {
 	oldCfg := &config.Config{
 		Port:                   1000,
-		AuthDir:                "/old",
 		Debug:                  false,
 		LoggingToFile:          false,
 		UsageStatisticsEnabled: false,
@@ -165,7 +161,6 @@ func TestBuildConfigChangeDetails_FlagsAndKeys(t *testing.T) {
 	}
 	newCfg := &config.Config{
 		Port:                   2000,
-		AuthDir:                "/new",
 		Debug:                  true,
 		LoggingToFile:          true,
 		UsageStatisticsEnabled: true,
@@ -217,7 +212,6 @@ func TestBuildConfigChangeDetails_FlagsAndKeys(t *testing.T) {
 func TestBuildConfigChangeDetails_AllBranches(t *testing.T) {
 	oldCfg := &config.Config{
 		Port:                   1,
-		AuthDir:                "/a",
 		Debug:                  false,
 		LoggingToFile:          false,
 		UsageStatisticsEnabled: false,
@@ -252,7 +246,6 @@ func TestBuildConfigChangeDetails_AllBranches(t *testing.T) {
 	}
 	newCfg := &config.Config{
 		Port:                   2,
-		AuthDir:                "/b",
 		Debug:                  true,
 		LoggingToFile:          true,
 		UsageStatisticsEnabled: true,
@@ -294,7 +287,6 @@ func TestBuildConfigChangeDetails_AllBranches(t *testing.T) {
 
 	changes := BuildConfigChangeDetails(oldCfg, newCfg)
 	expectContains(t, changes, "port: 1 -> 2")
-	expectContains(t, changes, "auth-dir: /a -> /b")
 	expectContains(t, changes, "debug: false -> true")
 	expectContains(t, changes, "logging-to-file: false -> true")
 	expectContains(t, changes, "usage-statistics-enabled: false -> true")

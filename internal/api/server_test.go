@@ -30,17 +30,12 @@ func newTestServerWithOptions(t *testing.T, opts ...ServerOption) *Server {
 	gin.SetMode(gin.TestMode)
 
 	tmpDir := t.TempDir()
-	authDir := filepath.Join(tmpDir, "auth")
-	if err := os.MkdirAll(authDir, 0o700); err != nil {
-		t.Fatalf("failed to create auth dir: %v", err)
-	}
 
 	cfg := &proxyconfig.Config{
 		SDKConfig: sdkconfig.SDKConfig{
 			APIKeys: []string{"test-key"},
 		},
 		Port:                   0,
-		AuthDir:                authDir,
 		Debug:                  true,
 		LoggingToFile:          false,
 		UsageStatisticsEnabled: false,
@@ -292,7 +287,7 @@ func assertCodexSupportedReasoningLevels(t *testing.T, model map[string]any, wan
 	}
 }
 
-func TestDefaultRequestLoggerFactory_UsesResolvedLogDirectory(t *testing.T) {
+func TestDefaultRequestLoggerFactory_UsesDefaultLogDirectory(t *testing.T) {
 	t.Setenv("WRITABLE_PATH", "")
 	t.Setenv("writable_path", "")
 
@@ -311,27 +306,16 @@ func TestDefaultRequestLoggerFactory_UsesResolvedLogDirectory(t *testing.T) {
 		}
 	}()
 
-	// Force ResolveLogDirectory to fallback to auth-dir/logs by making ./logs not a writable directory.
-	if errWriteFile := os.WriteFile(filepath.Join(tmpDir, "logs"), []byte("not-a-directory"), 0o644); errWriteFile != nil {
-		t.Fatalf("failed to create blocking logs file: %v", errWriteFile)
-	}
-
 	configDir := filepath.Join(tmpDir, "config")
 	if errMkdirConfig := os.MkdirAll(configDir, 0o755); errMkdirConfig != nil {
 		t.Fatalf("failed to create config dir: %v", errMkdirConfig)
 	}
 	configPath := filepath.Join(configDir, "config.yaml")
 
-	authDir := filepath.Join(tmpDir, "auth")
-	if errMkdirAuth := os.MkdirAll(authDir, 0o700); errMkdirAuth != nil {
-		t.Fatalf("failed to create auth dir: %v", errMkdirAuth)
-	}
-
 	cfg := &proxyconfig.Config{
 		SDKConfig: proxyconfig.SDKConfig{
 			RequestLog: false,
 		},
-		AuthDir:           authDir,
 		ErrorLogsMaxFiles: 10,
 	}
 
@@ -363,30 +347,21 @@ func TestDefaultRequestLoggerFactory_UsesResolvedLogDirectory(t *testing.T) {
 		t.Fatalf("failed to write forced error request log: %v", errLog)
 	}
 
-	authLogsDir := filepath.Join(authDir, "logs")
-	authEntries, errReadAuthDir := os.ReadDir(authLogsDir)
-	if errReadAuthDir != nil {
-		t.Fatalf("failed to read auth logs dir %s: %v", authLogsDir, errReadAuthDir)
+	// NewFileRequestLogger resolves a relative logsDir against the config file
+	// directory, so the actual logs directory is configDir/logs, not cwd/logs.
+	defaultLogsDir := filepath.Join(configDir, "logs")
+	logEntries, errReadDir := os.ReadDir(defaultLogsDir)
+	if errReadDir != nil {
+		t.Fatalf("failed to read default logs dir %s: %v", defaultLogsDir, errReadDir)
 	}
-	foundErrorLogInAuthDir := false
-	for _, entry := range authEntries {
+	foundErrorLog := false
+	for _, entry := range logEntries {
 		if strings.HasPrefix(entry.Name(), "error-") && strings.HasSuffix(entry.Name(), ".log") {
-			foundErrorLogInAuthDir = true
+			foundErrorLog = true
 			break
 		}
 	}
-	if !foundErrorLogInAuthDir {
-		t.Fatalf("expected forced error log in auth fallback dir %s, got entries: %+v", authLogsDir, authEntries)
-	}
-
-	configLogsDir := filepath.Join(configDir, "logs")
-	configEntries, errReadConfigDir := os.ReadDir(configLogsDir)
-	if errReadConfigDir != nil && !os.IsNotExist(errReadConfigDir) {
-		t.Fatalf("failed to inspect config logs dir %s: %v", configLogsDir, errReadConfigDir)
-	}
-	for _, entry := range configEntries {
-		if strings.HasPrefix(entry.Name(), "error-") && strings.HasSuffix(entry.Name(), ".log") {
-			t.Fatalf("unexpected forced error log in config dir %s", configLogsDir)
-		}
+	if !foundErrorLog {
+		t.Fatalf("expected forced error log in default logs dir %s, got entries: %+v", defaultLogsDir, logEntries)
 	}
 }

@@ -33,12 +33,6 @@ func (w *Watcher) start(ctx context.Context) error {
 	}
 	log.Debugf("watching config file: %s", w.configPath)
 
-	if errAddAuthDir := w.watcher.Add(w.authDir); errAddAuthDir != nil {
-		log.Errorf("failed to watch auth directory %s: %v", w.authDir, errAddAuthDir)
-		return errAddAuthDir
-	}
-	log.Debugf("watching auth directory: %s", w.authDir)
-
 	go w.processEvents(ctx)
 
 	w.reloadClients(true, nil, false)
@@ -65,16 +59,12 @@ func (w *Watcher) processEvents(ctx context.Context) {
 }
 
 func (w *Watcher) handleEvent(event fsnotify.Event) {
-	// Filter only relevant events: config file or auth-dir JSON files.
+	// Filter only relevant events: config file changes.
 	configOps := fsnotify.Write | fsnotify.Create | fsnotify.Rename
 	normalizedName := w.normalizeAuthPath(event.Name)
 	normalizedConfigPath := w.normalizeAuthPath(w.configPath)
-	normalizedAuthDir := w.normalizeAuthPath(w.authDir)
 	isConfigEvent := normalizedName == normalizedConfigPath && event.Op&configOps != 0
-	authOps := fsnotify.Create | fsnotify.Write | fsnotify.Remove | fsnotify.Rename
-	isAuthJSON := filepath.Dir(normalizedName) == normalizedAuthDir && strings.HasSuffix(normalizedName, ".json") && event.Op&authOps != 0
-	if !isConfigEvent && !isAuthJSON {
-		// Ignore unrelated files (e.g., cookie snapshots *.cookie) and other noise.
+	if !isConfigEvent {
 		return
 	}
 
@@ -82,49 +72,8 @@ func (w *Watcher) handleEvent(event fsnotify.Event) {
 	log.Debugf("file system event detected: %s %s", event.Op.String(), event.Name)
 
 	// Handle config file changes
-	if isConfigEvent {
-		log.Debugf("config file change details - operation: %s, timestamp: %s", event.Op.String(), now.Format("2006-01-02 15:04:05.000"))
-		w.scheduleConfigReload()
-		return
-	}
-
-	// Handle auth directory changes incrementally (.json only)
-	w.authRescanMu.Lock()
-	defer w.authRescanMu.Unlock()
-
-	if event.Op&(fsnotify.Remove|fsnotify.Rename) != 0 {
-		if w.shouldDebounceRemove(normalizedName, now) {
-			log.Debugf("debouncing remove event for %s", filepath.Base(event.Name))
-			return
-		}
-		// Atomic replace on some platforms may surface as Rename (or Remove) before the new file is ready.
-		// Wait briefly; if the path exists again, treat as an update instead of removal.
-		time.Sleep(replaceCheckDelay)
-		if _, statErr := os.Stat(event.Name); statErr == nil {
-			if unchanged, errSame := w.authFileUnchanged(event.Name); errSame == nil && unchanged {
-				log.Debugf("auth file unchanged (hash match), skipping reload: %s", filepath.Base(event.Name))
-				return
-			}
-			log.Infof("auth file changed (%s): %s, processing incrementally", event.Op.String(), filepath.Base(event.Name))
-			w.addOrUpdateClientLocked(event.Name)
-			return
-		}
-		if !w.isKnownAuthFile(event.Name) {
-			log.Debugf("ignoring remove for unknown auth file: %s", filepath.Base(event.Name))
-			return
-		}
-		log.Infof("auth file changed (%s): %s, processing incrementally", event.Op.String(), filepath.Base(event.Name))
-		w.removeClientLocked(event.Name)
-		return
-	}
-	if event.Op&(fsnotify.Create|fsnotify.Write) != 0 {
-		if unchanged, errSame := w.authFileUnchanged(event.Name); errSame == nil && unchanged {
-			log.Debugf("auth file unchanged (hash match), skipping reload: %s", filepath.Base(event.Name))
-			return
-		}
-		log.Infof("auth file changed (%s): %s, processing incrementally", event.Op.String(), filepath.Base(event.Name))
-		w.addOrUpdateClientLocked(event.Name)
-	}
+	log.Debugf("config file change details - operation: %s, timestamp: %s", event.Op.String(), now.Format("2006-01-02 15:04:05.000"))
+	w.scheduleConfigReload()
 }
 
 func (w *Watcher) authFileUnchanged(path string) (bool, error) {

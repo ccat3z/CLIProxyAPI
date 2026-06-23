@@ -24,7 +24,6 @@ import (
 
 const (
 	DefaultPanelGitHubRepository = "https://github.com/router-for-me/Cli-Proxy-API-Management-Center"
-	DefaultAuthDir               = "~/.cli-proxy-api"
 )
 
 // Config represents the application's configuration, loaded from a YAML file.
@@ -38,9 +37,6 @@ type Config struct {
 
 	// RemoteManagement nests management-related options under 'remote-management'.
 	RemoteManagement RemoteManagement `yaml:"remote-management" json:"-"`
-
-	// AuthDir is the directory where authentication token files are stored.
-	AuthDir string `yaml:"auth-dir" json:"-"`
 
 	// Debug enables or disables debug-level logging and other debug features.
 	Debug bool `yaml:"debug" json:"debug"`
@@ -1604,6 +1600,8 @@ func removeRemovedIntegrationKeys(root *yaml.Node) {
 	removeMapKey(root, "antigravity-signature-bypass-strict")
 	removeMapKey(root, "plugins")
 	removeMapKey(root, "gpt-image-2-base-model")
+	// Dead auth-dir config: dropped from the struct but old user configs may still carry it.
+	removeMapKey(root, "auth-dir")
 	// Dead HTTP(S) proxy config: dropped from the struct but old user configs may still carry it.
 	removeMapKey(root, "proxy-url")
 	// Dead Redis usage queue config: dropped from the struct but old user configs may still carry it.
