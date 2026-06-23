@@ -1,6 +1,6 @@
 // Package api provides the HTTP API server implementation for the CLI Proxy API.
 // It includes the main server struct, routing setup, middleware for CORS and authentication,
-// and integration with various AI API handlers (OpenAI, Claude, Gemini).
+// and integration with various AI API handlers (OpenAI, Claude).
 // The server supports hot-reloading of clients and configuration.
 package api
 
@@ -33,7 +33,6 @@ import (
 	sdkaccess "github.com/router-for-me/CLIProxyAPI/v7/sdk/access"
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/api/handlers"
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/api/handlers/claude"
-	"github.com/router-for-me/CLIProxyAPI/v7/sdk/api/handlers/gemini"
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/api/handlers/openai"
 	sdkAuth "github.com/router-for-me/CLIProxyAPI/v7/sdk/auth"
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/auth"
@@ -393,7 +392,6 @@ func (s *Server) setupRoutes() {
 
 	s.engine.GET("/management.html", s.serveManagementControlPanel)
 	openaiHandlers := openai.NewOpenAIAPIHandler(s.handlers)
-	geminiHandlers := gemini.NewGeminiAPIHandler(s.handlers)
 	claudeCodeHandlers := claude.NewClaudeCodeAPIHandler(s.handlers)
 	openaiResponsesHandlers := openai.NewOpenAIResponsesAPIHandler(s.handlers)
 
@@ -420,15 +418,6 @@ func (s *Server) setupRoutes() {
 		codexDirect.GET("/responses", openaiResponsesHandlers.ResponsesWebsocket)
 		codexDirect.POST("/responses", openaiResponsesHandlers.Responses)
 		codexDirect.POST("/responses/compact", openaiResponsesHandlers.Compact)
-	}
-
-	// Gemini compatible API routes
-	v1beta := s.engine.Group("/v1beta")
-	v1beta.Use(AuthMiddleware(s.accessManager))
-	{
-		v1beta.GET("/models", s.geminiModelsHandler(geminiHandlers))
-		v1beta.POST("/models/*action", geminiHandlers.GeminiHandler)
-		v1beta.GET("/models/*action", s.geminiGetHandler(geminiHandlers))
 	}
 
 	// Root endpoint
@@ -740,28 +729,6 @@ func (s *Server) handleHomeCodexClientModels(c *gin.Context) {
 	c.JSON(http.StatusOK, openai.CodexClientModelsResponse(models))
 }
 
-func (s *Server) geminiModelsHandler(geminiHandler *gemini.GeminiAPIHandler) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if s != nil && s.cfg != nil && s.cfg.Home.Enabled {
-			s.handleHomeGeminiModels(c)
-			return
-		}
-
-		geminiHandler.GeminiModels(c)
-	}
-}
-
-func (s *Server) geminiGetHandler(geminiHandler *gemini.GeminiAPIHandler) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if s != nil && s.cfg != nil && s.cfg.Home.Enabled {
-			s.handleHomeGeminiModel(c)
-			return
-		}
-
-		geminiHandler.GeminiGetHandler(c)
-	}
-}
-
 type homeModelEntry struct {
 	id          string
 	created     int64
@@ -833,40 +800,6 @@ func (s *Server) handleHomeModels(c *gin.Context) {
 	})
 }
 
-func (s *Server) handleHomeGeminiModels(c *gin.Context) {
-	entries, ok := s.loadHomeModelEntries(c)
-	if !ok {
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"models": formatHomeGeminiModels(entries),
-	})
-}
-
-func (s *Server) handleHomeGeminiModel(c *gin.Context) {
-	entries, ok := s.loadHomeModelEntries(c)
-	if !ok {
-		return
-	}
-
-	action := strings.TrimPrefix(c.Param("action"), "/")
-	action = strings.TrimSpace(action)
-	for _, entry := range entries {
-		if homeGeminiModelMatches(entry, action) {
-			c.JSON(http.StatusOK, formatHomeGeminiModel(entry))
-			return
-		}
-	}
-
-	c.JSON(http.StatusNotFound, handlers.ErrorResponse{
-		Error: handlers.ErrorDetail{
-			Message: "Not Found",
-			Type:    "not_found",
-		},
-	})
-}
-
 func (s *Server) loadHomeModelEntries(c *gin.Context) ([]homeModelEntry, bool) {
 	if s == nil || c == nil || c.Request == nil {
 		return nil, false
@@ -915,41 +848,6 @@ func (s *Server) loadHomeModelEntries(c *gin.Context) ([]homeModelEntry, bool) {
 	}
 
 	return entries, true
-}
-
-func formatHomeGeminiModels(entries []homeModelEntry) []map[string]any {
-	out := make([]map[string]any, 0, len(entries))
-	for _, entry := range entries {
-		out = append(out, formatHomeGeminiModel(entry))
-	}
-	return out
-}
-
-func formatHomeGeminiModel(entry homeModelEntry) map[string]any {
-	name := entry.id
-	if !strings.HasPrefix(name, "models/") {
-		name = "models/" + name
-	}
-	displayName := entry.displayName
-	if displayName == "" {
-		displayName = entry.id
-	}
-	return map[string]any{
-		"name":                       name,
-		"displayName":                displayName,
-		"description":                displayName,
-		"supportedGenerationMethods": []string{"generateContent"},
-	}
-}
-
-func homeGeminiModelMatches(entry homeModelEntry, action string) bool {
-	id := strings.TrimSpace(entry.id)
-	if id == "" || action == "" {
-		return false
-	}
-	normalizedAction := strings.TrimPrefix(action, "models/")
-	normalizedID := strings.TrimPrefix(id, "models/")
-	return action == id || action == "models/"+id || normalizedAction == normalizedID
 }
 
 // homeModelsAuthStatus inspects a home models response for an authentication/error envelope.

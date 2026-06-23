@@ -649,4 +649,49 @@ The handler file was upstream-native (`git cat-file -e a5cb8832:sdk/api/handlers
 
 Each removed symbol/field was re-verified before deletion: `grep -rn 'GeminiCLIAPIHandler\|NewGeminiCLIAPIHandler\|v1internal\|EnableGeminiCLIEndpoint\|enable-gemini-cli-endpoint' --include='*.go' --include='*.yaml' .` returned zero matches after the edits. `GeminiCLI` (the constant) was separately confirmed to still have live callers in the registry, translator, and auth conductor. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200 with a real upstream response, `/v0/management/config` → 401, and the removed `/v1internal:generateContent` route now returning 404) all pass.
 
+## Removed: unused Gemini handler subsystem (v1beta routes + handler package + server.go helpers)
+
+The `custom` branch only configures the `claude-api-key` and `openai-compatibility` providers (both with plain API keys). The `/v1beta/*` routes serve the `gemini` handler type, which requires a `gemini` provider in the auth conductor — absent from `data/config.yaml`. Tracing any `/v1beta` request to its upstream lookup hits `ExecuteWithAuthManager(ctx, "gemini", ...)` for a provider type no configured provider registers, so the entire Gemini handler subsystem was functionally unreachable. No integration test exercises these endpoints (`grep -rn 'gemini|v1beta' integration/` returns no matches). All removed code is upstream-native (existed at the `a5cb8832` base).
+
+### Deleted directory
+
+| Path | Reason |
+| --- | --- |
+| `sdk/api/handlers/gemini/` | The `GeminiAPIHandler` and all its methods (`GeminiHandler`, `GeminiModels`, `GeminiGetHandler`) are now unreachable — no route registers them, and no other package imports the handler. |
+
+### Removed routes (`internal/api/server.go`)
+
+| Route | Disposition |
+| --- | --- |
+| `GET /v1beta/models` | Removed. Delegated to the deleted `GeminiAPIHandler.GeminiModels`. |
+| `POST /v1beta/models/*action` | Removed. Delegated to the deleted `GeminiAPIHandler.GeminiHandler`. |
+| `GET /v1beta/models/*action` | Removed. Delegated to the deleted `GeminiAPIHandler.GeminiGetHandler`. |
+
+The `geminiHandlers := gemini.NewGeminiAPIHandler(s.handlers)` instantiation and the `"github.com/router-for-me/CLIProxyAPI/v7/sdk/api/handlers/gemini"` import were also removed.
+
+### Removed helper functions (`internal/api/server.go`)
+
+These functions were only called from the deleted route registrations or from each other. After the routes were removed they became dead code.
+
+| Symbol | Kind | Reason |
+| --- | --- | --- |
+| `geminiModelsHandler` | method | Only called from the deleted `v1beta.GET("/models", ...)` registration. |
+| `geminiGetHandler` | method | Only called from the deleted `v1beta.GET("/models/*action", ...)` registration. |
+| `handleHomeGeminiModels` | method | Only called from `geminiModelsHandler`. |
+| `handleHomeGeminiModel` | method | Only called from `geminiGetHandler`. |
+| `formatHomeGeminiModels` | function | Only called from `handleHomeGeminiModels`. |
+| `formatHomeGeminiModel` | function | Only called from `handleHomeGeminiModel` and `formatHomeGeminiModels`. |
+| `homeGeminiModelMatches` | function | Only called from `handleHomeGeminiModel`. |
+
+### Kept
+
+- The `FormatGemini` constant in `sdk/translator/formats.go` and the `gemini` case in `sdk/cliproxy/auth/conductor.go` are retained — they are single case statements in otherwise-live switches, not a subsystem.
+- `internal/signature/gemini_validation.go` is retained — it is called by `provider_compatibility.go` which is used by the Claude translator (live dependency chain).
+- Registry Gemini model definitions (`model_definitions.go`, `models.json`) are retained — they are static data, not executable paths.
+- The `GeminiCLI` constant in `internal/constant` is retained; it is still used by the registry, translator, and auth conductor.
+- All other home model infrastructure (`handleHomeModels`, `handleHomeCodexClientModels`, `loadHomeModelEntries`, `decodeHomeModels`, `homeModelEntry`, etc.) is retained — it serves the live `/v1/models` endpoint.
+
+### Verification
+
+Each removed symbol was re-verified before deletion: `grep -rn 'handlers/gemini\|geminiHandlers\|geminiModelsHandler\|geminiGetHandler\|handleHomeGeminiModels\|handleHomeGeminiModel\|formatHomeGeminiModels\|formatHomeGeminiModel\|homeGeminiModelMatches' --include='*.go' .` returned zero matches after the edits. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200 with a real upstream response, `/v0/management/config` → 401) all pass.
 
