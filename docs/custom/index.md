@@ -32,6 +32,7 @@ This directory documents all local changes on the `custom` branch that diverge f
 - [Removed: Config Schema and Server Flags](./removed-config-flags.md) — `-local-model` flag, OAuth provider config types, dead config fields, and related management routes
 - [Removed: utls TLS Fingerprinting](./removed-utls.md) — uTLS Chrome fingerprint spoofing in the Claude executor
 - [Removed: TLS / HTTPS Listen Support](./removed-tls-listen.md) — Server `tls:` config block, HTTPS listener branch, and ALPN handshake path; plain-HTTP listen only
+- [Removed: pprof HTTP Debug Server](./removed-pprof.md) — `pprof.enable`/`pprof.addr` config block, `sdk/cliproxy/pprof_server.go`, and the `/debug/pprof/*` listener
 - [Removed: Dead Code and Unused Dependencies](./removed-dead-code-dependencies.md) — Zero-caller directories/files and the final `go mod tidy` pass
 
 ## Integration Tests

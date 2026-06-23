@@ -24,7 +24,6 @@ import (
 
 const (
 	DefaultPanelGitHubRepository = "https://github.com/router-for-me/Cli-Proxy-API-Management-Center"
-	DefaultPprofAddr             = "127.0.0.1:8316"
 	DefaultAuthDir               = "~/.cli-proxy-api"
 )
 
@@ -48,9 +47,6 @@ type Config struct {
 
 	// Debug enables or disables debug-level logging and other debug features.
 	Debug bool `yaml:"debug" json:"debug"`
-
-	// Pprof config controls the optional pprof HTTP debug server.
-	Pprof PprofConfig `yaml:"pprof" json:"pprof"`
 
 	// CommercialMode disables high-overhead request logging and HTTP middleware features to minimize per-request memory usage.
 	CommercialMode bool `yaml:"commercial-mode" json:"commercial-mode"`
@@ -131,14 +127,6 @@ type ClaudeHeaderDefaults struct {
 	PackageVersion string `yaml:"package-version" json:"package-version"`
 	RuntimeVersion string `yaml:"runtime-version" json:"runtime-version"`
 	Timeout        string `yaml:"timeout" json:"timeout"`
-}
-
-// PprofConfig holds pprof HTTP server settings.
-type PprofConfig struct {
-	// Enable toggles the pprof HTTP debug server.
-	Enable bool `yaml:"enable" json:"enable"`
-	// Addr is the host:port address for the pprof HTTP server.
-	Addr string `yaml:"addr" json:"addr"`
 }
 
 // RemoteManagement holds management API configuration under 'remote-management'.
@@ -618,8 +606,6 @@ func LoadConfigOptional(configFile string, optional bool) (*Config, error) {
 	cfg.RedisUsageQueueRetentionSeconds = 60
 	cfg.DisableCooling = false
 	cfg.DisableImageGeneration = DisableImageGenerationOff
-	cfg.Pprof.Enable = false
-	cfg.Pprof.Addr = DefaultPprofAddr
 	cfg.RemoteManagement.PanelGitHubRepository = DefaultPanelGitHubRepository
 	if err = yaml.Unmarshal(data, &cfg); err != nil {
 		if optional {
@@ -647,11 +633,6 @@ func LoadConfigOptional(configFile string, optional bool) (*Config, error) {
 	cfg.RemoteManagement.PanelGitHubRepository = strings.TrimSpace(cfg.RemoteManagement.PanelGitHubRepository)
 	if cfg.RemoteManagement.PanelGitHubRepository == "" {
 		cfg.RemoteManagement.PanelGitHubRepository = DefaultPanelGitHubRepository
-	}
-
-	cfg.Pprof.Addr = strings.TrimSpace(cfg.Pprof.Addr)
-	if cfg.Pprof.Addr == "" {
-		cfg.Pprof.Addr = DefaultPprofAddr
 	}
 
 	if cfg.LogsMaxTotalSizeMB < 0 {
@@ -1215,8 +1196,6 @@ func isKnownDefaultValue(path []string, node *yaml.Node) bool {
 	// Check string defaults
 	if node.Kind == yaml.ScalarNode && node.Tag == "!!str" {
 		switch fullPath {
-		case "pprof.addr":
-			return node.Value == DefaultPprofAddr
 		case "remote-management.panel-github-repository":
 			return node.Value == DefaultPanelGitHubRepository
 		case "routing.strategy":
@@ -1647,6 +1626,8 @@ func removeRemovedIntegrationKeys(root *yaml.Node) {
 	removeMapKey(root, "antigravity-signature-bypass-strict")
 	removeMapKey(root, "plugins")
 	removeMapKey(root, "gpt-image-2-base-model")
+	// Dead pprof config block: dropped from the struct but old user configs may still carry it.
+	removeMapKey(root, "pprof")
 	// Dead quota-exceeded toggles: dropped from the struct but old user configs may still carry them.
 	removeNestedMapKey(root, "quota-exceeded", "switch-project")
 	removeNestedMapKey(root, "quota-exceeded", "switch-preview-model")
