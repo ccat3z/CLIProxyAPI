@@ -400,3 +400,21 @@ The companion `kv_helpers_test.go` was trimmed to the two retained tests (`TestH
 ### Verification
 
 Each public symbol was re-verified before deletion with `grep -rn '\b<symbol>\b' --include='*.go' . | grep -v 'internal/home/kv_helpers.go' | grep -v 'internal/home/kv_helpers_test.go'` — all returned zero matches, while `HashKeyPart` and `CurrentKVClient` each had exactly one live caller in `session_id_cache.go`. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
+
+## Removed: thinking pipeline plugin-provider registry
+
+`internal/thinking/apply.go` carried a parallel registry that let plugin-owned providers register their own thinking-config appliers alongside the built-in `claude` / `openai` ones. With no production code importing `sdk/pluginapi` on the `custom` branch, nothing ever called the register/unregister entrypoints, so the `pluginProviderAppliers` map was always empty and its lookup in `GetProviderApplier` always fell through to `nil`.
+
+| Symbol | Kind | Reason |
+| --- | --- | --- |
+| `pluginProviderApplier` | struct | Only referenced by the removed map and registration helpers. |
+| `pluginProviderAppliers` | package var | Always empty — no caller ever invoked the registration entrypoints. |
+| `RegisterPluginProvider` | function | Zero callers. |
+| `UnregisterPluginProviders` | function | Zero callers. |
+| `ClearPluginProviders` | function | Zero callers. |
+
+`GetProviderApplier` was simplified to consult only `nativeProviderAppliers`: it now returns `nativeProviderAppliers[provider]` directly. This preserves the prior observable behaviour — a `map[string]ProviderApplier` lookup returns the zero value (`nil` for the interface) for both missing names and the registered-but-uninitialized `claude` / `openai` entries, exactly as the old two-step lookup did when the plugin map was empty.
+
+### Verification
+
+Each symbol was re-verified before deletion with `grep -rn 'RegisterPluginProvider\|UnregisterPluginProviders\|ClearPluginProviders\|pluginProviderAppliers\|pluginProviderApplier' --include='*.go' .` — every match was self-contained in `internal/thinking/apply.go` (no test references either). The retained `nativeProviderAppliers` map and `RegisterProvider` function are unchanged, and all existing `internal/thinking/` tests pass. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
