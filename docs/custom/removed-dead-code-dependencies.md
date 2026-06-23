@@ -341,3 +341,16 @@ The companion test file `payload_helpers_disable_image_generation_test.go` was d
 
 The function was re-verified before deletion with `grep -rn '\bApplyPayloadConfigWithRoot\b' --include="*.go" .` — only the definition in `payload_helpers.go` and calls in `payload_helpers_disable_image_generation_test.go` appeared. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
 
+## Removed: dead session id cache helper
+
+`internal/runtime/executor/helps/session_id_cache.go` exported two variants of the session-id lookup: `CachedSessionID` (a convenience wrapper that swallowed errors and fell back to a fresh UUID) and `CachedSessionIDRequired` (the request-time path that returns an error). After the request-time path became the only entrypoint wired into `claude_executor.go`, `CachedSessionID` had zero callers and was removed.
+
+| Symbol | File | Kind | Reason |
+| --- | --- | --- | --- |
+| `CachedSessionID` | `internal/runtime/executor/helps/session_id_cache.go` | function | Thin wrapper around `CachedSessionIDRequired`; zero callers outside the file. |
+
+The `context` and `github.com/google/uuid` imports remain in use — `CachedSessionIDRequired` still takes a `context.Context` parameter and calls `uuid.New().String()`. All other package symbols were left in place: `CachedSessionIDRequired` itself (live caller at `internal/runtime/executor/claude_executor.go`), the in-memory cache helpers (`startSessionIDCacheCleanup`, `purgeExpiredSessionIDs`, `sessionIDCacheKey`), the home-KV helpers (`claudeSessionIDKVKey`, `currentClaudeIDKVClient`), and the `homekv.CurrentKVClient` / `homekv.HashKeyPart` usage.
+
+### Verification
+
+The function was re-verified before deletion with `grep -rn '\bCachedSessionID\b' --include='*.go' .` — only the definition in `session_id_cache.go` appeared (the distinct `CachedSessionIDRequired` symbol is a different function and was not touched). `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
