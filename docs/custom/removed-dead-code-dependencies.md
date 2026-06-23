@@ -311,3 +311,19 @@ The file's `github.com/tidwall/sjson` import was used solely by this function. `
 
 Each symbol was re-verified before deletion with `grep -rn "ParseRetryDelay\|DeleteJSONField" --include="*.go" .` — only the definitions themselves appeared, with zero external callers and zero test references. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
 
+## Removed: dead SSE usageMetadata filtering helpers
+
+`internal/runtime/executor/helps/usage_helpers.go` still carried the helpers that stripped Gemini-style `usageMetadata` from non-terminal SSE chunks. They existed only to serve the removed aistudio / antigravity executors (the doc comment on `FilterSSEUsageMetadata` named them explicitly); with those providers gone in earlier cleanups, the whole filtering path was unreachable on the `custom` branch.
+
+| Symbol | Kind | Reason |
+| --- | --- | --- |
+| `FilterSSEUsageMetadata` | function | Walked SSE `data:` lines and rewrote them to drop `usageMetadata` from non-terminal chunks; zero callers outside the file. |
+| `StripUsageMetadataFromJSON` | function | Per-JSON rename/delete of `usageMetadata` → `cpaUsageMetadata`; only caller was `FilterSSEUsageMetadata`. |
+| `JSONPayload` | function | One-line wrapper around the private `jsonPayload`; zero callers (the live stream parsers call `jsonPayload` directly). |
+
+The `github.com/tidwall/sjson` import in `usage_helpers.go` was used solely by `StripUsageMetadataFromJSON` and was removed alongside it; `sjson` remains imported by `payload_helpers.go` in the same package. The private `jsonPayload` helper was kept — `ParseOpenAIStreamUsage` and `ParseClaudeStreamUsage` still call it.
+
+### Verification
+
+Each public symbol was re-verified before deletion with `grep -rn '\bFilterSSEUsageMetadata\b\|\bStripUsageMetadataFromJSON\b\|\bJSONPayload\b' --include="*.go" .` — all references were self-contained in `usage_helpers.go`. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
+
