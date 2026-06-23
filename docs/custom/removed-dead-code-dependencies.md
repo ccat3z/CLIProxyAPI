@@ -215,3 +215,16 @@ After removing the two public functions, `gemini_sanitize.go` contained only tho
 
 Each symbol was re-verified with `grep -rn "<symbol>" --include="*.go" . | grep -v _test.go | grep -v internal/signature/` before deletion — all returned zero matches. The rest of `internal/signature/` is retained: it is still imported by `claude_executor.go`, `openai_responses_signature.go`, and the `internal/translator/` packages.
 
+## Removed: dead translator helpers (GeminiCLI leftovers)
+
+The `custom` branch only uses the `claude-api-key` and `openai-compatibility` providers with API keys. After the GeminiCLI provider was removed in an earlier cleanup, two JSON-building helpers in `internal/translator/common/bytes.go` existed only to shape that provider's responses and had zero callers.
+
+| Symbol | File | Kind | Reason |
+| --- | --- | --- | --- |
+| `WrapGeminiCLIResponse` | `internal/translator/common/bytes.go` | function | Wrapped a raw payload as `{"response": <body>}` for the GeminiCLI HTTP shape; no live caller after the provider was removed. |
+| `GeminiTokenCountJSON` | `internal/translator/common/bytes.go` | function | Built the GeminiCLI `countTokens` response JSON (`{"totalTokens": ..., "promptTokensDetails": [...]}`); no live caller after the provider was removed. |
+
+The `github.com/tidwall/sjson` import in `bytes.go` was used solely by `WrapGeminiCLIResponse` and was removed alongside it. The `strconv` import was kept — `ClaudeInputTokensJSON` (still called by `internal/translator/openai/claude/openai_claude_response.go`) uses `strconv.AppendInt`. There are no `_test.go` files in `internal/translator/common/` and no test references to either symbol elsewhere.
+
+Each symbol was re-verified with `grep -rn "<symbol>" --include="*.go" . | grep -v _test.go | grep -v common/bytes.go` before deletion — all returned zero matches. The remaining functions in `bytes.go` were kept: `ClaudeInputTokensJSON` (live caller noted above), `SSEEventData`, `AppendSSEEventString`, and `AppendSSEEventBytes`.
+
