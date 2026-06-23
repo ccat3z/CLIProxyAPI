@@ -228,3 +228,23 @@ The `github.com/tidwall/sjson` import in `bytes.go` was used solely by `WrapGemi
 
 Each symbol was re-verified with `grep -rn "<symbol>" --include="*.go" . | grep -v _test.go | grep -v common/bytes.go` before deletion — all returned zero matches. The remaining functions in `bytes.go` were kept: `ClaudeInputTokensJSON` (live caller noted above), `SSEEventData`, `AppendSSEEventString`, and `AppendSSEEventBytes`.
 
+## Removed: `sdk/cliproxy/pipeline` package
+
+The entire `sdk/cliproxy/pipeline/` directory (containing only `context.go`) was a leftover from the removed plugin execution pipeline. None of the symbols it defined had any live callers after the plugin host was removed in an earlier cleanup — it was kept around as dead weight.
+
+| Symbol | Kind | Reason |
+| --- | --- | --- |
+| `Context` | struct | Encapsulated execution state shared across middleware/translators/executors; zero callers outside the package. |
+| `Hook` | interface | Middleware callback contract (`BeforeExecute`/`AfterExecute`/`OnStreamChunk`); zero implementors or dispatchers. |
+| `HookFunc` | struct | Functional adapter implementing `Hook`; only used by the (removed) plugin pipeline. |
+| `RoundTripperProvider` | interface | Per-auth HTTP transport injection point; zero implementors or callers. |
+
+The directory was deleted in full (no `_test.go` files existed). Each symbol was re-verified before deletion with:
+
+```
+grep -rn "cliproxy/pipeline" --include="*.go" . | grep -v _test.go | grep -v "sdk/cliproxy/pipeline/"
+grep -rn "pipeline\.Context\|pipeline\.Hook\|pipeline\.HookFunc\|pipeline\.RoundTripperProvider" --include="*.go" . | grep -v "sdk/cliproxy/pipeline/"
+```
+
+Both returned zero matches. `gofmt`, `go build`, `go test ./...`, `pytest integration/`, and the standard smoke test (`/v1/models`, `/v1/chat/completions`, `/v0/management/config`) all pass.
+
