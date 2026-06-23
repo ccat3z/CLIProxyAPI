@@ -248,3 +248,38 @@ grep -rn "pipeline\.Context\|pipeline\.Hook\|pipeline\.HookFunc\|pipeline\.Round
 
 Both returned zero matches. `gofmt`, `go build`, `go test ./...`, `pytest integration/`, and the standard smoke test (`/v1/models`, `/v1/chat/completions`, `/v0/management/config`) all pass.
 
+## Removed: dead websocket and credits logging helpers
+
+`internal/runtime/executor/helps/logging_helpers.go` carried two clusters of helpers with zero live callers on the `custom` branch: the upstream-websocket request-log recorders, and the AI-credits flag accessors. Both are leftovers from the removed provider/OAuth infrastructure. The retained HTTP request-log helpers (`RecordAPIRequest`, `RecordAPIResponseMetadata`, `RecordAPIResponseError`, `AppendAPIResponseChunk`) are unchanged and still wired into the live executors.
+
+### Websocket logging
+
+No live executor opens an upstream websocket on the `custom` branch, so the websocket-timeline recorders were never reached. The six public functions below were removed, along with the two private helpers that only they called.
+
+| Symbol | Kind | Reason |
+| --- | --- | --- |
+| `RecordAPIWebsocketRequest` | function | No callers outside the file. |
+| `RecordAPIWebsocketHandshake` | function | No callers outside the file. |
+| `RecordAPIWebsocketUpgradeRejection` | function | No callers outside the file. |
+| `WebsocketUpgradeRequestURL` | function | No callers outside the file. |
+| `AppendAPIWebsocketResponse` | function | No callers outside the file. |
+| `RecordAPIWebsocketError` | function | No callers outside the file. |
+| `appendAPIWebsocketTimeline` | helper | Only called by the six functions above. |
+| `apiWebsocketTimelineSource` | helper | Only called by `appendAPIWebsocketTimeline`. |
+
+The `net/url` import was used solely by `WebsocketUpgradeRequestURL` and was removed with it. The `apiWebsocketTimelineKey` context-key constant (`"API_WEBSOCKET_TIMELINE"`) was only written by `appendAPIWebsocketTimeline` and was removed; the gin-context reader `ResponseWriterWrapper.extractAPIWebsocketTimeline` in `internal/api/middleware/response_writer.go` reads the same key as a string literal and is out of scope for this change — it now simply returns `nil`, matching the pre-existing behaviour where nothing populated that key. The separate `logging.APIWebsocketTimelineSourceContextKey` / `FileBodySource` plumbing (still driven by `request_logging.go`) is unrelated and untouched.
+
+### Credits tracking
+
+`MarkCreditsUsed` / `CreditsUsed` flagged a request as having consumed AI credits. `MarkCreditsUsed` had no callers, so the flag was never set and `CreditsUsed` always returned `false`. The gin logger in `internal/logging/gin_logger.go` reads the same key via its own identically-valued private `creditsUsedKey` constant, which is unaffected by this change.
+
+| Symbol | Kind | Reason |
+| --- | --- | --- |
+| `MarkCreditsUsed` | function | No callers outside the file; the flag was never set. |
+| `CreditsUsed` | function | No callers outside the file. |
+| `creditsUsedKey` | constant | Only used by the two functions above. |
+
+### Verification
+
+Each public symbol was re-verified before deletion with `grep -rn "<symbol>" --include="*.go" . | grep -v helps/logging_helpers.go` — all returned zero matches (the apparent `apiWebsocketTimelineSource` hits in `response_writer.go` / `request_logger.go` are unrelated local variables and parameters, not calls). `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
+
