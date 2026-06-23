@@ -74,29 +74,6 @@ func TestCompatibleSignatureForProvider_ClaudeUsesProviderNativeEForm(t *testing
 	}
 }
 
-func TestCompatibleAntigravityClaudeThinkingSignature_UsesDoubleLayerRForm(t *testing.T) {
-	nativeSig := testClaudeThinkingSignature()
-	expected := base64.StdEncoding.EncodeToString([]byte(nativeSig))
-
-	normalized, ok := CompatibleAntigravityClaudeThinkingSignature(nativeSig)
-	if !ok {
-		t.Fatal("Claude signature should be compatible with Antigravity Claude")
-	}
-	if normalized != expected {
-		t.Fatalf("CompatibleAntigravityClaudeThinkingSignature = %q, want %q", normalized, expected)
-	}
-}
-
-func TestCompatibleAntigravityClaudeThinkingSignature_RejectsGeminiEPrefix(t *testing.T) {
-	geminiSig := testGemini3ThoughtSignature([]byte{0x01, 0x0c, 0x39, 0xd6, 0xc7, 0x34})
-	if !strings.HasPrefix(geminiSig, "E") {
-		t.Fatalf("test signature should start with E, got %q", geminiSig[:1])
-	}
-	if normalized, ok := CompatibleAntigravityClaudeThinkingSignature(geminiSig); ok || normalized != "" {
-		t.Fatalf("Gemini E-prefix signature normalized=%q ok=%v, want rejected", normalized, ok)
-	}
-}
-
 func TestDetectSignatureProvider_DoesNotClassifyArbitraryBase64AsGemini(t *testing.T) {
 	opaque := testGeminiThoughtSignature([]byte{0x45, 0x12})
 	if got := DetectSignatureProvider(opaque); got != SignatureProviderUnknown {

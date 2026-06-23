@@ -198,3 +198,20 @@ The live `case auth.Metadata != nil:` branch (which persists auth metadata as JS
 
 Each reference was re-verified with `grep -rn "internal/auth\|TokenStorage\|baseauth" --include="*.go" . | grep -v "internal/auth/"` after the edits — zero matches.
 
+## Removed: dead signature helpers (antigravity/gemini)
+
+The `custom` branch only uses the `claude-api-key` and `openai-compatibility` providers with API keys. After the Gemini and Antigravity providers were removed in earlier cleanups, the signature helpers below had zero callers outside `internal/signature/` and were deleted.
+
+| Symbol | File | Kind | Reason |
+| --- | --- | --- | --- |
+| `CompatibleAntigravityClaudeThinkingSignature` | `internal/signature/provider_compatibility.go` | function | Only Antigravity replay used it; Antigravity provider was removed. |
+| `SanitizeGeminiRequestThoughtSignatures` | `internal/signature/gemini_sanitize.go` | function | Only Gemini upstream replay used it; Gemini provider was removed. |
+| `GeminiReplaySignatureOrBypass` | `internal/signature/gemini_sanitize.go` | function | Only called by `SanitizeGeminiRequestThoughtSignatures`. |
+| `logGeminiThoughtSignatureSanitize` | `internal/signature/gemini_sanitize.go` | helper | Only called by `SanitizeGeminiRequestThoughtSignatures`. |
+| `geminiPartThoughtSignature` | `internal/signature/gemini_sanitize.go` | helper | Only called by `SanitizeGeminiRequestThoughtSignatures`. |
+| `deleteGeminiPartThoughtSignatureFields` | `internal/signature/gemini_sanitize.go` | helper | Only called by `SanitizeGeminiRequestThoughtSignatures`. |
+
+After removing the two public functions, `gemini_sanitize.go` contained only those two functions plus their private helpers, so the entire file was deleted. The companion `gemini_sanitize_test.go` only exercised the removed symbols (plus its local `newSignatureDebugHook`/`assertSignatureDebugDoesNotLeak` helpers, which had no other callers) and was deleted in full. The two `TestCompatibleAntigravityClaudeThinkingSignature_*` cases in `provider_compatibility_test.go` were trimmed; the rest of that file is untouched.
+
+Each symbol was re-verified with `grep -rn "<symbol>" --include="*.go" . | grep -v _test.go | grep -v internal/signature/` before deletion — all returned zero matches. The rest of `internal/signature/` is retained: it is still imported by `claude_executor.go`, `openai_responses_signature.go`, and the `internal/translator/` packages.
+
