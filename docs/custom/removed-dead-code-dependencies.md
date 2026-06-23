@@ -354,3 +354,49 @@ The `context` and `github.com/google/uuid` imports remain in use — `CachedSess
 ### Verification
 
 The function was re-verified before deletion with `grep -rn '\bCachedSessionID\b' --include='*.go' .` — only the definition in `session_id_cache.go` appeared (the distinct `CachedSessionIDRequired` symbol is a different function and was not touched). `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
+
+## Removed: dead home KV helpers
+
+`internal/home/kv_helpers.go` carried two parallel families of KV accessors over the home Redis client — a `*Required` family (returning errors) and a `*BestEffort` family (logging and swallowing errors) — plus their JSON/byte serializers. The only live callers on the `custom` branch are `HashKeyPart` and `CurrentKVClient`, both invoked from `internal/runtime/executor/helps/session_id_cache.go`. Every other public function in the file had zero callers outside the file and its own test, so they were removed.
+
+### Removed `*Required` family (error-returning)
+
+| Symbol | Kind | Reason |
+| --- | --- | --- |
+| `KVGetJSONRequired` | function | Zero callers outside the file/tests. |
+| `KVSetJSONRequired` | function | Zero callers. Marshalled-JSON wrapper around `KVSetBytesRequired`. |
+| `KVSetBytesRequired` | function | Zero callers. |
+| `KVSetNXRequired` | function | Zero callers. |
+| `KVDelRequired` | function | Zero callers. |
+| `KVExpireRequired` | function | Zero callers. |
+
+### Removed `*BestEffort` family (log-and-swallow)
+
+| Symbol | Kind | Reason |
+| --- | --- | --- |
+| `KVGetJSONBestEffort` | function | Zero callers. Wrapped `KVGetJSONRequired`. |
+| `KVSetJSONBestEffort` | function | Zero callers. Wrapped `KVSetBytesBestEffort`. |
+| `KVSetBytesBestEffort` | function | Zero callers. Wrapped `KVSetBytesRequired`. |
+| `KVSetNXBestEffort` | function | Zero callers. Wrapped `KVSetNXRequired`. |
+| `KVDelBestEffort` | function | Zero callers. Wrapped `KVDelRequired`. |
+| `KVExpireBestEffort` | function | Zero callers. Wrapped `KVExpireRequired`. |
+
+### Removed private helpers
+
+After the public functions above were removed, these helpers had no remaining callers inside the file and were deleted alongside them.
+
+| Symbol | Kind | Reason |
+| --- | --- | --- |
+| `kvSetOptionsForTTL` | helper | Only caller was `KVSetBytesRequired`. |
+| `kvLogPrefix` | helper | Only callers were the `*BestEffort` functions. |
+| `firstKVKey` | helper | Only caller was `KVDelBestEffort`. |
+
+### Kept
+
+`HashKeyPart` and `CurrentKVClient` are retained — both are called from `internal/runtime/executor/helps/session_id_cache.go` (`homekv.HashKeyPart(apiKey)` to derive the cache key, `homekv.CurrentKVClient()` to reach the home KV client). The `context`, `crypto/sha256`, `encoding/hex`, and `fmt` imports they require remain; the now-unused `encoding/json`, `strings`, and `time` imports were dropped, and the `github.com/sirupsen/logrus` import (only used by the removed `*BestEffort` family) was dropped.
+
+The companion `kv_helpers_test.go` was trimmed to the two retained tests (`TestHashKeyPart`, `TestCurrentKVClientUnavailableErrors`). The three removed tests (`TestKVRequiredHelpersReturnNonHomeMode`, `TestKVRequiredHelpersPropagateClientErrors`, `TestKVBestEffortWriteSwallowsErrorAndRedactsLog`) only exercised deleted symbols; the `bytes`, `context`, and `github.com/sirupsen/logrus` imports they pulled in were dropped from the test file. The shared `newRedisCommandTestClient` helper lives in `client_test.go` and is unaffected.
+
+### Verification
+
+Each public symbol was re-verified before deletion with `grep -rn '\b<symbol>\b' --include='*.go' . | grep -v 'internal/home/kv_helpers.go' | grep -v 'internal/home/kv_helpers_test.go'` — all returned zero matches, while `HashKeyPart` and `CurrentKVClient` each had exactly one live caller in `session_id_cache.go`. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
