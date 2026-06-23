@@ -96,3 +96,35 @@ After the code that imported these packages was deleted, the entries lingered in
 ## What Was Kept
 
 `github.com/redis/go-redis/v9` stays in `go.mod`. It is still imported by `internal/home/` (Redis-based control-plane client), which was retained on the `custom` branch. The associated indirects (`github.com/cespare/xxhash/v2`, `go.uber.org/atomic`) also remain.
+
+## Removed: dead usage parsers
+
+After the Codex / Gemini / Gemini-CLI / Antigravity executors were removed in earlier cleanups, the `Parse*Usage` / `Parse*StreamUsage` helpers in `internal/runtime/executor/helps/usage_helpers.go` that existed only to serve those executors had zero callers. The `custom` branch only uses the `claude-api-key` and `openai-compatibility` providers, so the OpenAI and Claude parsers are the only ones still wired in.
+
+| Function | Disposition | Reason |
+| --- | --- | --- |
+| `ParseCodexUsage` | Removed | Zero callers outside the file and tests. |
+| `ParseCodexImageToolUsage` | Removed | Zero callers. |
+| `ParseGeminiUsage` | Removed | Zero callers. |
+| `ParseGeminiStreamUsage` | Removed | Zero callers. |
+| `ParseGeminiCLIUsage` | Removed | Zero callers. |
+| `ParseGeminiCLIStreamUsage` | Removed | Zero callers. |
+| `ParseAntigravityUsage` | Removed | Zero callers. |
+| `ParseAntigravityStreamUsage` | Removed | Zero callers. |
+
+The following private helpers were used **only** by the removed parsers and were deleted alongside them:
+
+| Helper | Reason |
+| --- | --- |
+| `parseGeminiFamilyUsageDetail` | Only callers were the removed Gemini-family / Antigravity parsers. |
+| `hasGeminiFamilyUsageTokenFields` | Only caller was the removed `ParseGeminiCLIStreamUsage`. |
+| `firstExistingUsageNode` | Only callers were the removed `ParseGeminiCLIUsage` and `ParseGeminiCLIStreamUsage`. |
+
+Each symbol was re-verified with `grep -rn "<symbol>" --include="*.go" . | grep -v _test.go | grep -v usage_helpers.go` before deletion — all returned no matches.
+
+**Kept** (still have live callers in the OpenAI-compat and Claude executors):
+
+- `ParseOpenAIUsage`, `ParseOpenAIStreamUsage`, plus their shared helpers `hasOpenAIStyleUsageTokenFields` / `parseOpenAIStyleUsageNode`.
+- `ParseClaudeUsage`, `ParseClaudeStreamUsage`, plus `parseClaudeUsageNode`.
+
+The matching test cases in `usage_helpers_test.go` (`TestParseGeminiStreamUsage_NullUsageMetadata`, `TestParseGeminiCLIStreamUsage_NullUsageMetadata`, `TestParseAntigravityStreamUsage_NullUsageMetadata`, `TestParseGeminiCLIUsage_TopLevelUsageMetadata`, `TestParseGeminiCLIStreamUsage_ResponseSnakeCaseUsageMetadata`, `TestParseGeminiCLIStreamUsage_IgnoresTrafficTypeOnlyUsageMetadata`) were removed; the OpenAI and Claude tests were left untouched.

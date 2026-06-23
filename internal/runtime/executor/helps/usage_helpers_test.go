@@ -144,30 +144,6 @@ func TestParseClaudeStreamUsage_ValidUsage(t *testing.T) {
 	}
 }
 
-func TestParseGeminiStreamUsage_NullUsageMetadata(t *testing.T) {
-	line := []byte(`data: {"candidates":[],"usageMetadata":null}`)
-	_, ok := ParseGeminiStreamUsage(line)
-	if ok {
-		t.Fatal("expected ok=false for null usageMetadata")
-	}
-}
-
-func TestParseGeminiCLIStreamUsage_NullUsageMetadata(t *testing.T) {
-	line := []byte(`data: {"response":{"usageMetadata":null}}`)
-	_, ok := ParseGeminiCLIStreamUsage(line)
-	if ok {
-		t.Fatal("expected ok=false for null usageMetadata")
-	}
-}
-
-func TestParseAntigravityStreamUsage_NullUsageMetadata(t *testing.T) {
-	line := []byte(`data: {"response":{"usageMetadata":null}}`)
-	_, ok := ParseAntigravityStreamUsage(line)
-	if ok {
-		t.Fatal("expected ok=false for null usageMetadata")
-	}
-}
-
 func TestParseClaudeUsageIncludesCacheTokensInTotal(t *testing.T) {
 	data := []byte(`{"usage":{"input_tokens":3085,"output_tokens":253,"cache_read_input_tokens":7,"cache_creation_input_tokens":19514}}`)
 	detail := ParseClaudeUsage(data)
@@ -199,50 +175,6 @@ func TestParseClaudeUsageFallsBackCachedTokensToCacheCreation(t *testing.T) {
 	}
 	if detail.TotalTokens != 22852 {
 		t.Fatalf("total tokens = %d, want %d", detail.TotalTokens, 22852)
-	}
-}
-
-func TestParseGeminiCLIUsage_TopLevelUsageMetadata(t *testing.T) {
-	data := []byte(`{"usageMetadata":{"promptTokenCount":11,"candidatesTokenCount":7,"thoughtsTokenCount":3,"totalTokenCount":21,"cachedContentTokenCount":5}}`)
-	detail := ParseGeminiCLIUsage(data)
-	if detail.InputTokens != 11 {
-		t.Fatalf("input tokens = %d, want %d", detail.InputTokens, 11)
-	}
-	if detail.OutputTokens != 7 {
-		t.Fatalf("output tokens = %d, want %d", detail.OutputTokens, 7)
-	}
-	if detail.ReasoningTokens != 3 {
-		t.Fatalf("reasoning tokens = %d, want %d", detail.ReasoningTokens, 3)
-	}
-	if detail.TotalTokens != 21 {
-		t.Fatalf("total tokens = %d, want %d", detail.TotalTokens, 21)
-	}
-	if detail.CachedTokens != 5 {
-		t.Fatalf("cached tokens = %d, want %d", detail.CachedTokens, 5)
-	}
-}
-
-func TestParseGeminiCLIStreamUsage_ResponseSnakeCaseUsageMetadata(t *testing.T) {
-	line := []byte(`data: {"response":{"usage_metadata":{"promptTokenCount":13,"candidatesTokenCount":2,"totalTokenCount":15}}}`)
-	detail, ok := ParseGeminiCLIStreamUsage(line)
-	if !ok {
-		t.Fatal("ParseGeminiCLIStreamUsage() ok = false, want true")
-	}
-	if detail.InputTokens != 13 {
-		t.Fatalf("input tokens = %d, want %d", detail.InputTokens, 13)
-	}
-	if detail.OutputTokens != 2 {
-		t.Fatalf("output tokens = %d, want %d", detail.OutputTokens, 2)
-	}
-	if detail.TotalTokens != 15 {
-		t.Fatalf("total tokens = %d, want %d", detail.TotalTokens, 15)
-	}
-}
-
-func TestParseGeminiCLIStreamUsage_IgnoresTrafficTypeOnlyUsageMetadata(t *testing.T) {
-	line := []byte(`data: {"response":{"usageMetadata":{"trafficType":"ON_DEMAND"}}}`)
-	if detail, ok := ParseGeminiCLIStreamUsage(line); ok {
-		t.Fatalf("ParseGeminiCLIStreamUsage() = (%+v, true), want false for traffic-only usage metadata", detail)
 	}
 }
 
