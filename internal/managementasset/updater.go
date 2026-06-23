@@ -20,7 +20,6 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/config"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/httpfetch"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/util"
-	sdkconfig "github.com/router-for-me/CLIProxyAPI/v7/sdk/config"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/singleflight"
 )
@@ -89,7 +88,7 @@ func runAutoUpdater(ctx context.Context) {
 
 		configPath, _ := schedulerConfigPath.Load().(string)
 		staticDir := StaticDir(configPath)
-		EnsureLatestManagementHTML(ctx, staticDir, cfg.ProxyURL, cfg.RemoteManagement.PanelGitHubRepository)
+		EnsureLatestManagementHTML(ctx, staticDir, cfg.RemoteManagement.PanelGitHubRepository)
 	}
 
 	runOnce()
@@ -117,13 +116,8 @@ func autoUpdateSkipReason(cfg *config.Config) (string, bool) {
 	return "", false
 }
 
-func newHTTPClient(proxyURL string) *http.Client {
-	client := &http.Client{Timeout: 15 * time.Second}
-
-	sdkCfg := &sdkconfig.SDKConfig{ProxyURL: strings.TrimSpace(proxyURL)}
-	util.SetProxy(sdkCfg, client)
-
-	return client
+func newHTTPClient() *http.Client {
+	return &http.Client{Timeout: 15 * time.Second}
 }
 
 type releaseAsset struct {
@@ -185,7 +179,7 @@ func FilePath(configFilePath string) string {
 
 // EnsureLatestManagementHTML checks the latest management.html asset and updates the local copy when needed.
 // It coalesces concurrent sync attempts and returns whether the asset exists after the sync attempt.
-func EnsureLatestManagementHTML(ctx context.Context, staticDir string, proxyURL string, panelRepository string) bool {
+func EnsureLatestManagementHTML(ctx context.Context, staticDir string, panelRepository string) bool {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -228,7 +222,7 @@ func EnsureLatestManagementHTML(ctx context.Context, staticDir string, proxyURL 
 		}
 
 		releaseURL := resolveReleaseURL(panelRepository)
-		client := newHTTPClient(proxyURL)
+		client := newHTTPClient()
 
 		localHash, err := fileSHA256(localPath)
 		if err != nil {

@@ -153,7 +153,6 @@ func (h *Handler) PatchClaudeKey(c *gin.Context) {
 		APIKey         *string               `json:"api-key"`
 		Prefix         *string               `json:"prefix"`
 		BaseURL        *string               `json:"base-url"`
-		ProxyURL       *string               `json:"proxy-url"`
 		Models         *[]config.ClaudeModel `json:"models"`
 		Headers        *map[string]string    `json:"headers"`
 		ExcludedModels *[]string             `json:"excluded-models"`
@@ -197,9 +196,6 @@ func (h *Handler) PatchClaudeKey(c *gin.Context) {
 	}
 	if body.Value.BaseURL != nil {
 		entry.BaseURL = strings.TrimSpace(*body.Value.BaseURL)
-	}
-	if body.Value.ProxyURL != nil {
-		entry.ProxyURL = strings.TrimSpace(*body.Value.ProxyURL)
 	}
 	if body.Value.Models != nil {
 		entry.Models = append([]config.ClaudeModel(nil), (*body.Value.Models)...)
@@ -445,7 +441,6 @@ func normalizeClaudeKey(entry *config.ClaudeKey) {
 	}
 	entry.APIKey = strings.TrimSpace(entry.APIKey)
 	entry.BaseURL = strings.TrimSpace(entry.BaseURL)
-	entry.ProxyURL = strings.TrimSpace(entry.ProxyURL)
 	entry.Headers = config.NormalizeHeaders(entry.Headers)
 	entry.ExcludedModels = config.NormalizeExcludedModels(entry.ExcludedModels)
 	if len(entry.Models) == 0 {

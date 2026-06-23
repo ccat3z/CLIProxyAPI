@@ -1266,11 +1266,6 @@ func syncAuthFileMetadataFields(auth *coreauth.Auth, touchedRoots map[string]str
 			auth.Prefix = strings.TrimSpace(prefix)
 		}
 	}
-	if _, ok := touchedRoots["proxy_url"]; ok {
-		if proxyURL, okString := auth.Metadata["proxy_url"].(string); okString {
-			auth.ProxyURL = strings.TrimSpace(proxyURL)
-		}
-	}
 	if _, ok := touchedRoots["headers"]; ok {
 		syncAuthFileHeaderAttributes(auth)
 	}

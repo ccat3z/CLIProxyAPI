@@ -4412,17 +4412,12 @@ func debugLogAuthSelection(entry *log.Entry, auth *Auth, provider string, model 
 		return
 	}
 	accountType, accountInfo := auth.AccountInfo()
-	proxyInfo := auth.ProxyInfo()
-	suffix := ""
-	if proxyInfo != "" {
-		suffix = " " + proxyInfo
-	}
 	switch accountType {
 	case "api_key":
-		entry.Debugf("Use API key %s for model %s%s", util.HideAPIKey(accountInfo), model, suffix)
+		entry.Debugf("Use API key %s for model %s", util.HideAPIKey(accountInfo), model)
 	case "oauth":
 		ident := formatOauthIdentity(auth, provider, accountInfo)
-		entry.Debugf("Use OAuth %s for model %s%s", ident, model, suffix)
+		entry.Debugf("Use OAuth %s for model %s", ident, model)
 	}
 }
 

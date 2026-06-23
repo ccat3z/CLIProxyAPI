@@ -2,7 +2,6 @@ package diff
 
 import (
 	"fmt"
-	"net/url"
 	"reflect"
 	"strings"
 
@@ -60,9 +59,6 @@ func BuildConfigChangeDetails(oldCfg, newCfg *config.Config) []string {
 	if oldCfg.MaxRetryInterval != newCfg.MaxRetryInterval {
 		changes = append(changes, fmt.Sprintf("max-retry-interval: %d -> %d", oldCfg.MaxRetryInterval, newCfg.MaxRetryInterval))
 	}
-	if oldCfg.ProxyURL != newCfg.ProxyURL {
-		changes = append(changes, fmt.Sprintf("proxy-url: %s -> %s", formatProxyURL(oldCfg.ProxyURL), formatProxyURL(newCfg.ProxyURL)))
-	}
 	if oldCfg.WebsocketAuth != newCfg.WebsocketAuth {
 		changes = append(changes, fmt.Sprintf("ws-auth: %t -> %t", oldCfg.WebsocketAuth, newCfg.WebsocketAuth))
 	}
@@ -96,9 +92,6 @@ func BuildConfigChangeDetails(oldCfg, newCfg *config.Config) []string {
 			n := newCfg.ClaudeKey[i]
 			if strings.TrimSpace(o.BaseURL) != strings.TrimSpace(n.BaseURL) {
 				changes = append(changes, fmt.Sprintf("claude[%d].base-url: %s -> %s", i, strings.TrimSpace(o.BaseURL), strings.TrimSpace(n.BaseURL)))
-			}
-			if strings.TrimSpace(o.ProxyURL) != strings.TrimSpace(n.ProxyURL) {
-				changes = append(changes, fmt.Sprintf("claude[%d].proxy-url: %s -> %s", i, formatProxyURL(o.ProxyURL), formatProxyURL(n.ProxyURL)))
 			}
 			if strings.TrimSpace(o.Prefix) != strings.TrimSpace(n.Prefix) {
 				changes = append(changes, fmt.Sprintf("claude[%d].prefix: %s -> %s", i, strings.TrimSpace(o.Prefix), strings.TrimSpace(n.Prefix)))
@@ -214,32 +207,4 @@ func equalStringMap(a, b map[string]string) bool {
 		}
 	}
 	return true
-}
-
-func formatProxyURL(raw string) string {
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		return "<none>"
-	}
-	parsed, err := url.Parse(trimmed)
-	if err != nil {
-		return "<redacted>"
-	}
-	host := strings.TrimSpace(parsed.Host)
-	scheme := strings.TrimSpace(parsed.Scheme)
-	if host == "" {
-		// Allow host:port style without scheme.
-		parsed2, err2 := url.Parse("http://" + trimmed)
-		if err2 == nil {
-			host = strings.TrimSpace(parsed2.Host)
-		}
-		scheme = ""
-	}
-	if host == "" {
-		return "<redacted>"
-	}
-	if scheme == "" {
-		return host
-	}
-	return scheme + "://" + host
 }

@@ -97,12 +97,12 @@ func TestBuildConfigChangeDetails_ClaudeHeaders(t *testing.T) {
 func TestBuildConfigChangeDetails_ModelPrefixes(t *testing.T) {
 	oldCfg := &config.Config{
 		ClaudeKey: []config.ClaudeKey{
-			{APIKey: "c1", Prefix: "old-c", BaseURL: "http://c", ProxyURL: "http://cp"},
+			{APIKey: "c1", Prefix: "old-c", BaseURL: "http://c"},
 		},
 	}
 	newCfg := &config.Config{
 		ClaudeKey: []config.ClaudeKey{
-			{APIKey: "c1", Prefix: "new-c", BaseURL: "http://c", ProxyURL: "http://cp"},
+			{APIKey: "c1", Prefix: "new-c", BaseURL: "http://c"},
 		},
 	}
 
@@ -158,7 +158,6 @@ func TestBuildConfigChangeDetails_FlagsAndKeys(t *testing.T) {
 		RemoteManagement:       config.RemoteManagement{DisableControlPanel: false, PanelGitHubRepository: "old/repo", SecretKey: "keep"},
 		SDKConfig: sdkconfig.SDKConfig{
 			RequestLog:                 false,
-			ProxyURL:                   "http://old-proxy",
 			APIKeys:                    []string{"key-1"},
 			ForceModelPrefix:           false,
 			NonStreamKeepAliveInterval: 0,
@@ -176,7 +175,7 @@ func TestBuildConfigChangeDetails_FlagsAndKeys(t *testing.T) {
 		MaxRetryInterval:       3,
 		WebsocketAuth:          true,
 		ClaudeKey: []config.ClaudeKey{
-			{APIKey: "c1", BaseURL: "http://new", ProxyURL: "http://p", Headers: map[string]string{"H": "1"}, ExcludedModels: []string{"a"}},
+			{APIKey: "c1", BaseURL: "http://new", Headers: map[string]string{"H": "1"}, ExcludedModels: []string{"a"}},
 			{APIKey: "c2"},
 		},
 		RemoteManagement: config.RemoteManagement{
@@ -187,7 +186,6 @@ func TestBuildConfigChangeDetails_FlagsAndKeys(t *testing.T) {
 		},
 		SDKConfig: sdkconfig.SDKConfig{
 			RequestLog:                 true,
-			ProxyURL:                   "http://new-proxy",
 			APIKeys:                    []string{" key-1 ", "key-2"},
 			ForceModelPrefix:           true,
 			NonStreamKeepAliveInterval: 5,
@@ -205,7 +203,6 @@ func TestBuildConfigChangeDetails_FlagsAndKeys(t *testing.T) {
 	expectContains(t, details, "request-retry: 1 -> 2")
 	expectContains(t, details, "max-retry-credentials: 1 -> 3")
 	expectContains(t, details, "max-retry-interval: 1 -> 3")
-	expectContains(t, details, "proxy-url: http://old-proxy -> http://new-proxy")
 	expectContains(t, details, "ws-auth: false -> true")
 	expectContains(t, details, "force-model-prefix: false -> true")
 	expectContains(t, details, "nonstream-keepalive-interval: 0 -> 5")
@@ -230,7 +227,7 @@ func TestBuildConfigChangeDetails_AllBranches(t *testing.T) {
 		MaxRetryInterval:       1,
 		WebsocketAuth:          false,
 		ClaudeKey: []config.ClaudeKey{
-			{APIKey: "c-old", BaseURL: "http://c-old", ProxyURL: "http://cp-old", Headers: map[string]string{"H": "1"}, ExcludedModels: []string{"x"}},
+			{APIKey: "c-old", BaseURL: "http://c-old", Headers: map[string]string{"H": "1"}, ExcludedModels: []string{"x"}},
 		},
 		RemoteManagement: config.RemoteManagement{
 			AllowRemote:            false,
@@ -241,7 +238,6 @@ func TestBuildConfigChangeDetails_AllBranches(t *testing.T) {
 		},
 		SDKConfig: sdkconfig.SDKConfig{
 			RequestLog: false,
-			ProxyURL:   "http://old-proxy",
 			APIKeys:    []string{" keyA "},
 		},
 		OpenAICompatibility: []config.OpenAICompatibility{
@@ -266,7 +262,7 @@ func TestBuildConfigChangeDetails_AllBranches(t *testing.T) {
 		MaxRetryInterval:       3,
 		WebsocketAuth:          true,
 		ClaudeKey: []config.ClaudeKey{
-			{APIKey: "c-new", BaseURL: "http://c-new", ProxyURL: "http://cp-new", Headers: map[string]string{"H": "2"}, ExcludedModels: []string{"x", "y"}},
+			{APIKey: "c-new", BaseURL: "http://c-new", Headers: map[string]string{"H": "2"}, ExcludedModels: []string{"x", "y"}},
 		},
 		RemoteManagement: config.RemoteManagement{
 			AllowRemote:            true,
@@ -277,7 +273,6 @@ func TestBuildConfigChangeDetails_AllBranches(t *testing.T) {
 		},
 		SDKConfig: sdkconfig.SDKConfig{
 			RequestLog:             true,
-			ProxyURL:               "http://new-proxy",
 			APIKeys:                []string{"keyB"},
 			DisableImageGeneration: config.DisableImageGenerationAll,
 		},
@@ -308,11 +303,9 @@ func TestBuildConfigChangeDetails_AllBranches(t *testing.T) {
 	expectContains(t, changes, "request-retry: 1 -> 2")
 	expectContains(t, changes, "max-retry-credentials: 1 -> 3")
 	expectContains(t, changes, "max-retry-interval: 1 -> 3")
-	expectContains(t, changes, "proxy-url: http://old-proxy -> http://new-proxy")
 	expectContains(t, changes, "ws-auth: false -> true")
 	expectContains(t, changes, "api-keys: values updated (count unchanged, redacted)")
 	expectContains(t, changes, "claude[0].base-url: http://c-old -> http://c-new")
-	expectContains(t, changes, "claude[0].proxy-url: http://cp-old -> http://cp-new")
 	expectContains(t, changes, "claude[0].api-key: updated")
 	expectContains(t, changes, "claude[0].headers: updated")
 	expectContains(t, changes, "claude[0].excluded-models: updated (1 -> 2 entries)")
@@ -322,30 +315,6 @@ func TestBuildConfigChangeDetails_AllBranches(t *testing.T) {
 	expectContains(t, changes, "remote-management.panel-github-repository: old/repo -> new/repo")
 	expectContains(t, changes, "remote-management.secret-key: deleted")
 	expectContains(t, changes, "openai-compatibility:")
-}
-
-func TestFormatProxyURL(t *testing.T) {
-	tests := []struct {
-		name string
-		in   string
-		want string
-	}{
-		{name: "empty", in: "", want: "<none>"},
-		{name: "invalid", in: "http://[::1", want: "<redacted>"},
-		{name: "fullURLRedactsUserinfoAndPath", in: "http://user:pass@example.com:8080/path?x=1#frag", want: "http://example.com:8080"},
-		{name: "socks5RedactsUserinfoAndPath", in: "socks5://user:pass@192.168.1.1:1080/path?x=1", want: "socks5://192.168.1.1:1080"},
-		{name: "socks5HostPort", in: "socks5://proxy.example.com:1080/", want: "socks5://proxy.example.com:1080"},
-		{name: "hostPortNoScheme", in: "example.com:1234/path?x=1", want: "example.com:1234"},
-		{name: "relativePathRedacted", in: "/just/path", want: "<redacted>"},
-		{name: "schemeAndHost", in: "https://example.com", want: "https://example.com"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := formatProxyURL(tt.in); got != tt.want {
-				t.Fatalf("expected %q, got %q", tt.want, got)
-			}
-		})
-	}
 }
 
 func TestBuildConfigChangeDetails_RemoteManagementSecretUpdated(t *testing.T) {

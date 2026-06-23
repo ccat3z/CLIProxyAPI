@@ -96,9 +96,8 @@ Implement a custom per‑auth transport:
 ```go
 type myRTProvider struct{}
 func (myRTProvider) RoundTripperFor(a *coreauth.Auth) http.RoundTripper {
-    if a == nil || a.ProxyURL == "" { return nil }
-    u, _ := url.Parse(a.ProxyURL)
-    return &http.Transport{ Proxy: http.ProxyURL(u) }
+    // Return a custom *http.Transport (e.g. tuned TLS/dial settings) or nil.
+    return nil
 }
 ```
 

@@ -39,7 +39,6 @@ The corresponding `TestWarningServerURL` case that asserted an `https://` URL wa
 Client-side TLS is unrelated to the server listen mode and is intentionally retained:
 
 - `internal/config/home.go` `HomeTLSConfig` and `internal/home/` — TLS used by the outbound home/control-plane Redis connection.
-- `sdk/proxyutil/proxy.go` — TLS handshake for outbound HTTPS proxies.
 - The `-home-jwt` flag (`cmd/server/main.go`) — mTLS certificate bootstrap for the home connection.
 
 ## Rationale

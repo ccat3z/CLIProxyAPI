@@ -438,11 +438,6 @@ func (s *Server) registerManagementRoutes() {
 		mgmt.PUT("/usage-statistics-enabled", s.mgmt.PutUsageStatisticsEnabled)
 		mgmt.PATCH("/usage-statistics-enabled", s.mgmt.PutUsageStatisticsEnabled)
 
-		mgmt.GET("/proxy-url", s.mgmt.GetProxyURL)
-		mgmt.PUT("/proxy-url", s.mgmt.PutProxyURL)
-		mgmt.PATCH("/proxy-url", s.mgmt.PutProxyURL)
-		mgmt.DELETE("/proxy-url", s.mgmt.DeleteProxyURL)
-
 		mgmt.GET("/api-keys", s.mgmt.GetAPIKeys)
 		mgmt.PUT("/api-keys", s.mgmt.PutAPIKeys)
 		mgmt.PATCH("/api-keys", s.mgmt.PatchAPIKeys)
@@ -536,7 +531,7 @@ func (s *Server) serveManagementControlPanel(c *gin.Context) {
 		if os.IsNotExist(err) {
 			// Synchronously ensure management.html is available with a detached context.
 			// Control panel bootstrap should not be canceled by client disconnects.
-			if !managementasset.EnsureLatestManagementHTML(context.Background(), managementasset.StaticDir(s.configFilePath), cfg.ProxyURL, cfg.RemoteManagement.PanelGitHubRepository) {
+			if !managementasset.EnsureLatestManagementHTML(context.Background(), managementasset.StaticDir(s.configFilePath), cfg.RemoteManagement.PanelGitHubRepository) {
 				c.AbortWithStatus(http.StatusNotFound)
 				return
 			}

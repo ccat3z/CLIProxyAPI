@@ -135,22 +135,18 @@ func TestConfigSynthesizer_ClaudeKeys_Table(t *testing.T) {
 			},
 		},
 		{
-			name: "claude key with base url and proxy",
+			name: "claude key with base url",
 			claudeKeys: []config.ClaudeKey{
 				{
-					APIKey:   "api-key",
-					BaseURL:  "https://custom.api.com",
-					ProxyURL: "http://proxy.local:8080",
-					Prefix:   "custom",
+					APIKey:  "api-key",
+					BaseURL: "https://custom.api.com",
+					Prefix:  "custom",
 				},
 			},
 			wantLen: 1,
 			validate: func(t *testing.T, auths []*coreauth.Auth) {
 				if auths[0].Attributes["base_url"] != "https://custom.api.com" {
 					t.Errorf("expected base_url https://custom.api.com, got %s", auths[0].Attributes["base_url"])
-				}
-				if auths[0].ProxyURL != "http://proxy.local:8080" {
-					t.Errorf("expected proxy_url http://proxy.local:8080, got %s", auths[0].ProxyURL)
 				}
 			},
 		},

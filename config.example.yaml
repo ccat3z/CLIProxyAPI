@@ -64,10 +64,6 @@ usage-statistics-enabled: false
 # When empty, usage is only kept in memory and lost on restart.
 # usage-db: ./usage.db
 
-# Proxy URL. Supports socks5/http/https protocols. Example: socks5://user:pass@192.168.1.1:1080/
-# Per-entry proxy-url also supports "direct" or "none" to bypass both the global proxy-url and environment proxies explicitly.
-proxy-url: ""
-
 # When true, unprefixed model requests only use credentials without a prefix (except when prefix == model name).
 force-model-prefix: false
 
@@ -161,8 +157,6 @@ nonstream-keepalive-interval: 0
 #     base-url: "https://generativelanguage.googleapis.com"
 #     headers:
 #       X-Custom-Header: "custom-value"
-#     proxy-url: "socks5://proxy.example.com:1080"
-#     # proxy-url: "direct" # optional: explicit direct connect for this credential
 #     models:
 #       - name: "gemini-2.5-flash" # upstream model name
 #         alias: "gemini-flash"    # client alias mapped to the upstream model
@@ -181,8 +175,6 @@ nonstream-keepalive-interval: 0
 #     base-url: "https://www.example.com" # use the custom codex API endpoint
 #     headers:
 #       X-Custom-Header: "custom-value"
-#     proxy-url: "socks5://proxy.example.com:1080" # optional: per-key proxy override
-#     # proxy-url: "direct" # optional: explicit direct connect for this credential
 #     models:
 #       - name: "gpt-5-codex"   # upstream model name
 #         alias: "codex-latest" # client alias mapped to the upstream model
@@ -201,8 +193,6 @@ nonstream-keepalive-interval: 0
 #     base-url: "https://www.example.com" # use the custom claude API endpoint
 #     headers:
 #       X-Custom-Header: "custom-value"
-#     proxy-url: "socks5://proxy.example.com:1080" # optional: per-key proxy override
-#     # proxy-url: "direct" # optional: explicit direct connect for this credential
 #     models:
 #       - name: "claude-3-5-sonnet-20241022" # upstream model name
 #         alias: "claude-sonnet-latest"      # client alias mapped to the upstream model
@@ -275,8 +265,6 @@ nonstream-keepalive-interval: 0
 #       X-Custom-Header: "custom-value"
 #     api-key-entries:
 #       - api-key: "sk-or-v1-...b780"
-#         proxy-url: "socks5://proxy.example.com:1080" # optional: per-key proxy override
-#         # proxy-url: "direct" # optional: explicit direct connect for this credential
 #         # Per-API-key model usage limits (sliding window). When exceeded, returns HTTP 429.
 #         limits:
 #           - window: 5h               # Duration of the sliding window (supports h, m, s, d for days)
@@ -288,7 +276,7 @@ nonstream-keepalive-interval: 0
 #           - window: 1d
 #             input_tokens: 10m
 #             models: [kimi-k2]
-#       - api-key: "sk-or-v1-...b781" # without proxy-url
+#       - api-key: "sk-or-v1-...b781"
 #     models: # The models supported by the provider.
 #       - name: "moonshotai/kimi-k2:free" # The actual model name.
 #         alias: "kimi-k2"               # The alias used in the API.
@@ -315,8 +303,6 @@ nonstream-keepalive-interval: 0
 #   - api-key: "vk-123..."                        # x-goog-api-key header
 #     prefix: "test"                              # optional: require calls like "test/vertex-pro" to target this credential
 #     base-url: "https://example.com/api"         # optional, e.g. https://zenmux.ai/api; falls back to Google Vertex when omitted
-#     proxy-url: "socks5://proxy.example.com:1080" # optional per-key proxy override
-#     # proxy-url: "direct" # optional: explicit direct connect for this credential
 #     headers:
 #       X-Custom-Header: "custom-value"
 #     models:                                     # optional: map aliases to upstream model names

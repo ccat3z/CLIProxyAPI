@@ -12,8 +12,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/config"
-	"github.com/router-for-me/CLIProxyAPI/v7/internal/util"
-	sdkconfig "github.com/router-for-me/CLIProxyAPI/v7/sdk/config"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
@@ -39,14 +37,6 @@ type releaseInfo struct {
 // GetLatestVersion returns the latest release version from GitHub without downloading assets.
 func (h *Handler) GetLatestVersion(c *gin.Context) {
 	client := &http.Client{Timeout: 10 * time.Second}
-	proxyURL := ""
-	if h != nil && h.cfg != nil {
-		proxyURL = strings.TrimSpace(h.cfg.ProxyURL)
-	}
-	if proxyURL != "" {
-		sdkCfg := &sdkconfig.SDKConfig{ProxyURL: proxyURL}
-		util.SetProxy(sdkCfg, client)
-	}
 
 	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, latestReleaseURL, nil)
 	if err != nil {
@@ -314,15 +304,5 @@ func (h *Handler) PutRoutingStrategy(c *gin.Context) {
 		return
 	}
 	h.cfg.Routing.Strategy = normalized
-	h.persist(c)
-}
-
-// Proxy URL
-func (h *Handler) GetProxyURL(c *gin.Context) { c.JSON(200, gin.H{"proxy-url": h.cfg.ProxyURL}) }
-func (h *Handler) PutProxyURL(c *gin.Context) {
-	h.updateStringField(c, func(v string) { h.cfg.ProxyURL = v })
-}
-func (h *Handler) DeleteProxyURL(c *gin.Context) {
-	h.cfg.ProxyURL = ""
 	h.persist(c)
 }

@@ -67,7 +67,6 @@ func (s *ConfigSynthesizer) synthesizeClaudeKeys(ctx *SynthesisContext) []*corea
 			attrs["models_hash"] = hash
 		}
 		addConfigHeadersToAttrs(ck.Headers, attrs)
-		proxyURL := strings.TrimSpace(ck.ProxyURL)
 		if hash := diff.ComputeAPIKeyLimitsHash(ck.Limits); hash != "" {
 			attrs["limits_hash"] = hash
 		}
@@ -77,7 +76,6 @@ func (s *ConfigSynthesizer) synthesizeClaudeKeys(ctx *SynthesisContext) []*corea
 			Label:      "claude-apikey",
 			Prefix:     prefix,
 			Status:     coreauth.StatusActive,
-			ProxyURL:   proxyURL,
 			Attributes: attrs,
 			Metadata:   metadata,
 			CreatedAt:  now,
@@ -120,9 +118,8 @@ func (s *ConfigSynthesizer) synthesizeOpenAICompat(ctx *SynthesisContext) []*cor
 		for j := range compat.APIKeyEntries {
 			entry := &compat.APIKeyEntries[j]
 			key := strings.TrimSpace(entry.APIKey)
-			proxyURL := strings.TrimSpace(entry.ProxyURL)
 			idKind := fmt.Sprintf("openai-compatibility:%s", providerName)
-			id, token := idGen.Next(idKind, key, base, proxyURL)
+			id, token := idGen.Next(idKind, key, base)
 			attrs := map[string]string{
 				"source":       fmt.Sprintf("config:%s[%s]", providerName, token),
 				"base_url":     base,
@@ -152,7 +149,6 @@ func (s *ConfigSynthesizer) synthesizeOpenAICompat(ctx *SynthesisContext) []*cor
 				Label:      compat.Name,
 				Prefix:     prefix,
 				Status:     coreauth.StatusActive,
-				ProxyURL:   proxyURL,
 				Attributes: attrs,
 				Metadata:   metadata,
 				CreatedAt:  now,

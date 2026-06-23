@@ -110,9 +110,6 @@ func TestFileSynthesizer_Synthesize_ValidAuthFile(t *testing.T) {
 	if auths[0].Prefix != "test-prefix" {
 		t.Errorf("expected prefix test-prefix, got %s", auths[0].Prefix)
 	}
-	if auths[0].ProxyURL != "http://proxy.local" {
-		t.Errorf("expected proxy_url http://proxy.local, got %s", auths[0].ProxyURL)
-	}
 	if got := auths[0].Attributes["header:X-Test"]; got != "value" {
 		t.Errorf("expected header:X-Test value, got %q", got)
 	}

@@ -94,11 +94,6 @@ func synthesizeFileAuths(ctx *SynthesisContext, fullPath string, data []byte) []
 		id = strings.ToLower(id)
 	}
 
-	proxyURL := ""
-	if p, ok := metadata["proxy_url"].(string); ok {
-		proxyURL = p
-	}
-
 	prefix := ""
 	if rawPrefix, ok := metadata["prefix"].(string); ok {
 		trimmed := strings.TrimSpace(rawPrefix)
@@ -128,7 +123,6 @@ func synthesizeFileAuths(ctx *SynthesisContext, fullPath string, data []byte) []
 			"source": fullPath,
 			"path":   fullPath,
 		},
-		ProxyURL:  proxyURL,
 		Metadata:  metadata,
 		CreatedAt: now,
 		UpdatedAt: now,

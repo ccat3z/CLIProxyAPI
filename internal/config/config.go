@@ -254,9 +254,6 @@ type ClaudeKey struct {
 	// If empty, the default Claude API URL will be used.
 	BaseURL string `yaml:"base-url" json:"base-url"`
 
-	// ProxyURL overrides the global proxy setting for this API key if provided.
-	ProxyURL string `yaml:"proxy-url" json:"proxy-url"`
-
 	// Models defines upstream model names and aliases for request routing.
 	Models []ClaudeModel `yaml:"models" json:"models"`
 
@@ -365,7 +362,7 @@ type OpenAICompatibility struct {
 	// BaseURL is the base URL for the external OpenAI-compatible API endpoint.
 	BaseURL string `yaml:"base-url" json:"base-url"`
 
-	// APIKeyEntries defines API keys with optional per-key proxy configuration.
+	// APIKeyEntries defines API keys for this provider.
 	APIKeyEntries []OpenAICompatibilityAPIKey `yaml:"api-key-entries,omitempty" json:"api-key-entries,omitempty"`
 
 	// Models defines the model configurations including aliases for routing.
@@ -378,13 +375,10 @@ type OpenAICompatibility struct {
 	DisableCooling bool `yaml:"disable-cooling,omitempty" json:"disable-cooling,omitempty"`
 }
 
-// OpenAICompatibilityAPIKey represents an API key configuration with optional proxy setting.
+// OpenAICompatibilityAPIKey represents an API key configuration.
 type OpenAICompatibilityAPIKey struct {
 	// APIKey is the authentication key for accessing the external API services.
 	APIKey string `yaml:"api-key" json:"api-key"`
-
-	// ProxyURL overrides the global proxy setting for this API key if provided.
-	ProxyURL string `yaml:"proxy-url,omitempty" json:"proxy-url,omitempty"`
 
 	// Limits optionally configures per-model usage limits for this API key.
 	// When any window's token count is exceeded, the proxy returns HTTP 429.
@@ -1610,6 +1604,8 @@ func removeRemovedIntegrationKeys(root *yaml.Node) {
 	removeMapKey(root, "antigravity-signature-bypass-strict")
 	removeMapKey(root, "plugins")
 	removeMapKey(root, "gpt-image-2-base-model")
+	// Dead HTTP(S) proxy config: dropped from the struct but old user configs may still carry it.
+	removeMapKey(root, "proxy-url")
 	// Dead Redis usage queue config: dropped from the struct but old user configs may still carry it.
 	removeMapKey(root, "redis-usage-queue-retention-seconds")
 	// Dead pprof config block: dropped from the struct but old user configs may still carry it.

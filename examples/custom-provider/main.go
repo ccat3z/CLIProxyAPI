@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -92,14 +91,7 @@ func (MyExecutor) PrepareRequest(req *http.Request, a *coreauth.Auth) error {
 }
 
 func buildHTTPClient(a *coreauth.Auth) *http.Client {
-	if a == nil || strings.TrimSpace(a.ProxyURL) == "" {
-		return http.DefaultClient
-	}
-	u, err := url.Parse(a.ProxyURL)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
-		return http.DefaultClient
-	}
-	return &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(u)}}
+	return http.DefaultClient
 }
 
 func upstreamEndpoint(a *coreauth.Auth) string {

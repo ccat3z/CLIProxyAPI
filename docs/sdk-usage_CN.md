@@ -96,9 +96,8 @@ svc, _ := cliproxy.NewBuilder().
 ```go
 type myRTProvider struct{}
 func (myRTProvider) RoundTripperFor(a *coreauth.Auth) http.RoundTripper {
-    if a == nil || a.ProxyURL == "" { return nil }
-    u, _ := url.Parse(a.ProxyURL)
-    return &http.Transport{ Proxy: http.ProxyURL(u) }
+    // 返回自定义的 *http.Transport（例如自定义 TLS/拨号配置），或返回 nil。
+    return nil
 }
 ```
 

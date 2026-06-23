@@ -63,8 +63,6 @@ type Auth struct {
 	Disabled bool `json:"disabled"`
 	// Unavailable flags transient provider unavailability (e.g. quota exceeded).
 	Unavailable bool `json:"unavailable"`
-	// ProxyURL overrides the global proxy setting for this auth if provided.
-	ProxyURL string `json:"proxy_url,omitempty"`
 	// Attributes stores provider specific metadata needed by executors (immutable configuration).
 	Attributes map[string]string `json:"attributes,omitempty"`
 	// Metadata stores runtime mutable provider state (e.g. tokens, cookies).
@@ -356,20 +354,6 @@ func (m *ModelState) Clone() *ModelState {
 		}
 	}
 	return &copyState
-}
-
-func (a *Auth) ProxyInfo() string {
-	if a == nil {
-		return ""
-	}
-	proxyStr := strings.TrimSpace(a.ProxyURL)
-	if proxyStr == "" {
-		return ""
-	}
-	if idx := strings.Index(proxyStr, "://"); idx > 0 {
-		return "via " + proxyStr[:idx] + " proxy"
-	}
-	return "via proxy"
 }
 
 // DisableCoolingOverride returns the auth scoped disable_cooling override when present.
