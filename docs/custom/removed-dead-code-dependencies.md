@@ -557,4 +557,47 @@ Also kept (live callers via `provider_compatibility.go` and `claude_executor.go`
 
 Each removed public symbol was re-verified before deletion with `grep -rn '\b<symbol>\b' --include='*.go' . | grep -v internal/signature/` (and, for the intra-package check that surfaced the `InspectGeminiThoughtSignature` caller, `grep -rn 'InspectGeminiThoughtSignature' --include='*.go' .`). `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
 
+## Removed: unused video generation subsystem (XAI/Sora video endpoints)
+
+The `custom` branch only configures the `claude-api-key` and `openai-compatibility` providers (both with plain API keys, no video-capable upstream). The entire OpenAI/xAI video-generation handler subsystem was dead weight under this config: every video route hardcoded an XAI/Sora model (`grok-imagine-video` / `sora-2`) under the `openai-video` handler type, and tracing any video request to its upstream lookup hits `util.GetProviderName(...)` for a model no configured provider registers, returning `502 unknown provider for model` before any upstream call. No video-capable provider is or can be configured, so the subsystem was functionally unreachable.
+
+### Deleted file
+
+`sdk/api/handlers/openai/openai_videos_handlers.go` was deleted in full. It contained all seven handler methods (`VideosCreate`, `XAIVideosGenerations`, `XAIVideosEdits`, `XAIVideosExtensions`, `XAIVideosRetrieve`, `VideosRetrieve`, `VideosContent`), the `videoAuthBindings` store and its `videoAuthBindingStore` type/helpers, and every video request/response normalization helper (`buildXAIVideosCreateRequest`, `buildVideosCreateAPIResponseFromXAI`, `buildVideosRetrieveAPIResponseFromXAI`, `isXAIVideosModel`, `isSoraVideosModel`, `openAIVideoStatus`, etc.).
+
+### Removed routes (`internal/api/server.go`)
+
+| Route group | Routes removed |
+| --- | --- |
+| `/v1` (xAI native) | `POST /v1/videos`, `POST /v1/videos/generations`, `POST /v1/videos/edits`, `POST /v1/videos/extensions`, `GET /v1/videos/:request_id` |
+| `/openai/v1` | The entire group was deleted — it contained only `POST /videos`, `GET /videos/:video_id/content`, `GET /videos/:video_id` |
+
+### Removed config field
+
+`SDKConfig.VideoResultAuthCacheTTL` (YAML key `video-result-auth-cache-ttl`) controlled how long video IDs stayed pinned to the credential that created them. Its only reader was the deleted `videoAuthBindingTTL()` method in the video handlers file, so once that file was gone the field had zero readers. Removed from `internal/config/sdk_config.go` and its example entry dropped from `config.example.yaml`.
+
+| Item | Disposition |
+| --- | --- |
+| `SDKConfig.VideoResultAuthCacheTTL` field + doc comment | Removed from `internal/config/sdk_config.go`. |
+| `video-result-auth-cache-ttl: "3h"` example entry | Removed from `config.example.yaml`. |
+
+### Tests
+
+- `sdk/api/handlers/openai/openai_videos_handlers_test.go` — deleted in full (only exercised the removed video handlers and the `VideoResultAuthCacheTTL` TTL parsing path).
+- `TestVideosRoutesKeepXAINativeAndExposeOpenAIPrefix` in `internal/api/server_test.go` — removed (only asserted that the deleted `/v1/videos` and `/openai/v1/videos` routes were registered and reached their handlers).
+
+### Kept
+
+- The entire `sdk/api/handlers/openai/openai_images_handlers.go` and the `imagesModelParts` helper it defines are **retained** — `imagesModelParts` is shared with the live image handlers (`/v1/images/generations`, `/v1/images/edits`), which stay because the configured `openai-compatibility` provider can serve image requests via the `openai-image` handler type.
+- All of `sdk/api/handlers/openai/codex_client_models.go` is untouched.
+- The `source == "openai-image" || source == "openai-video"` check in `sdk/cliproxy/auth/conductor.go` is left as-is: the `openai-image` half is still live, so the statement remains meaningful, and the file is outside this change's scope.
+
+### Out-of-scope note
+
+`SDKConfig.EnableGeminiCLIEndpoint` was **not** removed. Although the video subsystem's `VideoResultAuthCacheTTL` field shared a struct neighborhood with it, `EnableGeminiCLIEndpoint` is a separate Gemini-CLI feature (gated at `sdk/api/handlers/gemini/gemini-cli_handlers.go:53` and force-disabled in Home mode at `sdk/cliproxy/service.go:843`); it is unrelated to video generation and was left untouched.
+
+### Verification
+
+Each removed symbol was re-verified before deletion with `grep -rn 'VideosCreate\|XAIVideos\|VideosRetrieve\|VideosContent\|videoAuthBindings\|defaultXAIVideosModel\|defaultOpenAIVideosModel\|xaiVideosHandlerType\|VideoResultAuthCacheTTL\|video-result-auth-cache-ttl' --include='*.go' --include='*.yaml' .` — zero matches remained after the edits. `imagesModelParts` was separately confirmed to still have live callers in the retained images handlers. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200 with a real upstream response, `/v0/management/config` → 401, and the removed `/v1/videos` + `/openai/v1/videos` routes now returning 404) all pass.
+
 
