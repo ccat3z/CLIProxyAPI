@@ -35,6 +35,7 @@ This directory documents all local changes on the `custom` branch that diverge f
 - [Removed: Antigravity Residual Code (Phase 7 Batch 2)](./removed-antigravity-residual.md)
 - [Removed: `-local-model` Flag and OAuth Provider Config Types (Phase 7 Batch 3)](./removed-local-model-oauth-config.md)
 - [Removed: utls TLS Fingerprinting (Phase 7 Batch 4)](./removed-utls.md)
+- [Removed: Unused Dependencies (Phase 7 Batch 6)](./removed-dependencies.md)
 
 ## Integration Tests
 
