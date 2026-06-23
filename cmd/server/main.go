@@ -11,17 +11,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/joho/godotenv"
 	configaccess "github.com/router-for-me/CLIProxyAPI/v7/internal/access/config_access"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/buildinfo"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/cmd"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/config"
-	"github.com/router-for-me/CLIProxyAPI/v7/internal/home"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/logging"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/managementasset"
-	"github.com/router-for-me/CLIProxyAPI/v7/internal/redisqueue"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/safemode"
 	_ "github.com/router-for-me/CLIProxyAPI/v7/internal/translator"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/util"
@@ -45,8 +42,8 @@ func init() {
 	buildinfo.BuildDate = BuildDate
 }
 
-func shouldStartExampleAPIKeyWarningServer(cfg *config.Config, commandMode, cloudConfigMissing, homeMode bool) bool {
-	if cfg == nil || commandMode || homeMode || cloudConfigMissing {
+func shouldStartExampleAPIKeyWarningServer(cfg *config.Config, commandMode, cloudConfigMissing bool) bool {
+	if cfg == nil || commandMode || cloudConfigMissing {
 		return false
 	}
 	return safemode.HasExampleAPIKeys(cfg.APIKeys)
@@ -61,15 +58,11 @@ func main() {
 	// Command-line flags to control the application's behavior.
 	var configPath string
 	var password string
-	var homeJWT string
-	var homeDisableClusterDiscovery bool
 	var port int
 
 	// Define command-line flags for different operation modes.
 	flag.StringVar(&configPath, "config", DefaultConfigPath, "Configure File Path")
 	flag.StringVar(&password, "password", "", "")
-	flag.StringVar(&homeJWT, "home-jwt", "", "Home control plane JWT for mTLS certificate bootstrap and connection")
-	flag.BoolVar(&homeDisableClusterDiscovery, "home-disable-cluster-discovery", false, "Disable Home CLUSTER NODES discovery and keep using the configured -home-jwt address")
 	flag.IntVar(&port, "port", 0, "Override the server port from config")
 
 	flag.CommandLine.Usage = func() {
@@ -106,7 +99,6 @@ func main() {
 	var err error
 	var cfg *config.Config
 	var isCloudDeploy bool
-	var configLoadedFromHome bool
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -121,23 +113,6 @@ func main() {
 		}
 	}
 
-	lookupEnv := func(keys ...string) (string, bool) {
-		for _, key := range keys {
-			if value, ok := os.LookupEnv(key); ok {
-				if trimmed := strings.TrimSpace(value); trimmed != "" {
-					return trimmed, true
-				}
-			}
-		}
-		return "", false
-	}
-
-	if strings.TrimSpace(homeJWT) == "" {
-		if v, ok := lookupEnv("HOME_JWT", "home_jwt"); ok {
-			homeJWT = v
-		}
-	}
-
 	// Check for cloud deploy mode only on first execution
 	// Read env var name in uppercase: DEPLOY
 	deployEnv := os.Getenv("DEPLOY")
@@ -146,52 +121,8 @@ func main() {
 	}
 
 	// Determine and load the configuration file.
-	// Prefer the Postgres store when configured, otherwise fallback to git or local files.
 	var configFilePath string
-	if strings.TrimSpace(homeJWT) != "" {
-		configLoadedFromHome = true
-		ctxHome, cancelHome := context.WithTimeout(context.Background(), 30*time.Second)
-		homeCfg, errHomeCfg := home.ConfigFromJWT(ctxHome, homeJWT)
-		cancelHome()
-		if errHomeCfg != nil {
-			log.Errorf("invalid -home-jwt: %v", errHomeCfg)
-			return
-		}
-		if homeDisableClusterDiscovery {
-			homeCfg.DisableClusterDiscovery = true
-		}
-		homeClient := home.New(homeCfg)
-		defer homeClient.Close()
-
-		ctxHomeConfig, cancelHomeConfig := context.WithTimeout(context.Background(), 30*time.Second)
-		raw, errGetConfig := homeClient.GetConfig(ctxHomeConfig)
-		cancelHomeConfig()
-		if errGetConfig != nil {
-			log.Errorf("failed to fetch config from home: %v", errGetConfig)
-			return
-		}
-
-		parsed, errParseConfig := config.ParseConfigBytes(raw)
-		if errParseConfig != nil {
-			log.Errorf("failed to parse config payload from home: %v", errParseConfig)
-			return
-		}
-		if parsed == nil {
-			parsed = &config.Config{}
-		}
-		parsed.Home = homeCfg
-		parsed.Port = 8317 // Default to 8317 for home mode, can be overridden by home config
-		parsed.UsageStatisticsEnabled = true
-		cfg = parsed
-
-		// Keep a non-empty config path for downstream components (log paths, management assets, etc),
-		// but do not require the file to exist when loading config from home.
-		if strings.TrimSpace(configPath) != "" {
-			configFilePath = configPath
-		} else {
-			configFilePath = filepath.Join(wd, "config.yaml")
-		}
-	} else if configPath != "" {
+	if configPath != "" {
 		configFilePath = configPath
 		cfg, err = config.LoadConfigOptional(configPath, isCloudDeploy)
 	} else {
@@ -219,29 +150,23 @@ func main() {
 	// In cloud deploy mode, check if we have a valid configuration
 	var configFileExists bool
 	if isCloudDeploy {
-		if configLoadedFromHome && cfg != nil {
-			configFileExists = cfg.Port != 0
+		if info, errStat := os.Stat(configFilePath); errStat != nil {
+			// Don't mislead: API server will not start until configuration is provided.
+			log.Info("Cloud deploy mode: No configuration file detected; standing by for configuration")
+			configFileExists = false
+		} else if info.IsDir() {
+			log.Info("Cloud deploy mode: Config path is a directory; standing by for configuration")
+			configFileExists = false
+		} else if cfg.Port == 0 {
+			// LoadConfigOptional returns empty config when file is empty or invalid.
+			// Config file exists but is empty or invalid; treat as missing config
+			log.Info("Cloud deploy mode: Configuration file is empty or invalid; standing by for valid configuration")
+			configFileExists = false
 		} else {
-			if info, errStat := os.Stat(configFilePath); errStat != nil {
-				// Don't mislead: API server will not start until configuration is provided.
-				log.Info("Cloud deploy mode: No configuration file detected; standing by for configuration")
-				configFileExists = false
-			} else if info.IsDir() {
-				log.Info("Cloud deploy mode: Config path is a directory; standing by for configuration")
-				configFileExists = false
-			} else if cfg.Port == 0 {
-				// LoadConfigOptional returns empty config when file is empty or invalid.
-				// Config file exists but is empty or invalid; treat as missing config
-				log.Info("Cloud deploy mode: Configuration file is empty or invalid; standing by for valid configuration")
-				configFileExists = false
-			} else {
-				log.Info("Cloud deploy mode: Configuration file detected; starting service")
-				configFileExists = true
-			}
+			log.Info("Cloud deploy mode: Configuration file detected; starting service")
+			configFileExists = true
 		}
 	}
-	redisqueue.SetUsageStatisticsEnabled(cfg.UsageStatisticsEnabled)
-	redisqueue.SetRetentionSeconds(cfg.RedisUsageQueueRetentionSeconds)
 	coreauth.SetQuotaCooldownDisabled(cfg.DisableCooling)
 
 	if err = logging.ConfigureLogOutput(cfg); err != nil {
@@ -264,8 +189,7 @@ func main() {
 
 	commandMode := false
 	cloudConfigMissing := isCloudDeploy && !configFileExists
-	homeMode := configLoadedFromHome || (cfg != nil && cfg.Home.Enabled)
-	if shouldStartExampleAPIKeyWarningServer(cfg, commandMode, cloudConfigMissing, homeMode) {
+	if shouldStartExampleAPIKeyWarningServer(cfg, commandMode, cloudConfigMissing) {
 		matches := safemode.ExampleAPIKeys(cfg.APIKeys)
 		log.WithField("api_keys", strings.Join(matches, ",")).Error("unsafe example API key configured; starting warning-only server")
 		cmd.StartExampleAPIKeyWarningServer(cfg, configFilePath, matches)
@@ -285,9 +209,6 @@ func main() {
 			// No config file available, just wait for shutdown
 			cmd.WaitForCloudDeploy()
 			return
-		}
-		if cfg.Home.Enabled {
-			log.Info("Home mode: remote model updates disabled")
 		}
 		// Start the main proxy service
 		managementasset.StartAutoUpdater(context.Background(), configFilePath)

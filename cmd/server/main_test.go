@@ -23,7 +23,6 @@ func TestShouldStartExampleAPIKeyWarningServer(t *testing.T) {
 		cfg                *config.Config
 		commandMode        bool
 		cloudConfigMissing bool
-		homeMode           bool
 		want               bool
 	}{
 		{
@@ -36,12 +35,6 @@ func TestShouldStartExampleAPIKeyWarningServer(t *testing.T) {
 			cfg:         cfgWithExampleKey,
 			commandMode: true,
 			want:        false,
-		},
-		{
-			name:     "home mode is not blocked",
-			cfg:      cfgWithExampleKey,
-			homeMode: true,
-			want:     false,
 		},
 		{
 			name:               "cloud standby without config is not blocked",
@@ -63,7 +56,7 @@ func TestShouldStartExampleAPIKeyWarningServer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := shouldStartExampleAPIKeyWarningServer(tt.cfg, tt.commandMode, tt.cloudConfigMissing, tt.homeMode)
+			got := shouldStartExampleAPIKeyWarningServer(tt.cfg, tt.commandMode, tt.cloudConfigMissing)
 			if got != tt.want {
 				t.Fatalf("shouldStartExampleAPIKeyWarningServer() = %t, want %t", got, tt.want)
 			}

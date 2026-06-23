@@ -13,7 +13,6 @@ import (
 	gin "github.com/gin-gonic/gin"
 	proxyconfig "github.com/router-for-me/CLIProxyAPI/v7/internal/config"
 	internallogging "github.com/router-for-me/CLIProxyAPI/v7/internal/logging"
-	"github.com/router-for-me/CLIProxyAPI/v7/internal/redisqueue"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/registry"
 	sdkaccess "github.com/router-for-me/CLIProxyAPI/v7/sdk/access"
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/auth"
@@ -131,86 +130,6 @@ func TestManagementPluginsRouteReturns404(t *testing.T) {
 	if rr.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d body=%s", rr.Code, http.StatusNotFound, rr.Body.String())
 	}
-}
-
-func TestManagementUsageRequiresManagementAuthAndPopsArray(t *testing.T) {
-	t.Setenv("MANAGEMENT_PASSWORD", "test-management-key")
-
-	prevQueueEnabled := redisqueue.Enabled()
-	redisqueue.SetEnabled(false)
-	t.Cleanup(func() {
-		redisqueue.SetEnabled(false)
-		redisqueue.SetEnabled(prevQueueEnabled)
-	})
-
-	server := newTestServer(t)
-
-	redisqueue.Enqueue([]byte(`{"id":1}`))
-	redisqueue.Enqueue([]byte(`{"id":2}`))
-
-	missingKeyReq := httptest.NewRequest(http.MethodGet, "/v0/management/usage-queue?count=2", nil)
-	missingKeyRR := httptest.NewRecorder()
-	server.engine.ServeHTTP(missingKeyRR, missingKeyReq)
-	if missingKeyRR.Code != http.StatusUnauthorized {
-		t.Fatalf("missing key status = %d, want %d body=%s", missingKeyRR.Code, http.StatusUnauthorized, missingKeyRR.Body.String())
-	}
-
-	authReq := httptest.NewRequest(http.MethodGet, "/v0/management/usage-queue?count=2", nil)
-	authReq.Header.Set("Authorization", "Bearer test-management-key")
-	authRR := httptest.NewRecorder()
-	server.engine.ServeHTTP(authRR, authReq)
-	if authRR.Code != http.StatusOK {
-		t.Fatalf("authenticated status = %d, want %d body=%s", authRR.Code, http.StatusOK, authRR.Body.String())
-	}
-
-	var payload []json.RawMessage
-	if errUnmarshal := json.Unmarshal(authRR.Body.Bytes(), &payload); errUnmarshal != nil {
-		t.Fatalf("unmarshal response: %v body=%s", errUnmarshal, authRR.Body.String())
-	}
-	if len(payload) != 2 {
-		t.Fatalf("response records = %d, want 2", len(payload))
-	}
-	for i, raw := range payload {
-		var record struct {
-			ID int `json:"id"`
-		}
-		if errUnmarshal := json.Unmarshal(raw, &record); errUnmarshal != nil {
-			t.Fatalf("unmarshal record %d: %v", i, errUnmarshal)
-		}
-		if record.ID != i+1 {
-			t.Fatalf("record %d id = %d, want %d", i, record.ID, i+1)
-		}
-	}
-
-	if remaining := redisqueue.PopOldest(1); len(remaining) != 0 {
-		t.Fatalf("remaining queue = %q, want empty", remaining)
-	}
-}
-
-func TestHomeEnabledHidesManagementEndpointsAndControlPanel(t *testing.T) {
-	t.Setenv("MANAGEMENT_PASSWORD", "test-management-key")
-
-	server := newTestServer(t)
-	server.cfg.Home.Enabled = true
-
-	t.Run("management endpoints return 404", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/v0/management/config", nil)
-		req.Header.Set("Authorization", "Bearer test-management-key")
-		rr := httptest.NewRecorder()
-		server.engine.ServeHTTP(rr, req)
-		if rr.Code != http.StatusNotFound {
-			t.Fatalf("status = %d, want %d body=%s", rr.Code, http.StatusNotFound, rr.Body.String())
-		}
-	})
-
-	t.Run("management control panel returns 404", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/management.html", nil)
-		rr := httptest.NewRecorder()
-		server.engine.ServeHTTP(rr, req)
-		if rr.Code != http.StatusNotFound {
-			t.Fatalf("status = %d, want %d body=%s", rr.Code, http.StatusNotFound, rr.Body.String())
-		}
-	})
 }
 
 func TestModelsWithClientVersionReturnsCodexCatalog(t *testing.T) {
@@ -469,41 +388,5 @@ func TestDefaultRequestLoggerFactory_UsesResolvedLogDirectory(t *testing.T) {
 		if strings.HasPrefix(entry.Name(), "error-") && strings.HasSuffix(entry.Name(), ".log") {
 			t.Fatalf("unexpected forced error log in config dir %s", configLogsDir)
 		}
-	}
-}
-
-func TestHomeModelsAuthStatus(t *testing.T) {
-	cases := []struct {
-		name        string
-		raw         string
-		wantStatus  int
-		wantHandled bool
-	}{
-		{"no credentials", `{"error":{"type":"no_credentials","message":"Missing API key"}}`, http.StatusUnauthorized, true},
-		{"invalid credential", `{"error":{"type":"invalid_credential","message":"Invalid API key"}}`, http.StatusUnauthorized, true},
-		{"internal error maps to bad gateway", `{"error":{"type":"internal_error","message":"boom"}}`, http.StatusBadGateway, true},
-		{"models payload not an error", `{"openai":[{"id":"gpt-5.5"}]}`, 0, false},
-		{"empty payload not an error", `{}`, 0, false},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			status, handled := homeModelsAuthStatus([]byte(tc.raw))
-			if handled != tc.wantHandled {
-				t.Fatalf("handled = %v, want %v (status=%d)", handled, tc.wantHandled, status)
-			}
-			if handled && status != tc.wantStatus {
-				t.Fatalf("status = %d, want %d", status, tc.wantStatus)
-			}
-		})
-	}
-}
-
-func TestHomeModelsErrorMessage(t *testing.T) {
-	if msg := homeModelsErrorMessage([]byte(`{"error":{"type":"invalid_credential","message":"Invalid API key"}}`)); msg != "Invalid API key" {
-		t.Fatalf("message = %q, want %q", msg, "Invalid API key")
-	}
-	if msg := homeModelsErrorMessage([]byte(`{"openai":[]}`)); msg != "home models request failed" {
-		t.Fatalf("default message = %q, want fallback", msg)
 	}
 }

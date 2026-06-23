@@ -33,6 +33,7 @@ This directory documents all local changes on the `custom` branch that diverge f
 - [Removed: utls TLS Fingerprinting](./removed-utls.md) — uTLS Chrome fingerprint spoofing in the Claude executor
 - [Removed: TLS / HTTPS Listen Support](./removed-tls-listen.md) — Server `tls:` config block, HTTPS listener branch, and ALPN handshake path; plain-HTTP listen only
 - [Removed: pprof HTTP Debug Server](./removed-pprof.md) — `pprof.enable`/`pprof.addr` config block, `sdk/cliproxy/pprof_server.go`, and the `/debug/pprof/*` listener
+- [Removed: Redis Support and the Home Control Plane](./removed-redis-home.md) — `go-redis` dependency, the `internal/redisqueue` queue + RESP protocol handler, the redis-backed `internal/home` control-plane client, and all home-mode wiring; local in-memory session-id KV retained
 - [Removed: Dead Code and Unused Dependencies](./removed-dead-code-dependencies.md) — Zero-caller directories/files and the final `go mod tidy` pass
 
 ## Integration Tests

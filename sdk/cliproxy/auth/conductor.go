@@ -17,7 +17,6 @@ import (
 
 	"github.com/google/uuid"
 	internalconfig "github.com/router-for-me/CLIProxyAPI/v7/internal/config"
-	"github.com/router-for-me/CLIProxyAPI/v7/internal/home"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/logging"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/thinking"
@@ -404,19 +403,16 @@ func (m *Manager) SetConfig(cfg *internalconfig.Config) {
 		cfg = &internalconfig.Config{}
 	}
 	m.runtimeConfig.Store(cfg)
-	if !cfg.Home.Enabled {
-		m.clearHomeRuntimeAuths()
-	}
 	m.rebuildAPIKeyModelAliasFromRuntimeConfig()
 }
 
 // HomeEnabled reports whether the home control plane integration is enabled in the runtime config.
+//
+// The redis-backed home control plane has been removed; this always reports false.
+// It is retained temporarily so that legacy home-mode code paths that have not yet
+// been excised remain inert rather than failing to compile.
 func (m *Manager) HomeEnabled() bool {
-	if m == nil {
-		return false
-	}
-	cfg, _ := m.runtimeConfig.Load().(*internalconfig.Config)
-	return cfg != nil && cfg.Home.Enabled
+	return false
 }
 
 func (m *Manager) lookupAPIKeyUpstreamModel(authID, requestedModel string) string {
@@ -2639,7 +2635,6 @@ func (m *Manager) MarkResult(ctx context.Context, result Result) {
 	}
 
 	m.hook.OnResult(ctx, result)
-	m.publishErrorEvent(result, authSnapshot)
 }
 
 func ensureModelState(auth *Auth, model string) *ModelState {
@@ -3643,7 +3638,8 @@ type homeAuthDispatcher interface {
 }
 
 var currentHomeDispatcher = func() homeAuthDispatcher {
-	return home.Current()
+	// The redis-backed home control plane has been removed; there is no dispatcher.
+	return nil
 }
 
 func setHomeUserAPIKeyOnGinContext(ctx context.Context, apiKey string) {

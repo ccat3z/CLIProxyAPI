@@ -31,12 +31,6 @@ require (
 )
 
 require (
-	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/redis/go-redis/v9 v9.19.0
-	go.uber.org/atomic v1.11.0 // indirect
-)
-
-require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect

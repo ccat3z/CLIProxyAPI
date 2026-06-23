@@ -777,9 +777,6 @@ func localCountTokens(body []byte, baseModel string, to, from sdktranslator.Form
 
 func (e *ClaudeExecutor) Refresh(ctx context.Context, auth *cliproxyauth.Auth) (*cliproxyauth.Auth, error) {
 	log.Debugf("claude executor: refresh called")
-	if refreshed, handled, err := helps.RefreshAuthViaHome(ctx, e.cfg, auth); handled {
-		return refreshed, err
-	}
 	// OAuth token refresh is no longer supported on the custom branch.
 	// Callers relying on refresh must configure API-key auth instead.
 	if auth == nil {
