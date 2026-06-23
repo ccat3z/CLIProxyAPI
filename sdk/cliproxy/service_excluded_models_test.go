@@ -12,11 +12,7 @@ import (
 
 func TestRegisterModelsForAuth_UsesPreMergedExcludedModelsAttribute(t *testing.T) {
 	service := &Service{
-		cfg: &config.Config{
-			OAuthExcludedModels: map[string][]string{
-				"gemini-cli": {"gemini-2.5-pro"},
-			},
-		},
+		cfg: &config.Config{},
 	}
 	auth := &coreauth.Auth{
 		ID:       "auth-gemini-cli",
@@ -49,20 +45,6 @@ func TestRegisterModelsForAuth_UsesPreMergedExcludedModelsAttribute(t *testing.T
 		if strings.EqualFold(modelID, "gemini-2.5-flash") {
 			t.Fatalf("expected model %q to be excluded by auth attribute", modelID)
 		}
-	}
-
-	seenGlobalExcluded := false
-	for _, model := range models {
-		if model == nil {
-			continue
-		}
-		if strings.EqualFold(strings.TrimSpace(model.ID), "gemini-2.5-pro") {
-			seenGlobalExcluded = true
-			break
-		}
-	}
-	if !seenGlobalExcluded {
-		t.Fatal("expected global excluded model to be present when attribute override is set")
 	}
 }
 

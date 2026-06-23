@@ -73,14 +73,9 @@ func ParseConfigBytes(data []byte) (*Config, error) {
 	}
 
 	// Apply the same sanitization pipeline.
-	cfg.SanitizeGeminiKeys()
-	cfg.SanitizeVertexCompatKeys()
-	cfg.SanitizeCodexKeys()
 	cfg.SanitizeClaudeHeaderDefaults()
 	cfg.SanitizeClaudeKeys()
 	cfg.SanitizeOpenAICompatibility()
-	cfg.OAuthExcludedModels = NormalizeOAuthExcludedModels(cfg.OAuthExcludedModels)
-	cfg.SanitizeOAuthModelAlias()
 	cfg.SanitizePayloadRules()
 
 	return &cfg, nil

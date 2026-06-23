@@ -27,53 +27,8 @@ func ComputeOpenAICompatModelsHash(models []config.OpenAICompatibilityModel) str
 	return hashJoined(keys)
 }
 
-// ComputeVertexCompatModelsHash returns a stable hash for Vertex-compatible models.
-func ComputeVertexCompatModelsHash(models []config.VertexCompatModel) string {
-	keys := normalizeModelPairs(func(out func(key string)) {
-		for _, model := range models {
-			name := strings.TrimSpace(model.Name)
-			alias := strings.TrimSpace(model.Alias)
-			if name == "" && alias == "" {
-				continue
-			}
-			out(strings.ToLower(name) + "|" + strings.ToLower(alias))
-		}
-	})
-	return hashJoined(keys)
-}
-
 // ComputeClaudeModelsHash returns a stable hash for Claude model aliases.
 func ComputeClaudeModelsHash(models []config.ClaudeModel) string {
-	keys := normalizeModelPairs(func(out func(key string)) {
-		for _, model := range models {
-			name := strings.TrimSpace(model.Name)
-			alias := strings.TrimSpace(model.Alias)
-			if name == "" && alias == "" {
-				continue
-			}
-			out(strings.ToLower(name) + "|" + strings.ToLower(alias))
-		}
-	})
-	return hashJoined(keys)
-}
-
-// ComputeCodexModelsHash returns a stable hash for Codex model aliases.
-func ComputeCodexModelsHash(models []config.CodexModel) string {
-	keys := normalizeModelPairs(func(out func(key string)) {
-		for _, model := range models {
-			name := strings.TrimSpace(model.Name)
-			alias := strings.TrimSpace(model.Alias)
-			if name == "" && alias == "" {
-				continue
-			}
-			out(strings.ToLower(name) + "|" + strings.ToLower(alias))
-		}
-	})
-	return hashJoined(keys)
-}
-
-// ComputeGeminiModelsHash returns a stable hash for Gemini model aliases.
-func ComputeGeminiModelsHash(models []config.GeminiModel) string {
 	keys := normalizeModelPairs(func(out func(key string)) {
 		for _, model := range models {
 			name := strings.TrimSpace(model.Name)

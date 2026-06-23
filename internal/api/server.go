@@ -520,11 +520,6 @@ func (s *Server) registerManagementRoutes() {
 		mgmt.GET("/api-key-usage", s.mgmt.GetAPIKeyUsage)
 		mgmt.GET("/usage-queue", s.mgmt.GetUsageQueue)
 
-		mgmt.GET("/gemini-api-key", s.mgmt.GetGeminiKeys)
-		mgmt.PUT("/gemini-api-key", s.mgmt.PutGeminiKeys)
-		mgmt.PATCH("/gemini-api-key", s.mgmt.PatchGeminiKey)
-		mgmt.DELETE("/gemini-api-key", s.mgmt.DeleteGeminiKey)
-
 		mgmt.GET("/logs", s.mgmt.GetLogs)
 		mgmt.DELETE("/logs", s.mgmt.DeleteLogs)
 		mgmt.GET("/request-error-logs", s.mgmt.GetRequestErrorLogs)
@@ -557,30 +552,10 @@ func (s *Server) registerManagementRoutes() {
 		mgmt.PATCH("/claude-api-key", s.mgmt.PatchClaudeKey)
 		mgmt.DELETE("/claude-api-key", s.mgmt.DeleteClaudeKey)
 
-		mgmt.GET("/codex-api-key", s.mgmt.GetCodexKeys)
-		mgmt.PUT("/codex-api-key", s.mgmt.PutCodexKeys)
-		mgmt.PATCH("/codex-api-key", s.mgmt.PatchCodexKey)
-		mgmt.DELETE("/codex-api-key", s.mgmt.DeleteCodexKey)
-
 		mgmt.GET("/openai-compatibility", s.mgmt.GetOpenAICompat)
 		mgmt.PUT("/openai-compatibility", s.mgmt.PutOpenAICompat)
 		mgmt.PATCH("/openai-compatibility", s.mgmt.PatchOpenAICompat)
 		mgmt.DELETE("/openai-compatibility", s.mgmt.DeleteOpenAICompat)
-
-		mgmt.GET("/vertex-api-key", s.mgmt.GetVertexCompatKeys)
-		mgmt.PUT("/vertex-api-key", s.mgmt.PutVertexCompatKeys)
-		mgmt.PATCH("/vertex-api-key", s.mgmt.PatchVertexCompatKey)
-		mgmt.DELETE("/vertex-api-key", s.mgmt.DeleteVertexCompatKey)
-
-		mgmt.GET("/oauth-excluded-models", s.mgmt.GetOAuthExcludedModels)
-		mgmt.PUT("/oauth-excluded-models", s.mgmt.PutOAuthExcludedModels)
-		mgmt.PATCH("/oauth-excluded-models", s.mgmt.PatchOAuthExcludedModels)
-		mgmt.DELETE("/oauth-excluded-models", s.mgmt.DeleteOAuthExcludedModels)
-
-		mgmt.GET("/oauth-model-alias", s.mgmt.GetOAuthModelAlias)
-		mgmt.PUT("/oauth-model-alias", s.mgmt.PutOAuthModelAlias)
-		mgmt.PATCH("/oauth-model-alias", s.mgmt.PatchOAuthModelAlias)
-		mgmt.DELETE("/oauth-model-alias", s.mgmt.DeleteOAuthModelAlias)
 
 		mgmt.GET("/auth-files", s.mgmt.ListAuthFiles)
 		mgmt.GET("/auth-files/models", s.mgmt.GetAuthFileModels)
@@ -1430,10 +1405,7 @@ func (s *Server) UpdateClients(cfg *config.Config) {
 		}
 		authEntries = util.CountAuthFiles(context.Background(), tokenStore)
 	}
-	geminiAPIKeyCount := len(cfg.GeminiKey)
 	claudeAPIKeyCount := len(cfg.ClaudeKey)
-	codexAPIKeyCount := len(cfg.CodexKey)
-	vertexAICompatCount := len(cfg.VertexCompatAPIKey)
 	openAICompatCount := 0
 	for i := range cfg.OpenAICompatibility {
 		entry := cfg.OpenAICompatibility[i]
@@ -1443,14 +1415,11 @@ func (s *Server) UpdateClients(cfg *config.Config) {
 		openAICompatCount += len(entry.APIKeyEntries)
 	}
 
-	total := authEntries + geminiAPIKeyCount + claudeAPIKeyCount + codexAPIKeyCount + vertexAICompatCount + openAICompatCount
-	fmt.Printf("server clients and configuration updated: %d clients (%d auth entries + %d Gemini API keys + %d Claude API keys + %d Codex keys + %d Vertex-compat + %d OpenAI-compat)\n",
+	total := authEntries + claudeAPIKeyCount + openAICompatCount
+	fmt.Printf("server clients and configuration updated: %d clients (%d auth entries + %d Claude API keys + %d OpenAI-compat)\n",
 		total,
 		authEntries,
-		geminiAPIKeyCount,
 		claudeAPIKeyCount,
-		codexAPIKeyCount,
-		vertexAICompatCount,
 		openAICompatCount,
 	)
 }

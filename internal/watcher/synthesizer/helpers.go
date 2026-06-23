@@ -78,12 +78,8 @@ func ApplyAuthExcludedModelsMeta(auth *coreauth.Auth, cfg *config.Config, perKey
 	if authKindKey == "apikey" {
 		add(perKey)
 	} else {
-		// For OAuth: merge per-account excluded models with global provider-level exclusions
+		// OAuth entries: per-account excluded models only (global oauth-excluded-models removed in Phase 7 Batch 3)
 		add(perKey)
-		if cfg.OAuthExcludedModels != nil {
-			providerKey := strings.ToLower(strings.TrimSpace(auth.Provider))
-			add(cfg.OAuthExcludedModels[providerKey])
-		}
 	}
 	combined := make([]string, 0, len(seen))
 	for k := range seen {

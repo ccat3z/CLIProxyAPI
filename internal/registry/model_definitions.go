@@ -1,5 +1,5 @@
 // Package registry provides model definitions and lookup helpers for various AI providers.
-// Static model metadata is loaded from the embedded models.json file and can be refreshed from network.
+// Static model metadata is loaded from the embedded models.json file.
 package registry
 
 import (

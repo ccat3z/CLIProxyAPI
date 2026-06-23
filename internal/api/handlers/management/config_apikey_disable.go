@@ -41,33 +41,9 @@ func toggleConfigAPIKeyExcludedAll(cfg *config.Config, auth *coreauth.Auth, disa
 
 	idGen := synthesizer.NewStableIDGenerator()
 
-	for i := range cfg.GeminiKey {
-		entry := &cfg.GeminiKey[i]
-		id, _ := idGen.Next("gemini:apikey", entry.APIKey, entry.BaseURL)
-		if id == authID {
-			entry.ExcludedModels = setConfigAPIKeyExcludedAll(entry.ExcludedModels, disable)
-			return true, nil
-		}
-	}
 	for i := range cfg.ClaudeKey {
 		entry := &cfg.ClaudeKey[i]
 		id, _ := idGen.Next("claude:apikey", entry.APIKey, entry.BaseURL)
-		if id == authID {
-			entry.ExcludedModels = setConfigAPIKeyExcludedAll(entry.ExcludedModels, disable)
-			return true, nil
-		}
-	}
-	for i := range cfg.CodexKey {
-		entry := &cfg.CodexKey[i]
-		id, _ := idGen.Next("codex:apikey", entry.APIKey, entry.BaseURL)
-		if id == authID {
-			entry.ExcludedModels = setConfigAPIKeyExcludedAll(entry.ExcludedModels, disable)
-			return true, nil
-		}
-	}
-	for i := range cfg.VertexCompatAPIKey {
-		entry := &cfg.VertexCompatAPIKey[i]
-		id, _ := idGen.Next("vertex:apikey", entry.APIKey, entry.BaseURL, entry.ProxyURL)
 		if id == authID {
 			entry.ExcludedModels = setConfigAPIKeyExcludedAll(entry.ExcludedModels, disable)
 			return true, nil

@@ -312,58 +312,6 @@ func modelRegistrationCategory(auth *coreauth.Auth) string {
 	return provider + ":" + authKind
 }
 
-func (s *Service) registerModelRefreshCallback() {
-	// Register callback for startup and periodic model catalog refresh.
-	// When remote model definitions change, re-register models for affected providers.
-	// This intentionally rebuilds per-auth model availability from the latest catalog
-	// snapshot instead of preserving prior registry suppression state.
-	registry.SetModelRefreshCallback(func(changedProviders []string) {
-		if s == nil || s.coreManager == nil || len(changedProviders) == 0 {
-			return
-		}
-
-		providerSet := make(map[string]bool, len(changedProviders))
-		for _, p := range changedProviders {
-			providerSet[strings.ToLower(strings.TrimSpace(p))] = true
-		}
-
-		auths := s.coreManager.List()
-		refreshed := 0
-		var refreshedMu sync.Mutex
-		tasks := make([]modelRegistrationTask, 0, len(auths))
-		for _, item := range auths {
-			if item == nil || item.ID == "" {
-				continue
-			}
-			auth, ok := s.coreManager.GetByID(item.ID)
-			if !ok || auth == nil || auth.Disabled {
-				continue
-			}
-			provider := strings.ToLower(strings.TrimSpace(auth.Provider))
-			if !providerSet[provider] {
-				continue
-			}
-			authForRefresh := auth
-			tasks = append(tasks, modelRegistrationTask{
-				phase:    modelRegistrationPhase(authForRefresh),
-				category: modelRegistrationCategory(authForRefresh),
-				run: func() {
-					if s.refreshModelRegistrationForAuth(authForRefresh) {
-						refreshedMu.Lock()
-						refreshed++
-						refreshedMu.Unlock()
-					}
-				},
-			})
-		}
-		s.runModelRegistrationTasks(context.Background(), tasks)
-
-		if refreshed > 0 {
-			log.Infof("re-registered models for %d auth(s) due to model catalog changes: %v", refreshed, changedProviders)
-		}
-	})
-}
-
 // newDefaultAuthManager creates a default authentication manager.
 // Provider-specific authenticators were removed alongside the OAuth login flows;
 // the manager now coordinates persistence only via the shared token store.
@@ -830,7 +778,6 @@ func (s *Service) applyConfigUpdate(newCfg *config.Config) {
 	s.cfgMu.Unlock()
 	if s.coreManager != nil {
 		s.coreManager.SetConfig(newCfg)
-		s.coreManager.SetOAuthModelAlias(newCfg.OAuthModelAlias)
 	}
 	var auths []*coreauth.Auth
 	if s.coreManager != nil {
@@ -1190,8 +1137,6 @@ func (s *Service) Run(ctx context.Context) error {
 		s.syncPluginModelRuntime(ctx)
 	}
 
-	s.registerModelRefreshCallback()
-
 	// Prefer core auth manager auto refresh if available.
 	if s.coreManager != nil && !homeEnabled {
 		interval := 15 * time.Minute
@@ -1347,7 +1292,7 @@ func (s *Service) registerModelsForAuth(ctx context.Context, a *coreauth.Auth) {
 	if compatDetected {
 		provider = "openai-compatibility"
 	}
-	excluded := s.oauthExcludedModels(provider, authKind)
+	var excluded []string
 	// The synthesizer pre-merges per-account and global exclusions into the "excluded_models" attribute.
 	// If this attribute is present, it represents the complete list of exclusions and overrides the global config.
 	if a.Attributes != nil {
@@ -1359,26 +1304,10 @@ func (s *Service) registerModelsForAuth(ctx context.Context, a *coreauth.Auth) {
 	switch provider {
 	case "gemini":
 		models = registry.GetGeminiModels()
-		if entry := s.resolveConfigGeminiKey(a); entry != nil {
-			if len(entry.Models) > 0 {
-				models = buildGeminiConfigModels(entry)
-			}
-			if authKind == "apikey" {
-				excluded = entry.ExcludedModels
-			}
-		}
 		models = applyExcludedModels(models, excluded)
 	case "vertex":
 		// Vertex AI Gemini supports the same model identifiers as Gemini.
 		models = registry.GetGeminiVertexModels()
-		if entry := s.resolveConfigVertexCompatKey(a); entry != nil {
-			if len(entry.Models) > 0 {
-				models = buildVertexCompatConfigModels(entry)
-			}
-			if authKind == "apikey" {
-				excluded = entry.ExcludedModels
-			}
-		}
 		models = applyExcludedModels(models, excluded)
 	case "gemini-cli":
 		models = registry.GetGeminiCLIModels()
@@ -1413,14 +1342,6 @@ func (s *Service) registerModelsForAuth(ctx context.Context, a *coreauth.Auth) {
 			models = registry.GetCodexFreeModels()
 		default:
 			models = registry.GetCodexProModels()
-		}
-		if entry := s.resolveConfigCodexKey(a); entry != nil {
-			if len(entry.Models) > 0 {
-				models = buildCodexConfigModels(entry)
-			}
-			if authKind == "apikey" {
-				excluded = entry.ExcludedModels
-			}
 		}
 		models = applyExcludedModels(models, excluded)
 	case "kimi":
@@ -1499,7 +1420,6 @@ func (s *Service) registerModelsForAuth(ctx context.Context, a *coreauth.Auth) {
 			}
 		}
 	}
-	models = applyOAuthModelAlias(s.cfg, provider, authKind, models)
 	key := provider
 	if key == "" {
 		key = strings.ToLower(strings.TrimSpace(a.Provider))
@@ -1510,56 +1430,6 @@ func (s *Service) registerModelsForAuth(ctx context.Context, a *coreauth.Auth) {
 	}
 
 	GlobalModelRegistry().UnregisterClient(a.ID)
-}
-
-// refreshModelRegistrationForAuth re-applies the latest model registration for
-// one auth and reconciles any concurrent auth changes that race with the
-// refresh. Callers are expected to pre-filter provider membership.
-//
-// Re-registration is deliberate: registry cooldown/suspension state is treated
-// as part of the previous registration snapshot and is cleared when the auth is
-// rebound to the refreshed model catalog.
-func (s *Service) refreshModelRegistrationForAuth(current *coreauth.Auth) bool {
-	if s == nil || s.coreManager == nil || current == nil || current.ID == "" {
-		return false
-	}
-
-	ctx := context.Background()
-	if !current.Disabled {
-		s.ensureExecutorsForAuth(current)
-	}
-	s.registerModelsForAuth(ctx, current)
-	s.coreManager.ReconcileRegistryModelStates(ctx, current.ID)
-
-	latest, ok := s.latestAuthForModelRegistration(current.ID)
-	if !ok || latest.Disabled {
-		GlobalModelRegistry().UnregisterClient(current.ID)
-		s.coreManager.RefreshSchedulerEntry(current.ID)
-		return false
-	}
-
-	// Re-apply the latest auth snapshot so concurrent auth updates cannot leave
-	// stale model registrations behind. This may duplicate registration work when
-	// no auth fields changed, but keeps the refresh path simple and correct.
-	s.ensureExecutorsForAuth(latest)
-	s.registerModelsForAuth(ctx, latest)
-	s.coreManager.ReconcileRegistryModelStates(ctx, latest.ID)
-	s.coreManager.RefreshSchedulerEntry(current.ID)
-	return true
-}
-
-// latestAuthForModelRegistration returns the latest auth snapshot regardless of
-// provider membership. Callers use this after a registration attempt to restore
-// whichever state currently owns the client ID in the global registry.
-func (s *Service) latestAuthForModelRegistration(authID string) (*coreauth.Auth, bool) {
-	if s == nil || s.coreManager == nil || authID == "" {
-		return nil, false
-	}
-	auth, ok := s.coreManager.GetByID(authID)
-	if !ok || auth == nil || auth.ID == "" {
-		return nil, false
-	}
-	return auth, true
 }
 
 func (s *Service) resolveConfigClaudeKey(auth *coreauth.Auth) *config.ClaudeKey {
@@ -1599,105 +1469,6 @@ func (s *Service) resolveConfigClaudeKey(auth *coreauth.Auth) *config.ClaudeKey 
 		}
 	}
 	return nil
-}
-
-func (s *Service) resolveConfigGeminiKey(auth *coreauth.Auth) *config.GeminiKey {
-	if auth == nil || s.cfg == nil {
-		return nil
-	}
-	var attrKey, attrBase string
-	if auth.Attributes != nil {
-		attrKey = strings.TrimSpace(auth.Attributes["api_key"])
-		attrBase = strings.TrimSpace(auth.Attributes["base_url"])
-	}
-	for i := range s.cfg.GeminiKey {
-		entry := &s.cfg.GeminiKey[i]
-		cfgKey := strings.TrimSpace(entry.APIKey)
-		cfgBase := strings.TrimSpace(entry.BaseURL)
-		if attrKey != "" && strings.EqualFold(cfgKey, attrKey) {
-			if cfgBase == "" || strings.EqualFold(cfgBase, attrBase) {
-				return entry
-			}
-			continue
-		}
-		if attrKey == "" && attrBase != "" && strings.EqualFold(cfgBase, attrBase) {
-			return entry
-		}
-	}
-	return nil
-}
-
-func (s *Service) resolveConfigVertexCompatKey(auth *coreauth.Auth) *config.VertexCompatKey {
-	if auth == nil || s.cfg == nil {
-		return nil
-	}
-	var attrKey, attrBase string
-	if auth.Attributes != nil {
-		attrKey = strings.TrimSpace(auth.Attributes["api_key"])
-		attrBase = strings.TrimSpace(auth.Attributes["base_url"])
-	}
-	for i := range s.cfg.VertexCompatAPIKey {
-		entry := &s.cfg.VertexCompatAPIKey[i]
-		cfgKey := strings.TrimSpace(entry.APIKey)
-		cfgBase := strings.TrimSpace(entry.BaseURL)
-		if attrKey != "" && strings.EqualFold(cfgKey, attrKey) {
-			if cfgBase == "" || strings.EqualFold(cfgBase, attrBase) {
-				return entry
-			}
-			continue
-		}
-		if attrKey == "" && attrBase != "" && strings.EqualFold(cfgBase, attrBase) {
-			return entry
-		}
-	}
-	if attrKey != "" {
-		for i := range s.cfg.VertexCompatAPIKey {
-			entry := &s.cfg.VertexCompatAPIKey[i]
-			if strings.EqualFold(strings.TrimSpace(entry.APIKey), attrKey) {
-				return entry
-			}
-		}
-	}
-	return nil
-}
-
-func (s *Service) resolveConfigCodexKey(auth *coreauth.Auth) *config.CodexKey {
-	if auth == nil || s.cfg == nil {
-		return nil
-	}
-	var attrKey, attrBase string
-	if auth.Attributes != nil {
-		attrKey = strings.TrimSpace(auth.Attributes["api_key"])
-		attrBase = strings.TrimSpace(auth.Attributes["base_url"])
-	}
-	for i := range s.cfg.CodexKey {
-		entry := &s.cfg.CodexKey[i]
-		cfgKey := strings.TrimSpace(entry.APIKey)
-		cfgBase := strings.TrimSpace(entry.BaseURL)
-		if attrKey != "" && strings.EqualFold(cfgKey, attrKey) {
-			if cfgBase == "" || strings.EqualFold(cfgBase, attrBase) {
-				return entry
-			}
-			continue
-		}
-		if attrKey == "" && attrBase != "" && strings.EqualFold(cfgBase, attrBase) {
-			return entry
-		}
-	}
-	return nil
-}
-
-func (s *Service) oauthExcludedModels(provider, authKind string) []string {
-	cfg := s.cfg
-	if cfg == nil {
-		return nil
-	}
-	authKindKey := strings.ToLower(strings.TrimSpace(authKind))
-	providerKey := strings.ToLower(strings.TrimSpace(provider))
-	if authKindKey == "apikey" {
-		return nil
-	}
-	return cfg.OAuthExcludedModels[providerKey]
 }
 
 func applyExcludedModels(models []*ModelInfo, excluded []string) []*ModelInfo {
@@ -1913,32 +1684,11 @@ func buildConfigModels[T modelEntry](models []T, ownedBy, modelType string) []*M
 	return out
 }
 
-func buildVertexCompatConfigModels(entry *config.VertexCompatKey) []*ModelInfo {
-	if entry == nil {
-		return nil
-	}
-	return buildConfigModels(entry.Models, "google", "vertex")
-}
-
-func buildGeminiConfigModels(entry *config.GeminiKey) []*ModelInfo {
-	if entry == nil {
-		return nil
-	}
-	return buildConfigModels(entry.Models, "google", "gemini")
-}
-
 func buildClaudeConfigModels(entry *config.ClaudeKey) []*ModelInfo {
 	if entry == nil {
 		return nil
 	}
 	return buildConfigModels(entry.Models, "anthropic", "claude")
-}
-
-func buildCodexConfigModels(entry *config.CodexKey) []*ModelInfo {
-	if entry == nil {
-		return nil
-	}
-	return registry.WithCodexBuiltins(buildConfigModels(entry.Models, "openai", "openai"))
 }
 
 func rewriteModelInfoName(name, oldID, newID string) string {
@@ -1965,108 +1715,4 @@ func rewriteModelInfoName(name, oldID, newID string) string {
 		return "models/" + newID
 	}
 	return name
-}
-
-func applyOAuthModelAlias(cfg *config.Config, provider, authKind string, models []*ModelInfo) []*ModelInfo {
-	if cfg == nil || len(models) == 0 {
-		return models
-	}
-	channel := coreauth.OAuthModelAliasChannel(provider, authKind)
-	if channel == "" || len(cfg.OAuthModelAlias) == 0 {
-		return models
-	}
-	aliases := cfg.OAuthModelAlias[channel]
-	if len(aliases) == 0 {
-		return models
-	}
-
-	type aliasEntry struct {
-		alias string
-		fork  bool
-	}
-
-	forward := make(map[string][]aliasEntry, len(aliases))
-	for i := range aliases {
-		name := strings.TrimSpace(aliases[i].Name)
-		alias := strings.TrimSpace(aliases[i].Alias)
-		if name == "" || alias == "" {
-			continue
-		}
-		if strings.EqualFold(name, alias) {
-			continue
-		}
-		key := strings.ToLower(name)
-		forward[key] = append(forward[key], aliasEntry{alias: alias, fork: aliases[i].Fork})
-	}
-	if len(forward) == 0 {
-		return models
-	}
-
-	out := make([]*ModelInfo, 0, len(models))
-	seen := make(map[string]struct{}, len(models))
-	for _, model := range models {
-		if model == nil {
-			continue
-		}
-		id := strings.TrimSpace(model.ID)
-		if id == "" {
-			continue
-		}
-		key := strings.ToLower(id)
-		entries := forward[key]
-		if len(entries) == 0 {
-			if _, exists := seen[key]; exists {
-				continue
-			}
-			seen[key] = struct{}{}
-			out = append(out, model)
-			continue
-		}
-
-		keepOriginal := false
-		for _, entry := range entries {
-			if entry.fork {
-				keepOriginal = true
-				break
-			}
-		}
-		if keepOriginal {
-			if _, exists := seen[key]; !exists {
-				seen[key] = struct{}{}
-				out = append(out, model)
-			}
-		}
-
-		addedAlias := false
-		for _, entry := range entries {
-			mappedID := strings.TrimSpace(entry.alias)
-			if mappedID == "" {
-				continue
-			}
-			if strings.EqualFold(mappedID, id) {
-				continue
-			}
-			aliasKey := strings.ToLower(mappedID)
-			if _, exists := seen[aliasKey]; exists {
-				continue
-			}
-			seen[aliasKey] = struct{}{}
-			clone := *model
-			clone.ID = mappedID
-			if clone.Name != "" {
-				clone.Name = rewriteModelInfoName(clone.Name, id, mappedID)
-			}
-			out = append(out, &clone)
-			addedAlias = true
-		}
-
-		if !keepOriginal && !addedAlias {
-			if _, exists := seen[key]; exists {
-				continue
-			}
-			seen[key] = struct{}{}
-			out = append(out, model)
-		}
-	}
-	return out
 }

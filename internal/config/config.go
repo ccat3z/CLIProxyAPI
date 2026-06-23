@@ -105,12 +105,6 @@ type Config struct {
 	// WebsocketAuth enables or disables authentication for the WebSocket API.
 	WebsocketAuth bool `yaml:"ws-auth" json:"ws-auth"`
 
-	// GeminiKey defines Gemini API key configurations with optional routing overrides.
-	GeminiKey []GeminiKey `yaml:"gemini-api-key" json:"gemini-api-key"`
-
-	// Codex defines a list of Codex API key configurations as specified in the YAML configuration file.
-	CodexKey []CodexKey `yaml:"codex-api-key" json:"codex-api-key"`
-
 	// ClaudeKey defines a list of Claude API key configurations as specified in the YAML configuration file.
 	ClaudeKey []ClaudeKey `yaml:"claude-api-key" json:"claude-api-key"`
 
@@ -128,21 +122,6 @@ type Config struct {
 
 	// OpenAICompatibility defines OpenAI API compatibility configurations for external providers.
 	OpenAICompatibility []OpenAICompatibility `yaml:"openai-compatibility" json:"openai-compatibility"`
-
-	// VertexCompatAPIKey defines Vertex AI-compatible API key configurations for third-party providers.
-	// Used for services that use Vertex AI-style paths but with simple API key authentication.
-	VertexCompatAPIKey []VertexCompatKey `yaml:"vertex-api-key" json:"vertex-api-key"`
-
-	// OAuthExcludedModels defines per-provider global model exclusions applied to OAuth/file-backed auth entries.
-	OAuthExcludedModels map[string][]string `yaml:"oauth-excluded-models,omitempty" json:"oauth-excluded-models,omitempty"`
-
-	// OAuthModelAlias defines global model name aliases for OAuth/file-backed auth channels.
-	// These aliases affect both model listing and model routing for supported channels:
-	// gemini-cli, vertex, aistudio, antigravity, claude, codex, kimi, xai.
-	//
-	// NOTE: This does not apply to existing per-credential model alias features under:
-	// gemini-api-key, codex-api-key, claude-api-key, openai-compatibility, and vertex-api-key.
-	OAuthModelAlias map[string][]OAuthModelAlias `yaml:"oauth-model-alias,omitempty" json:"oauth-model-alias,omitempty"`
 
 	// Payload defines default and override rules for provider payload parameters.
 	Payload PayloadConfig `yaml:"payload" json:"payload"`
@@ -226,16 +205,6 @@ type RoutingConfig struct {
 	// SessionAffinityTTL specifies how long session-to-auth bindings are retained.
 	// Default: 1h. Accepts duration strings like "30m", "1h", "2h30m".
 	SessionAffinityTTL string `yaml:"session-affinity-ttl,omitempty" json:"session-affinity-ttl,omitempty"`
-}
-
-// OAuthModelAlias defines a model ID alias for a specific channel.
-// It maps the upstream model name (Name) to the client-visible alias (Alias).
-// When Fork is true, the alias is added as an additional model in listings while
-// keeping the original model ID available.
-type OAuthModelAlias struct {
-	Name  string `yaml:"name" json:"name"`
-	Alias string `yaml:"alias" json:"alias"`
-	Fork  bool   `yaml:"fork,omitempty" json:"fork,omitempty"`
 }
 
 // PayloadConfig defines default and override parameter rules applied to provider payloads.
@@ -420,112 +389,6 @@ func FindClaudeModelCompat(cfg *Config, apiKey, baseURL, modelName string) []str
 	}
 	return nil
 }
-
-// CodexKey represents the configuration for a Codex API key,
-// including the API key itself and an optional base URL for the API endpoint.
-type CodexKey struct {
-	// APIKey is the authentication key for accessing Codex API services.
-	APIKey string `yaml:"api-key" json:"api-key"`
-
-	// Priority controls selection preference when multiple credentials match.
-	// Higher values are preferred; defaults to 0.
-	Priority int `yaml:"priority,omitempty" json:"priority,omitempty"`
-
-	// Prefix optionally namespaces models for this credential (e.g., "teamA/gpt-5-codex").
-	Prefix string `yaml:"prefix,omitempty" json:"prefix,omitempty"`
-
-	// BaseURL is the base URL for the Codex API endpoint.
-	// If empty, the default Codex API URL will be used.
-	BaseURL string `yaml:"base-url" json:"base-url"`
-
-	// Websockets enables the Responses API websocket transport for this credential.
-	Websockets bool `yaml:"websockets,omitempty" json:"websockets,omitempty"`
-
-	// ProxyURL overrides the global proxy setting for this API key if provided.
-	ProxyURL string `yaml:"proxy-url" json:"proxy-url"`
-
-	// Models defines upstream model names and aliases for request routing.
-	Models []CodexModel `yaml:"models" json:"models"`
-
-	// Headers optionally adds extra HTTP headers for requests sent with this key.
-	Headers map[string]string `yaml:"headers,omitempty" json:"headers,omitempty"`
-
-	// ExcludedModels lists model IDs that should be excluded for this provider.
-	ExcludedModels []string `yaml:"excluded-models,omitempty" json:"excluded-models,omitempty"`
-
-	// DisableCooling disables auth/model cooldown scheduling for this credential when true.
-	DisableCooling bool `yaml:"disable-cooling,omitempty" json:"disable-cooling,omitempty"`
-}
-
-func (k CodexKey) GetAPIKey() string  { return k.APIKey }
-func (k CodexKey) GetBaseURL() string { return k.BaseURL }
-
-// CodexModel describes a mapping between an alias and the actual upstream model name.
-type CodexModel struct {
-	// Name is the upstream model identifier used when issuing requests.
-	Name string `yaml:"name" json:"name"`
-
-	// Alias is the client-facing model name that maps to Name.
-	Alias string `yaml:"alias" json:"alias"`
-
-	// Extra holds custom key-value pairs included in the /v1/models response for this model.
-	Extra map[string]any `yaml:"extra,omitempty" json:"extra,omitempty"`
-}
-
-func (m CodexModel) GetName() string          { return m.Name }
-func (m CodexModel) GetAlias() string         { return m.Alias }
-func (m CodexModel) GetExtra() map[string]any { return m.Extra }
-
-// GeminiKey represents the configuration for a Gemini API key,
-// including optional overrides for upstream base URL, proxy routing, and headers.
-type GeminiKey struct {
-	// APIKey is the authentication key for accessing Gemini API services.
-	APIKey string `yaml:"api-key" json:"api-key"`
-
-	// Priority controls selection preference when multiple credentials match.
-	// Higher values are preferred; defaults to 0.
-	Priority int `yaml:"priority,omitempty" json:"priority,omitempty"`
-
-	// Prefix optionally namespaces models for this credential (e.g., "teamA/gemini-3-pro-preview").
-	Prefix string `yaml:"prefix,omitempty" json:"prefix,omitempty"`
-
-	// BaseURL optionally overrides the Gemini API endpoint.
-	BaseURL string `yaml:"base-url,omitempty" json:"base-url,omitempty"`
-
-	// ProxyURL optionally overrides the global proxy for this API key.
-	ProxyURL string `yaml:"proxy-url,omitempty" json:"proxy-url,omitempty"`
-
-	// Models defines upstream model names and aliases for request routing.
-	Models []GeminiModel `yaml:"models,omitempty" json:"models,omitempty"`
-
-	// Headers optionally adds extra HTTP headers for requests sent with this key.
-	Headers map[string]string `yaml:"headers,omitempty" json:"headers,omitempty"`
-
-	// ExcludedModels lists model IDs that should be excluded for this provider.
-	ExcludedModels []string `yaml:"excluded-models,omitempty" json:"excluded-models,omitempty"`
-
-	// DisableCooling disables auth/model cooldown scheduling for this credential when true.
-	DisableCooling bool `yaml:"disable-cooling,omitempty" json:"disable-cooling,omitempty"`
-}
-
-func (k GeminiKey) GetAPIKey() string  { return k.APIKey }
-func (k GeminiKey) GetBaseURL() string { return k.BaseURL }
-
-// GeminiModel describes a mapping between an alias and the actual upstream model name.
-type GeminiModel struct {
-	// Name is the upstream model identifier used when issuing requests.
-	Name string `yaml:"name" json:"name"`
-
-	// Alias is the client-facing model name that maps to Name.
-	Alias string `yaml:"alias" json:"alias"`
-
-	// Extra holds custom key-value pairs included in the /v1/models response for this model.
-	Extra map[string]any `yaml:"extra,omitempty" json:"extra,omitempty"`
-}
-
-func (m GeminiModel) GetName() string          { return m.Name }
-func (m GeminiModel) GetAlias() string         { return m.Alias }
-func (m GeminiModel) GetExtra() map[string]any { return m.Extra }
 
 // OpenAICompatibility represents the configuration for OpenAI API compatibility
 // with external providers, allowing model aliases to be routed through OpenAI API format.
@@ -834,15 +697,6 @@ func LoadConfigOptional(configFile string, optional bool) (*Config, error) {
 		cfg.MaxRetryCredentials = 0
 	}
 
-	// Sanitize Gemini API key configuration and migrate legacy entries.
-	cfg.SanitizeGeminiKeys()
-
-	// Sanitize Vertex-compatible API keys.
-	cfg.SanitizeVertexCompatKeys()
-
-	// Sanitize Codex keys: drop entries without base-url
-	cfg.SanitizeCodexKeys()
-
 	// Sanitize Claude header defaults.
 	cfg.SanitizeClaudeHeaderDefaults()
 
@@ -851,12 +705,6 @@ func LoadConfigOptional(configFile string, optional bool) (*Config, error) {
 
 	// Sanitize OpenAI compatibility providers: drop entries without base-url
 	cfg.SanitizeOpenAICompatibility()
-
-	// Normalize OAuth provider model exclusion map.
-	cfg.OAuthExcludedModels = NormalizeOAuthExcludedModels(cfg.OAuthExcludedModels)
-
-	// Normalize global OAuth model name aliases.
-	cfg.SanitizeOAuthModelAlias()
 
 	// Validate raw payload rules and drop invalid entries.
 	cfg.SanitizePayloadRules()
@@ -934,44 +782,6 @@ func (cfg *Config) SanitizeClaudeHeaderDefaults() {
 	cfg.ClaudeHeaderDefaults.Timeout = strings.TrimSpace(cfg.ClaudeHeaderDefaults.Timeout)
 }
 
-// SanitizeOAuthModelAlias normalizes and deduplicates global OAuth model name aliases.
-// It trims whitespace, normalizes channel keys to lower-case, drops empty entries,
-// allows multiple aliases per upstream name, and ensures aliases are unique within each channel.
-func (cfg *Config) SanitizeOAuthModelAlias() {
-	if cfg == nil || len(cfg.OAuthModelAlias) == 0 {
-		return
-	}
-	out := make(map[string][]OAuthModelAlias, len(cfg.OAuthModelAlias))
-	for rawChannel, aliases := range cfg.OAuthModelAlias {
-		channel := strings.ToLower(strings.TrimSpace(rawChannel))
-		if channel == "" || len(aliases) == 0 {
-			continue
-		}
-		seenAlias := make(map[string]struct{}, len(aliases))
-		clean := make([]OAuthModelAlias, 0, len(aliases))
-		for _, entry := range aliases {
-			name := strings.TrimSpace(entry.Name)
-			alias := strings.TrimSpace(entry.Alias)
-			if name == "" || alias == "" {
-				continue
-			}
-			if strings.EqualFold(name, alias) {
-				continue
-			}
-			aliasKey := strings.ToLower(alias)
-			if _, ok := seenAlias[aliasKey]; ok {
-				continue
-			}
-			seenAlias[aliasKey] = struct{}{}
-			clean = append(clean, OAuthModelAlias{Name: name, Alias: alias, Fork: entry.Fork})
-		}
-		if len(clean) > 0 {
-			out[channel] = clean
-		}
-	}
-	cfg.OAuthModelAlias = out
-}
-
 // SanitizeOpenAICompatibility removes OpenAI-compatibility provider entries that are
 // not actionable, specifically those missing a BaseURL. It trims whitespace before
 // evaluation and preserves the relative order of remaining entries.
@@ -1030,27 +840,6 @@ func sanitizeModelLimitWindows(limits *[]ModelLimitWindow) {
 	}
 }
 
-// SanitizeCodexKeys removes Codex API key entries missing a BaseURL.
-// It trims whitespace and preserves order for remaining entries.
-func (cfg *Config) SanitizeCodexKeys() {
-	if cfg == nil || len(cfg.CodexKey) == 0 {
-		return
-	}
-	out := make([]CodexKey, 0, len(cfg.CodexKey))
-	for i := range cfg.CodexKey {
-		e := cfg.CodexKey[i]
-		e.Prefix = normalizeModelPrefix(e.Prefix)
-		e.BaseURL = strings.TrimSpace(e.BaseURL)
-		e.Headers = NormalizeHeaders(e.Headers)
-		e.ExcludedModels = NormalizeExcludedModels(e.ExcludedModels)
-		if e.BaseURL == "" {
-			continue
-		}
-		out = append(out, e)
-	}
-	cfg.CodexKey = out
-}
-
 // SanitizeClaudeKeys normalizes headers for Claude credentials.
 func (cfg *Config) SanitizeClaudeKeys() {
 	if cfg == nil || len(cfg.ClaudeKey) == 0 {
@@ -1062,36 +851,6 @@ func (cfg *Config) SanitizeClaudeKeys() {
 		entry.Headers = NormalizeHeaders(entry.Headers)
 		entry.ExcludedModels = NormalizeExcludedModels(entry.ExcludedModels)
 	}
-}
-
-// SanitizeGeminiKeys deduplicates and normalizes Gemini credentials.
-// It uses API key + base URL as the uniqueness key.
-func (cfg *Config) SanitizeGeminiKeys() {
-	if cfg == nil {
-		return
-	}
-
-	seen := make(map[string]struct{}, len(cfg.GeminiKey))
-	out := cfg.GeminiKey[:0]
-	for i := range cfg.GeminiKey {
-		entry := cfg.GeminiKey[i]
-		entry.APIKey = strings.TrimSpace(entry.APIKey)
-		if entry.APIKey == "" {
-			continue
-		}
-		entry.Prefix = normalizeModelPrefix(entry.Prefix)
-		entry.BaseURL = strings.TrimSpace(entry.BaseURL)
-		entry.ProxyURL = strings.TrimSpace(entry.ProxyURL)
-		entry.Headers = NormalizeHeaders(entry.Headers)
-		entry.ExcludedModels = NormalizeExcludedModels(entry.ExcludedModels)
-		uniqueKey := entry.APIKey + "|" + entry.BaseURL
-		if _, exists := seen[uniqueKey]; exists {
-			continue
-		}
-		seen[uniqueKey] = struct{}{}
-		out = append(out, entry)
-	}
-	cfg.GeminiKey = out
 }
 
 func normalizeModelPrefix(prefix string) string {
@@ -1149,30 +908,6 @@ func NormalizeExcludedModels(models []string) []string {
 		}
 		seen[trimmed] = struct{}{}
 		out = append(out, trimmed)
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
-
-// NormalizeOAuthExcludedModels cleans provider -> excluded models mappings by normalizing provider keys
-// and applying model exclusion normalization to each entry.
-func NormalizeOAuthExcludedModels(entries map[string][]string) map[string][]string {
-	if len(entries) == 0 {
-		return nil
-	}
-	out := make(map[string][]string, len(entries))
-	for provider, models := range entries {
-		key := strings.ToLower(strings.TrimSpace(provider))
-		if key == "" {
-			continue
-		}
-		normalized := NormalizeExcludedModels(models)
-		if len(normalized) == 0 {
-			continue
-		}
-		out[key] = normalized
 	}
 	if len(out) == 0 {
 		return nil

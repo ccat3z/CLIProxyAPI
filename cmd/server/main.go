@@ -22,7 +22,6 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/logging"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/managementasset"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/redisqueue"
-	"github.com/router-for-me/CLIProxyAPI/v7/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/safemode"
 	_ "github.com/router-for-me/CLIProxyAPI/v7/internal/translator"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/util"
@@ -64,7 +63,6 @@ func main() {
 	var password string
 	var homeJWT string
 	var homeDisableClusterDiscovery bool
-	var localModel bool
 	var port int
 
 	// Define command-line flags for different operation modes.
@@ -72,7 +70,6 @@ func main() {
 	flag.StringVar(&password, "password", "", "")
 	flag.StringVar(&homeJWT, "home-jwt", "", "Home control plane JWT for mTLS certificate bootstrap and connection")
 	flag.BoolVar(&homeDisableClusterDiscovery, "home-disable-cluster-discovery", false, "Disable Home CLUSTER NODES discovery and keep using the configured -home-jwt address")
-	flag.BoolVar(&localModel, "local-model", false, "Use embedded model catalog only, skip remote model fetching")
 	flag.IntVar(&port, "port", 0, "Override the server port from config")
 
 	flag.CommandLine.Usage = func() {
@@ -289,16 +286,11 @@ func main() {
 			cmd.WaitForCloudDeploy()
 			return
 		}
-		if localModel {
-			log.Info("Local model mode: using embedded model catalog, remote model updates disabled")
+		if cfg.Home.Enabled {
+			log.Info("Home mode: remote model updates disabled")
 		}
 		// Start the main proxy service
 		managementasset.StartAutoUpdater(context.Background(), configFilePath)
-		if !localModel && !cfg.Home.Enabled {
-			registry.StartModelsUpdater(context.Background())
-		} else if cfg.Home.Enabled {
-			log.Info("Home mode: remote model updates disabled")
-		}
 		cmd.StartService(cfg, configFilePath, password)
 	}
 }

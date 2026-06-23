@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	internalconfig "github.com/router-for-me/CLIProxyAPI/v7/internal/config"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/registry"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/executor"
 )
@@ -62,49 +61,6 @@ func TestManager_ShouldRetryAfterError_RespectsAuthRequestRetryOverride(t *testi
 	_, shouldRetry = m.shouldRetryAfterError(&Error{HTTPStatus: 500, Message: "boom"}, 1, []string{"claude"}, model, maxWait)
 	if shouldRetry {
 		t.Fatalf("expected shouldRetry=false on attempt=1 for request_retry=1, got true")
-	}
-}
-
-func TestManager_ShouldRetryAfterError_UsesOAuthModelAliasForCooldown(t *testing.T) {
-	m := NewManager(nil, nil, nil)
-	m.SetRetryConfig(3, 30*time.Second, 0)
-	m.SetOAuthModelAlias(map[string][]internalconfig.OAuthModelAlias{
-		"kimi": {
-			{Name: "deepseek-v3.1", Alias: "pool-model"},
-		},
-	})
-
-	routeModel := "pool-model"
-	upstreamModel := "deepseek-v3.1"
-	next := time.Now().Add(5 * time.Second)
-
-	auth := &Auth{
-		ID:       "auth-1",
-		Provider: "kimi",
-		ModelStates: map[string]*ModelState{
-			upstreamModel: {
-				Unavailable:    true,
-				Status:         StatusError,
-				NextRetryAfter: next,
-				Quota: QuotaState{
-					Exceeded:      true,
-					Reason:        "quota",
-					NextRecoverAt: next,
-				},
-			},
-		},
-	}
-	if _, errRegister := m.Register(context.Background(), auth); errRegister != nil {
-		t.Fatalf("register auth: %v", errRegister)
-	}
-
-	_, _, maxWait := m.retrySettings()
-	wait, shouldRetry := m.shouldRetryAfterError(&Error{HTTPStatus: 429, Message: "quota"}, 0, []string{"kimi"}, routeModel, maxWait)
-	if !shouldRetry {
-		t.Fatalf("expected shouldRetry=true, got false (wait=%v)", wait)
-	}
-	if wait <= 0 {
-		t.Fatalf("expected wait > 0, got %v", wait)
 	}
 }
 

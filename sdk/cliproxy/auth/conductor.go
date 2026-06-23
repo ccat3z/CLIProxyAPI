@@ -182,9 +182,6 @@ type Manager struct {
 	maxRetryCredentials atomic.Int32
 	maxRetryInterval    atomic.Int64
 
-	// oauthModelAlias stores global OAuth model alias mappings (alias -> upstream name) keyed by channel.
-	oauthModelAlias atomic.Value
-
 	// apiKeyModelAlias caches resolved model alias mappings for API-key auths.
 	// Keyed by auth.ID, value is alias(lower) -> upstream model (including suffix).
 	apiKeyModelAlias atomic.Value
@@ -609,7 +606,6 @@ func (m *Manager) executionModelCandidates(auth *Auth, routeModel string) []stri
 		}
 	}
 	requestedModel := rewriteModelForAuth(routeModel, auth)
-	requestedModel = m.applyOAuthModelAlias(auth, requestedModel)
 	if pool := m.resolveOpenAICompatUpstreamModelPool(auth, requestedModel); len(pool) > 0 {
 		if len(pool) == 1 {
 			return pool
@@ -629,7 +625,7 @@ func (m *Manager) selectionModelForAuth(auth *Auth, routeModel string) string {
 	if strings.TrimSpace(requestedModel) == "" {
 		requestedModel = strings.TrimSpace(routeModel)
 	}
-	resolvedModel := m.applyOAuthModelAlias(auth, requestedModel)
+	resolvedModel := m.applyAPIKeyModelAlias(auth, requestedModel)
 	if strings.TrimSpace(resolvedModel) == "" {
 		resolvedModel = requestedModel
 	}
@@ -1263,20 +1259,8 @@ func (m *Manager) rebuildAPIKeyModelAliasLocked(cfg *internalconfig.Config) {
 		byAlias := make(map[string]string)
 		provider := strings.ToLower(strings.TrimSpace(auth.Provider))
 		switch provider {
-		case "gemini":
-			if entry := resolveGeminiAPIKeyConfig(cfg, auth); entry != nil {
-				compileAPIKeyModelAliasForModels(byAlias, entry.Models)
-			}
 		case "claude":
 			if entry := resolveClaudeAPIKeyConfig(cfg, auth); entry != nil {
-				compileAPIKeyModelAliasForModels(byAlias, entry.Models)
-			}
-		case "codex":
-			if entry := resolveCodexAPIKeyConfig(cfg, auth); entry != nil {
-				compileAPIKeyModelAliasForModels(byAlias, entry.Models)
-			}
-		case "vertex":
-			if entry := resolveVertexAPIKeyConfig(cfg, auth); entry != nil {
 				compileAPIKeyModelAliasForModels(byAlias, entry.Models)
 			}
 		default:
@@ -2342,14 +2326,8 @@ func (m *Manager) applyAPIKeyModelAlias(auth *Auth, requestedModel string) strin
 	provider := strings.ToLower(strings.TrimSpace(auth.Provider))
 	upstreamModel := ""
 	switch provider {
-	case "gemini":
-		upstreamModel = resolveUpstreamModelForGeminiAPIKey(cfg, auth, requestedModel)
 	case "claude":
 		upstreamModel = resolveUpstreamModelForClaudeAPIKey(cfg, auth, requestedModel)
-	case "codex":
-		upstreamModel = resolveUpstreamModelForCodexAPIKey(cfg, auth, requestedModel)
-	case "vertex":
-		upstreamModel = resolveUpstreamModelForVertexAPIKey(cfg, auth, requestedModel)
 	default:
 		upstreamModel = resolveUpstreamModelForOpenAICompatAPIKey(cfg, auth, requestedModel)
 	}
@@ -2406,13 +2384,6 @@ func resolveAPIKeyConfig[T APIKeyConfigEntry](entries []T, auth *Auth) *T {
 	return nil
 }
 
-func resolveGeminiAPIKeyConfig(cfg *internalconfig.Config, auth *Auth) *internalconfig.GeminiKey {
-	if cfg == nil {
-		return nil
-	}
-	return resolveAPIKeyConfig(cfg.GeminiKey, auth)
-}
-
 func resolveClaudeAPIKeyConfig(cfg *internalconfig.Config, auth *Auth) *internalconfig.ClaudeKey {
 	if cfg == nil {
 		return nil
@@ -2420,46 +2391,8 @@ func resolveClaudeAPIKeyConfig(cfg *internalconfig.Config, auth *Auth) *internal
 	return resolveAPIKeyConfig(cfg.ClaudeKey, auth)
 }
 
-func resolveCodexAPIKeyConfig(cfg *internalconfig.Config, auth *Auth) *internalconfig.CodexKey {
-	if cfg == nil {
-		return nil
-	}
-	return resolveAPIKeyConfig(cfg.CodexKey, auth)
-}
-
-func resolveVertexAPIKeyConfig(cfg *internalconfig.Config, auth *Auth) *internalconfig.VertexCompatKey {
-	if cfg == nil {
-		return nil
-	}
-	return resolveAPIKeyConfig(cfg.VertexCompatAPIKey, auth)
-}
-
-func resolveUpstreamModelForGeminiAPIKey(cfg *internalconfig.Config, auth *Auth, requestedModel string) string {
-	entry := resolveGeminiAPIKeyConfig(cfg, auth)
-	if entry == nil {
-		return ""
-	}
-	return resolveModelAliasFromConfigModels(requestedModel, asModelAliasEntries(entry.Models))
-}
-
 func resolveUpstreamModelForClaudeAPIKey(cfg *internalconfig.Config, auth *Auth, requestedModel string) string {
 	entry := resolveClaudeAPIKeyConfig(cfg, auth)
-	if entry == nil {
-		return ""
-	}
-	return resolveModelAliasFromConfigModels(requestedModel, asModelAliasEntries(entry.Models))
-}
-
-func resolveUpstreamModelForCodexAPIKey(cfg *internalconfig.Config, auth *Auth, requestedModel string) string {
-	entry := resolveCodexAPIKeyConfig(cfg, auth)
-	if entry == nil {
-		return ""
-	}
-	return resolveModelAliasFromConfigModels(requestedModel, asModelAliasEntries(entry.Models))
-}
-
-func resolveUpstreamModelForVertexAPIKey(cfg *internalconfig.Config, auth *Auth, requestedModel string) string {
-	entry := resolveVertexAPIKeyConfig(cfg, auth)
 	if entry == nil {
 		return ""
 	}

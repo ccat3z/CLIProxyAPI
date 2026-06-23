@@ -44,13 +44,9 @@ func TestApplyAuthExcludedModelsMeta_OAuthProvider(t *testing.T) {
 		Provider:   "TestProv",
 		Attributes: map[string]string{},
 	}
-	cfg := &config.Config{
-		OAuthExcludedModels: map[string][]string{
-			"testprov": {"A", "b"},
-		},
-	}
+	cfg := &config.Config{}
 
-	synthesizer.ApplyAuthExcludedModelsMeta(auth, cfg, nil, "oauth")
+	synthesizer.ApplyAuthExcludedModelsMeta(auth, cfg, []string{"A", "b"}, "oauth")
 
 	expected := diff.ComputeExcludedModelsHash([]string{"a", "b"})
 	if got := auth.Attributes["excluded_models_hash"]; got != expected {
@@ -63,19 +59,14 @@ func TestApplyAuthExcludedModelsMeta_OAuthProvider(t *testing.T) {
 
 func TestBuildAPIKeyClientsCounts(t *testing.T) {
 	cfg := &config.Config{
-		GeminiKey: []config.GeminiKey{{APIKey: "g1"}, {APIKey: "g2"}},
-		VertexCompatAPIKey: []config.VertexCompatKey{
-			{APIKey: "v1"},
-		},
 		ClaudeKey: []config.ClaudeKey{{APIKey: "c1"}},
-		CodexKey:  []config.CodexKey{{APIKey: "x1"}, {APIKey: "x2"}},
 		OpenAICompatibility: []config.OpenAICompatibility{
 			{APIKeyEntries: []config.OpenAICompatibilityAPIKey{{APIKey: "o1"}, {APIKey: "o2"}}},
 		},
 	}
 
 	gemini, vertex, claude, codex, compat := BuildAPIKeyClients(cfg)
-	if gemini != 2 || vertex != 1 || claude != 1 || codex != 2 || compat != 2 {
+	if gemini != 0 || vertex != 0 || claude != 1 || codex != 0 || compat != 2 {
 		t.Fatalf("unexpected counts: %d %d %d %d %d", gemini, vertex, claude, codex, compat)
 	}
 }
@@ -133,16 +124,13 @@ func TestSnapshotCoreAuths_ConfigAndAuthFiles(t *testing.T) {
 
 	cfg := &config.Config{
 		AuthDir: authDir,
-		GeminiKey: []config.GeminiKey{
+		ClaudeKey: []config.ClaudeKey{
 			{
-				APIKey:         "g-key",
-				BaseURL:        "https://gemini",
+				APIKey:         "c-key",
+				BaseURL:        "https://claude",
 				ExcludedModels: []string{"Model-A", "model-b"},
 				Headers:        map[string]string{"X-Req": "1"},
 			},
-		},
-		OAuthExcludedModels: map[string][]string{
-			"gemini-cli": {"Foo", "bar"},
 		},
 	}
 
@@ -154,25 +142,25 @@ func TestSnapshotCoreAuths_ConfigAndAuthFiles(t *testing.T) {
 		t.Fatalf("expected 2 auth entries (1 config + 1 primary), got %d", len(auths))
 	}
 
-	var geminiAPIKeyAuth *coreauth.Auth
+	var claudeAPIKeyAuth *coreauth.Auth
 	var geminiPrimary *coreauth.Auth
 	for _, a := range auths {
 		switch {
-		case a.Provider == "gemini" && a.Attributes["api_key"] == "g-key":
-			geminiAPIKeyAuth = a
+		case a.Provider == "claude" && a.Attributes["api_key"] == "c-key":
+			claudeAPIKeyAuth = a
 		case a.Provider == "gemini-cli":
 			geminiPrimary = a
 		}
 	}
-	if geminiAPIKeyAuth == nil {
-		t.Fatal("expected synthesized Gemini API key auth")
+	if claudeAPIKeyAuth == nil {
+		t.Fatal("expected synthesized Claude API key auth")
 	}
 	expectedAPIKeyHash := diff.ComputeExcludedModelsHash([]string{"Model-A", "model-b"})
-	if geminiAPIKeyAuth.Attributes["excluded_models_hash"] != expectedAPIKeyHash {
-		t.Fatalf("expected API key excluded hash %s, got %s", expectedAPIKeyHash, geminiAPIKeyAuth.Attributes["excluded_models_hash"])
+	if claudeAPIKeyAuth.Attributes["excluded_models_hash"] != expectedAPIKeyHash {
+		t.Fatalf("expected API key excluded hash %s, got %s", expectedAPIKeyHash, claudeAPIKeyAuth.Attributes["excluded_models_hash"])
 	}
-	if geminiAPIKeyAuth.Attributes["auth_kind"] != "apikey" {
-		t.Fatalf("expected auth_kind=apikey, got %s", geminiAPIKeyAuth.Attributes["auth_kind"])
+	if claudeAPIKeyAuth.Attributes["auth_kind"] != "apikey" {
+		t.Fatalf("expected auth_kind=apikey, got %s", claudeAPIKeyAuth.Attributes["auth_kind"])
 	}
 
 	if geminiPrimary == nil {
@@ -1367,17 +1355,11 @@ func TestReloadConfigFiltersAffectedOAuthProviders(t *testing.T) {
 		t.Fatalf("failed to write auth file: %v", err)
 	}
 
-	oldCfg := &config.Config{
-		AuthDir: authDir,
-		OAuthExcludedModels: map[string][]string{
-			"provider-a": {"m1"},
-		},
-	}
+	// With per-provider OAuth config types removed, no OAuth providers are
+	// considered affected by the reload diff. This test now ensures that an
+	// unrelated provider auth present in currentAuths remains after reload.
 	newCfg := &config.Config{
 		AuthDir: authDir,
-		OAuthExcludedModels: map[string][]string{
-			"provider-a": {"m2"},
-		},
 	}
 	data, err := yaml.Marshal(newCfg)
 	if err != nil {
@@ -1395,7 +1377,7 @@ func TestReloadConfigFiltersAffectedOAuthProviders(t *testing.T) {
 			"a": {ID: "a", Provider: "provider-a"},
 		},
 	}
-	w.SetConfig(oldCfg)
+	w.SetConfig(&config.Config{AuthDir: authDir})
 
 	if ok := w.reloadConfig(); !ok {
 		t.Fatal("expected reloadConfig to succeed")
@@ -1403,11 +1385,6 @@ func TestReloadConfigFiltersAffectedOAuthProviders(t *testing.T) {
 
 	w.clientsMutex.RLock()
 	defer w.clientsMutex.RUnlock()
-	for _, auth := range w.currentAuths {
-		if auth != nil && auth.Provider == "provider-a" {
-			t.Fatal("expected affected provider auth to be filtered")
-		}
-	}
 	foundB := false
 	for _, auth := range w.currentAuths {
 		if auth != nil && auth.Provider == "provider-b" {

@@ -375,23 +375,11 @@ func (w *Watcher) loadFileClients(cfg *config.Config) int {
 }
 
 func BuildAPIKeyClients(cfg *config.Config) (int, int, int, int, int) {
-	geminiAPIKeyCount := 0
-	vertexCompatAPIKeyCount := 0
 	claudeAPIKeyCount := 0
-	codexAPIKeyCount := 0
 	openAICompatCount := 0
 
-	if len(cfg.GeminiKey) > 0 {
-		geminiAPIKeyCount += len(cfg.GeminiKey)
-	}
-	if len(cfg.VertexCompatAPIKey) > 0 {
-		vertexCompatAPIKeyCount += len(cfg.VertexCompatAPIKey)
-	}
 	if len(cfg.ClaudeKey) > 0 {
 		claudeAPIKeyCount += len(cfg.ClaudeKey)
-	}
-	if len(cfg.CodexKey) > 0 {
-		codexAPIKeyCount += len(cfg.CodexKey)
 	}
 	if len(cfg.OpenAICompatibility) > 0 {
 		for _, compatConfig := range cfg.OpenAICompatibility {
@@ -401,7 +389,7 @@ func BuildAPIKeyClients(cfg *config.Config) (int, int, int, int, int) {
 			openAICompatCount += len(compatConfig.APIKeyEntries)
 		}
 	}
-	return geminiAPIKeyCount, vertexCompatAPIKeyCount, claudeAPIKeyCount, codexAPIKeyCount, openAICompatCount
+	return 0, 0, claudeAPIKeyCount, 0, openAICompatCount
 }
 
 func (w *Watcher) persistConfigAsync() {
