@@ -154,7 +154,6 @@ func TestBuildConfigChangeDetails_FlagsAndKeys(t *testing.T) {
 		MaxRetryCredentials:    1,
 		MaxRetryInterval:       1,
 		WebsocketAuth:          false,
-		QuotaExceeded:          config.QuotaExceeded{SwitchProject: false, SwitchPreviewModel: false},
 		ClaudeKey:              []config.ClaudeKey{{APIKey: "c1"}},
 		RemoteManagement:       config.RemoteManagement{DisableControlPanel: false, PanelGitHubRepository: "old/repo", SecretKey: "keep"},
 		SDKConfig: sdkconfig.SDKConfig{
@@ -176,7 +175,6 @@ func TestBuildConfigChangeDetails_FlagsAndKeys(t *testing.T) {
 		MaxRetryCredentials:    3,
 		MaxRetryInterval:       3,
 		WebsocketAuth:          true,
-		QuotaExceeded:          config.QuotaExceeded{SwitchProject: true, SwitchPreviewModel: true},
 		ClaudeKey: []config.ClaudeKey{
 			{APIKey: "c1", BaseURL: "http://new", ProxyURL: "http://p", Headers: map[string]string{"H": "1"}, ExcludedModels: []string{"a"}},
 			{APIKey: "c2"},
@@ -211,8 +209,6 @@ func TestBuildConfigChangeDetails_FlagsAndKeys(t *testing.T) {
 	expectContains(t, details, "ws-auth: false -> true")
 	expectContains(t, details, "force-model-prefix: false -> true")
 	expectContains(t, details, "nonstream-keepalive-interval: 0 -> 5")
-	expectContains(t, details, "quota-exceeded.switch-project: false -> true")
-	expectContains(t, details, "quota-exceeded.switch-preview-model: false -> true")
 	expectContains(t, details, "api-keys count: 1 -> 2")
 	expectContains(t, details, "claude-api-key count: 1 -> 2")
 	expectContains(t, details, "remote-management.disable-control-panel: false -> true")
@@ -233,7 +229,6 @@ func TestBuildConfigChangeDetails_AllBranches(t *testing.T) {
 		MaxRetryCredentials:    1,
 		MaxRetryInterval:       1,
 		WebsocketAuth:          false,
-		QuotaExceeded:          config.QuotaExceeded{SwitchProject: false, SwitchPreviewModel: false},
 		ClaudeKey: []config.ClaudeKey{
 			{APIKey: "c-old", BaseURL: "http://c-old", ProxyURL: "http://cp-old", Headers: map[string]string{"H": "1"}, ExcludedModels: []string{"x"}},
 		},
@@ -270,7 +265,6 @@ func TestBuildConfigChangeDetails_AllBranches(t *testing.T) {
 		MaxRetryCredentials:    3,
 		MaxRetryInterval:       3,
 		WebsocketAuth:          true,
-		QuotaExceeded:          config.QuotaExceeded{SwitchProject: true, SwitchPreviewModel: true},
 		ClaudeKey: []config.ClaudeKey{
 			{APIKey: "c-new", BaseURL: "http://c-new", ProxyURL: "http://cp-new", Headers: map[string]string{"H": "2"}, ExcludedModels: []string{"x", "y"}},
 		},
@@ -316,8 +310,6 @@ func TestBuildConfigChangeDetails_AllBranches(t *testing.T) {
 	expectContains(t, changes, "max-retry-interval: 1 -> 3")
 	expectContains(t, changes, "proxy-url: http://old-proxy -> http://new-proxy")
 	expectContains(t, changes, "ws-auth: false -> true")
-	expectContains(t, changes, "quota-exceeded.switch-project: false -> true")
-	expectContains(t, changes, "quota-exceeded.switch-preview-model: false -> true")
 	expectContains(t, changes, "api-keys: values updated (count unchanged, redacted)")
 	expectContains(t, changes, "claude[0].base-url: http://c-old -> http://c-new")
 	expectContains(t, changes, "claude[0].proxy-url: http://cp-old -> http://cp-new")

@@ -162,3 +162,22 @@ The five blank imports for the deleted packages were removed; the `claude` and `
 ### Tests
 
 No tests in `internal/thinking/` exercised the deleted providers (the per-provider `apply_test.go` files lived inside the deleted packages and went with them). The top-level `apply_user_defined_test.go` and `reasoning_effort_test.go` only cover the retained `claude` / `openai` paths and were left untouched.
+
+## Removed: dead quota config (SwitchProject/SwitchPreviewModel)
+
+`QuotaExceeded.SwitchProject` and `QuotaExceeded.SwitchPreviewModel` were parsed, diffed, and exposed via the management API, but no runtime code read them to make routing decisions — they were leftovers from the removed provider infrastructure. The `custom` branch only uses `claude-api-key` and `openai-compatibility` providers with API keys, so the automatic project / preview-model failover paths are unreachable.
+
+| Item | Disposition |
+| --- | --- |
+| `config.QuotaExceeded.SwitchProject` field | Removed from `internal/config/config.go`. |
+| `config.QuotaExceeded.SwitchPreviewModel` field | Removed from `internal/config/config.go`. |
+| `GetSwitchProject`, `PutSwitchProject`, `GetSwitchPreviewModel`, `PutSwitchPreviewModel` handlers | Removed — file `internal/api/handlers/management/quota.go` deleted in full (it contained only these four handlers). |
+| `GET/PUT/PATCH /v0/management/quota-exceeded/switch-project` routes | Removed from `internal/api/server.go`. |
+| `GET/PUT/PATCH /v0/management/quota-exceeded/switch-preview-model` routes | Removed from `internal/api/server.go`. |
+| `quota-exceeded.switch-project` / `quota-exceeded.switch-preview-model` diff entries | Removed from `internal/watcher/diff/config_diff.go`. |
+| `config.example.yaml` `switch-project` / `switch-preview-model` lines | Removed. |
+
+`removeRemovedIntegrationKeys` in `internal/config/config.go` was extended (via a new `removeNestedMapKey` helper) to strip `switch-project` and `switch-preview-model` from the `quota-exceeded` mapping of existing user config files on the next save, so stale values are cleaned up automatically.
+
+The matching assertions in `internal/watcher/diff/config_diff_test.go` (two `QuotaExceeded{...}` struct literals and four `expectContains(...)` lines for the removed diff keys) were trimmed. The `QuotaExceeded` struct is now empty but retained so existing YAML `quota-exceeded:` blocks (e.g. `antigravity-credits`) continue to deserialize without error.
+

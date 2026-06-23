@@ -182,11 +182,6 @@ type RemoteManagement struct {
 // QuotaExceeded defines the behavior when API quota limits are exceeded.
 // It provides configuration options for automatic failover mechanisms.
 type QuotaExceeded struct {
-	// SwitchProject indicates whether to automatically switch to another project when a quota is exceeded.
-	SwitchProject bool `yaml:"switch-project" json:"switch-project"`
-
-	// SwitchPreviewModel indicates whether to automatically switch to a preview model when a quota is exceeded.
-	SwitchPreviewModel bool `yaml:"switch-preview-model" json:"switch-preview-model"`
 }
 
 // RoutingConfig configures how credentials are selected for requests.
@@ -1672,6 +1667,22 @@ func removeRemovedIntegrationKeys(root *yaml.Node) {
 	removeMapKey(root, "antigravity-signature-cache-enabled")
 	removeMapKey(root, "antigravity-signature-bypass-strict")
 	removeMapKey(root, "plugins")
+	// Dead quota-exceeded toggles: dropped from the struct but old user configs may still carry them.
+	removeNestedMapKey(root, "quota-exceeded", "switch-project")
+	removeNestedMapKey(root, "quota-exceeded", "switch-preview-model")
+}
+
+// removeNestedMapKey removes a key from a nested mapping located under parentKey in root.
+func removeNestedMapKey(root *yaml.Node, parentKey, key string) {
+	if root == nil || root.Kind != yaml.MappingNode {
+		return
+	}
+	for i := 0; i+1 < len(root.Content); i += 2 {
+		if root.Content[i] != nil && root.Content[i].Value == parentKey {
+			removeMapKey(root.Content[i+1], key)
+			return
+		}
+	}
 }
 
 func removeLegacyGenerativeLanguageKeys(root *yaml.Node) {
