@@ -15,6 +15,26 @@ After the feature-level removals (plugins, providers, storage, TUI, config, utls
 
 `sdk/pluginapi/` is **not** dead: it remains imported by the intentionally-retained extension-point interfaces listed in [removed-plugins.md](./removed-plugins.md) (`PluginInterceptorHost`, `PluginModelRouterHost`, `PluginExecutorHost`, `PluginScheduler`, `PluginAuthParser`, `PluginHooks`) and is in the `cmd/server` dependency tree. It was kept.
 
+## Removed: `internal/runtime/executor/helps/cache_helpers.go`
+
+After the Codex executor was removed in an earlier cleanup, the Codex prompt-cache helpers in this file had zero callers. Both the implementation and its test were deleted in full.
+
+| Symbol | Kind | Reason |
+| --- | --- | --- |
+| `CodexCache` | type | Zero callers outside the file. |
+| `GetCodexCache` | function | Zero callers. |
+| `GetCodexCacheRequired` | function | Zero callers. |
+| `SetCodexCache` | function | Zero callers. |
+| `SetCodexCacheRequired` | function | Zero callers. |
+| `SetCodexCacheBestEffort` | function | Zero callers. |
+| `CodexPromptCacheKey` | function | Zero callers. |
+
+Each symbol was re-verified with `grep -rn "<symbol>" --include="*.go" . | grep -v _test.go | grep -v cache_helpers.go` before deletion — all returned no matches. The file's other private helpers (`codexCacheMap`, `codexCacheMu`, `startCodexCacheCleanup`, `purgeExpiredCodexCache`, `codexCacheCleanupOnce`, `codexCacheCleanupInterval`) supported only the removed symbols and went with them.
+
+The companion `cache_helpers_test.go` only exercised `SetCodexCacheRequired` against the (now-removed) Codex cache, so it was deleted in full.
+
+Note: `homekv` (`internal/home`) is still imported by `session_id_cache.go` in the same package, so removing this file did not orphan that dependency.
+
 ## Removed Files in `internal/misc/`
 
 | File | Symbols verified with zero callers |
