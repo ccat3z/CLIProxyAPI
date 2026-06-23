@@ -8,14 +8,6 @@ import (
 	"github.com/tidwall/sjson"
 )
 
-type ClaudeMessagesSignatureSanitizeOptions struct {
-	TargetProvider                SignatureProvider
-	TargetModel                   string
-	DropEmptyMessages             bool
-	DropToolSignatures            bool
-	DropEmptyThinkingPlaceholders bool
-}
-
 type SignatureSanitizeReport struct {
 	TargetProvider     SignatureProvider
 	Preserved          int
@@ -25,41 +17,12 @@ type SignatureSanitizeReport struct {
 	Decisions          []SignatureCompatibilityDecision
 }
 
-// SanitizeClaudeMessagesSignaturesForModel removes or preserves Claude
-// /v1/messages signed history according to the provider family implied by
-// targetModel.
-func SanitizeClaudeMessagesSignaturesForModel(payload []byte, targetModel string) ([]byte, SignatureSanitizeReport) {
-	return SanitizeClaudeMessagesSignaturesForTarget(payload, ClaudeMessagesSignatureSanitizeOptions{
-		TargetProvider:    SignatureProviderFromModelName(targetModel),
-		TargetModel:       targetModel,
-		DropEmptyMessages: true,
-	})
-}
-
 // SanitizeClaudeMessagesForClaudeUpstream prepares a Claude /v1/messages body
 // for native Claude upstreams. Invalid thinking blocks are dropped, valid
 // thinking signatures are normalized to Claude provider-native E-form, and
 // tool_use blocks keep only their tool-call payload.
 func SanitizeClaudeMessagesForClaudeUpstream(payload []byte, targetModel string) ([]byte, SignatureSanitizeReport) {
-	return SanitizeClaudeMessagesSignaturesForTarget(payload, ClaudeMessagesSignatureSanitizeOptions{
-		TargetProvider:                SignatureProviderClaude,
-		TargetModel:                   targetModel,
-		DropEmptyMessages:             true,
-		DropToolSignatures:            true,
-		DropEmptyThinkingPlaceholders: true,
-	})
-}
-
-// SanitizeClaudeMessagesSignaturesForTarget applies provider-aware signature
-// compatibility rules to Claude /v1/messages history. Compatible thinking
-// signatures are preserved. Incompatible thinking blocks are removed so a user
-// can continue a conversation after switching between Claude, GPT/Codex,
-// and Gemini models.
-func SanitizeClaudeMessagesSignaturesForTarget(payload []byte, opts ClaudeMessagesSignatureSanitizeOptions) ([]byte, SignatureSanitizeReport) {
-	targetProvider := normalizeSignatureTargetProvider(opts.TargetProvider)
-	if targetProvider == SignatureProviderUnknown && opts.TargetModel != "" {
-		targetProvider = SignatureProviderFromModelName(opts.TargetModel)
-	}
+	const targetProvider = SignatureProviderClaude
 	report := SignatureSanitizeReport{TargetProvider: targetProvider}
 
 	messages := gjson.GetBytes(payload, "messages")
@@ -85,40 +48,16 @@ func SanitizeClaudeMessagesSignaturesForTarget(payload []byte, opts ClaudeMessag
 		for j, part := range contentResults {
 			partType := part.Get("type").String()
 			if partType == "tool_use" {
-				if opts.DropToolSignatures {
-					updatedPart, changed := stripClaudeToolUseSignatureFields(part)
-					if changed {
-						messageModified = true
-						report.DroppedSignatures++
-					}
-					keptParts = append(keptParts, updatedPart)
-					continue
-				}
-				updatedPart, changed, decisions := sanitizeClaudeToolUseSignature(part, targetProvider, i, j)
-				report.Decisions = append(report.Decisions, decisions...)
+				updatedPart, changed := stripClaudeToolUseSignatureFields(part)
 				if changed {
 					messageModified = true
-				}
-				for _, decision := range decisions {
-					switch decision.Action {
-					case SignatureActionPreserve:
-						report.Preserved++
-					case SignatureActionReplaceWithGeminiBypass:
-						report.ReplacedSignatures++
-					default:
-						report.DroppedSignatures++
-					}
+					report.DroppedSignatures++
 				}
 				keptParts = append(keptParts, updatedPart)
 				continue
 			}
 
 			if partType != "thinking" {
-				keptParts = append(keptParts, part.Raw)
-				continue
-			}
-
-			if targetProvider == SignatureProviderClaude && isEmptyClaudeThinkingPlaceholder(part) && !opts.DropEmptyThinkingPlaceholders {
 				keptParts = append(keptParts, part.Raw)
 				continue
 			}
@@ -156,7 +95,7 @@ func SanitizeClaudeMessagesSignaturesForTarget(payload []byte, opts ClaudeMessag
 
 		if messageModified {
 			modified = true
-			if len(keptParts) == 0 && opts.DropEmptyMessages {
+			if len(keptParts) == 0 {
 				continue
 			}
 			updated, _ := sjson.SetRaw(message.Raw, "content", "["+strings.Join(keptParts, ",")+"]")
@@ -193,54 +132,6 @@ func stripClaudeToolUseSignatureFields(part gjson.Result) (string, bool) {
 		changed = true
 	}
 	return updated, changed
-}
-
-func sanitizeClaudeToolUseSignature(part gjson.Result, targetProvider SignatureProvider, messageIdx, partIdx int) (string, bool, []SignatureCompatibilityDecision) {
-	updated := part.Raw
-	changed := false
-	var decisions []SignatureCompatibilityDecision
-
-	for _, sigPath := range claudeToolUseSignaturePaths() {
-		sigResult := part.Get(sigPath)
-		if !sigResult.Exists() {
-			continue
-		}
-
-		blockKind := SignatureBlockKindGeminiFunctionCall
-		if targetProvider == SignatureProviderClaude {
-			blockKind = SignatureBlockKindClaudeThinking
-		} else if targetProvider == SignatureProviderGPT {
-			blockKind = SignatureBlockKindGPTReasoning
-		}
-		decision := DecideSignatureCompatibility(targetProvider, sigResult.String(), blockKind)
-		decision.Reason = fmt.Sprintf("messages[%d].content[%d].%s: %s", messageIdx, partIdx, sigPath, decision.Reason)
-		decisions = append(decisions, decision)
-
-		switch decision.Action {
-		case SignatureActionPreserve:
-			if decision.NormalizedSignature != "" && decision.NormalizedSignature != sigResult.String() {
-				updated, _ = sjson.Set(updated, sigPath, decision.NormalizedSignature)
-				changed = true
-			}
-		case SignatureActionReplaceWithGeminiBypass:
-			updated, _ = sjson.Set(updated, sigPath, decision.ReplacementSignature)
-			changed = true
-		default:
-			updated, _ = sjson.Delete(updated, sigPath)
-			changed = true
-		}
-	}
-
-	if cleaned, ok := deleteEmptyJSONObjectPath(updated, "extra_content.google"); ok {
-		updated = cleaned
-		changed = true
-	}
-	if cleaned, ok := deleteEmptyJSONObjectPath(updated, "extra_content"); ok {
-		updated = cleaned
-		changed = true
-	}
-
-	return updated, changed, decisions
 }
 
 func claudeToolUseSignaturePaths() []string {

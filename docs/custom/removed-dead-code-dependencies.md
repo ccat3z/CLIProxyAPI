@@ -472,3 +472,76 @@ The struct doc comment was updated to drop the OS/Arch/stabilized-profile narrat
 
 Each removed field was re-verified before deletion with `grep -rn 'ClaudeHeaderDefaults\.OS\b\|ClaudeHeaderDefaults\.Arch\b\|ClaudeHeaderDefaults\.StabilizeDeviceProfile\b\|GPTImage2BaseModel' --include='*.go' .` (plus a broader `grep -rn 'hd\.OS\|hd\.Arch\|\.StabilizeDeviceProfile\|\.Timeout\b'` against `internal/` to catch accesses via local variables, which is what surfaced the live `hd.Timeout` caller). `OS` / `Arch` / `StabilizeDeviceProfile` / `GPTImage2BaseModel` returned only their own definitions, sanitizer entries, diff entries, and test assertions — no live callers. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
 
+## Removed: dead signature validation helpers
+
+The `internal/signature/` package still carried a number of validation and sanitization entrypoints that were only ever exercised by the removed Gemini / Antigravity providers and their tests. The `custom` branch only uses the `claude-api-key` and `openai-compatibility` providers, so the only live caller of this package is `SanitizeClaudeMessagesForClaudeUpstream` (from `internal/runtime/executor/claude_executor.go`) plus the cross-provider prefix/compatibility helpers used by the translators. Everything else with zero external callers was removed.
+
+### `internal/signature/claude.go` — deleted in full
+
+The file exported two payload-stripping entrypoints plus three private helpers, all with zero callers outside the file and its test.
+
+| Symbol | Kind | Reason |
+| --- | --- | --- |
+| `StripInvalidClaudeThinkingBlocks` | function | Zero callers outside the file/tests. |
+| `StripInvalidClaudeThinkingBlocksAndEmptyMessages` | function | Zero callers outside the file/tests. |
+| `shouldStripClaudeThinkingBlock` | helper | Only called by `StripInvalidClaudeThinkingBlocks`. |
+| `claudeThinkingBlockText` | helper | Only called by `isEmptyClaudeThinkingPlaceholder`. |
+| `isEmptyClaudeThinkingPlaceholder` | helper | See note below. |
+
+`isEmptyClaudeThinkingPlaceholder` had one intra-package caller — the now-removed `SanitizeClaudeMessagesSignaturesForTarget` empty-placeholder branch (see below). Once that branch was dropped it had no callers, so the whole file (and `claude_test.go`) was deleted.
+
+### `internal/signature/claude_messages_sanitize.go` — trimmed
+
+The file exposed three public entrypoints. Two had zero external callers; the third is the live Claude-upstream path.
+
+| Symbol | Kind | Disposition | Reason |
+| --- | --- | --- | --- |
+| `SanitizeClaudeMessagesForClaudeUpstream` | function | **Kept** | Live caller at `internal/runtime/executor/claude_executor.go:45`. |
+| `SanitizeClaudeMessagesSignaturesForModel` | function | Removed | Zero external callers; thin wrapper over `ForTarget`. |
+| `SanitizeClaudeMessagesSignaturesForTarget` | function | Removed (inlined) | Zero external callers; only same-file caller was `ForClaudeUpstream`. Its body was inlined into `ForClaudeUpstream` with the Claude-upstream options hardcoded. |
+
+`ForClaudeUpstream` previously delegated to `ForTarget` with `DropEmptyMessages`, `DropToolSignatures`, and `DropEmptyThinkingPlaceholders` all set to `true` and `TargetProvider` set to `SignatureProviderClaude`. Inlining those constants made two branches provably dead and they were dropped, which is what removed the dependency on `isEmptyClaudeThinkingPlaceholder`:
+
+- The `isEmptyClaudeThinkingPlaceholder(part) && !opts.DropEmptyThinkingPlaceholders` branch — `!true` is always `false`, so the branch was never taken on the Claude-upstream path.
+- The `sanitizeClaudeToolUseSignature` else-path of `if opts.DropToolSignatures` — `DropToolSignatures` is always `true`, so the tool-use branch always took the `stripClaudeToolUseSignatureFields` path.
+
+Two now-orphaned symbols were removed alongside the inlining:
+
+| Symbol | Kind | Reason |
+| --- | --- | --- |
+| `ClaudeMessagesSignatureSanitizeOptions` | struct | Only parameter type of the removed `ForTarget` / `ForModel`. |
+| `sanitizeClaudeToolUseSignature` | helper | Only reachable through the dropped `DropToolSignatures=false` path. |
+
+`SignatureSanitizeReport`, `stripClaudeToolUseSignatureFields`, `claudeToolUseSignaturePaths`, `claudeToolUseProvenancePaths`, and `deleteEmptyJSONObjectPath` were kept — they are still used by the inlined `ForClaudeUpstream`. The existing `TestSanitizeClaudeMessagesForClaudeUpstream_*` cases validate the inlined behaviour unchanged.
+
+### `internal/signature/gemini_validation.go` — trimmed
+
+Two whole-payload validators had zero external callers and were removed, along with the helpers that only they used.
+
+| Symbol | Kind | Reason |
+| --- | --- | --- |
+| `ValidateGeminiThoughtSignatures` | function | Zero external callers; only Gemini upstream replay used it. |
+| `ValidateGeminiFunctionCallPairing` | function | Zero external callers; only Gemini upstream replay used it. |
+| `geminiContents` | helper | Only callers were the two removed validators. |
+| `geminiFunctionCallRef` | struct | Only caller was `ValidateGeminiFunctionCallPairing`. |
+| `geminiFunctionResponseRef` | struct | Only caller was `ValidateGeminiFunctionCallPairing`. |
+
+The `github.com/tidwall/gjson` import was used solely by `geminiContents` and was removed; `gjson` remains imported by the other files in the package.
+
+### Kept despite an initial "remove" plan
+
+`InspectGeminiThoughtSignature` was originally listed for removal but **kept**: it is called by the retained `IsValidGeminiThoughtSignature` (`gemini_validation.go:158`), which itself has a live caller in `provider_compatibility.go` (`isRecognizedGeminiProviderSignature`). Removing it would have broken the build, so per the cleanup rule for live callers it was retained, along with the full envelope/decoder helper tree it depends on (`decodeGeminiThoughtSignature`, `classifyGeminiThoughtSignatureEnvelope`, `inspectGeminiEnvelope`, `isGeminiField1Envelope` / `isGeminiField2Envelope`, `inspectGeminiField1Envelope` / `inspectGeminiField2Envelope`, `consumeGeminiField2Field1Value`, `isLikelyGeminiOpaquePayload`, `isASCIIUUIDBytes`, `geminiThoughtSignatureValidationOptions`, and the `GeminiThoughtSignatureInfo` / `GeminiThoughtSignatureEnvelope` types and constants).
+
+Also kept (live callers via `provider_compatibility.go` and `claude_executor.go`): `IsGeminiThoughtSignatureBypass`, `IsValidGeminiThoughtSignature`, `provider_compatibility.go`, `claude_validation.go`, `gpt_validation.go`, and `CompatibleSignatureForProvider`.
+
+### Tests
+
+- `internal/signature/claude_test.go` — deleted in full (only exercised the removed `StripInvalid*` functions).
+- `internal/signature/gemini_validation_test.go` — trimmed to the `InspectGeminiThoughtSignature` / `IsValidGeminiThoughtSignature` cases. The `TestValidateGeminiThoughtSignatures_*` (3) and `TestValidateGeminiFunctionCallPairing_*` (6) cases were removed; the shared `testGeminiThoughtSignature` / `testGemini25ThoughtSignature` / `testGemini3ThoughtSignature` helpers were kept (still used by the retained Inspect tests and by `provider_compatibility_test.go`).
+- `internal/signature/provider_compatibility_test.go` — the five `TestSanitizeClaudeMessagesSignaturesForModel_*` cases were removed; the `TestSanitizeClaudeMessagesForClaudeUpstream_*` cases and everything else were left untouched.
+
+### Verification
+
+Each removed public symbol was re-verified before deletion with `grep -rn '\b<symbol>\b' --include='*.go' . | grep -v internal/signature/` (and, for the intra-package check that surfaced the `InspectGeminiThoughtSignature` caller, `grep -rn 'InspectGeminiThoughtSignature' --include='*.go' .`). `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
+
+
