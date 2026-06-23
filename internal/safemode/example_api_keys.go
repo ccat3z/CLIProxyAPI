@@ -2,7 +2,6 @@ package safemode
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"html"
 	"net"
@@ -51,14 +50,10 @@ func HasExampleAPIKeys(keys []string) bool {
 
 // WarningServerURL returns a local-friendly URL for the warning-only server.
 func WarningServerURL(cfg *config.Config) string {
-	scheme := "http"
 	host := "127.0.0.1"
 	port := 0
 	if cfg != nil {
 		port = cfg.Port
-		if cfg.TLS.Enable {
-			scheme = "https"
-		}
 		if trimmed := strings.TrimSpace(cfg.Host); trimmed != "" {
 			host = trimmed
 		}
@@ -66,7 +61,7 @@ func WarningServerURL(cfg *config.Config) string {
 	if strings.Contains(host, ":") && !strings.HasPrefix(host, "[") {
 		host = "[" + host + "]"
 	}
-	return fmt.Sprintf("%s://%s:%d/", scheme, host, port)
+	return fmt.Sprintf("http://%s:%d/", host, port)
 }
 
 // NewExampleAPIKeyWarningHandler serves a setup warning page and leaves all other routes unregistered.
@@ -94,7 +89,7 @@ func NewExampleAPIKeyWarningHandler(configPath string, keys []string) http.Handl
 	return mux
 }
 
-// StartExampleAPIKeyWarningServer starts the warning-only HTTP(S) server and blocks until it stops.
+// StartExampleAPIKeyWarningServer starts the warning-only HTTP server and blocks until it stops.
 func StartExampleAPIKeyWarningServer(ctx context.Context, cfg *config.Config, configPath string, keys []string) error {
 	if cfg == nil {
 		cfg = &config.Config{}
@@ -103,30 +98,10 @@ func StartExampleAPIKeyWarningServer(ctx context.Context, cfg *config.Config, co
 		ctx = context.Background()
 	}
 
-	var tlsConfig *tls.Config
-	if cfg.TLS.Enable {
-		certPath := strings.TrimSpace(cfg.TLS.Cert)
-		keyPath := strings.TrimSpace(cfg.TLS.Key)
-		if certPath == "" || keyPath == "" {
-			return fmt.Errorf("failed to start HTTPS warning server: tls.cert or tls.key is empty")
-		}
-		certPair, errLoad := tls.LoadX509KeyPair(certPath, keyPath)
-		if errLoad != nil {
-			return fmt.Errorf("failed to start HTTPS warning server: %w", errLoad)
-		}
-		tlsConfig = &tls.Config{
-			Certificates: []tls.Certificate{certPair},
-			MinVersion:   tls.VersionTLS12,
-		}
-	}
-
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	listener, errListen := net.Listen("tcp", addr)
 	if errListen != nil {
 		return fmt.Errorf("failed to start warning server: %w", errListen)
-	}
-	if tlsConfig != nil {
-		listener = tls.NewListener(listener, tlsConfig)
 	}
 
 	server := &http.Server{

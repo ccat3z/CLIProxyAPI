@@ -859,7 +859,6 @@ func (s *Service) applyHomeOverlay(remoteCfg *config.Config) {
 	merged := *remoteCfg
 	merged.Host = baseCfg.Host
 	merged.Port = baseCfg.Port
-	merged.TLS = baseCfg.TLS
 	merged.Home = baseCfg.Home
 	forceHomeRuntimeConfig(&merged)
 
