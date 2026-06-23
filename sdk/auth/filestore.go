@@ -52,8 +52,8 @@ type FileTokenStore struct {
 	baseDir string
 }
 
-// NewFileTokenStore creates a token store that saves credentials to disk through the
-// TokenStorage implementation embedded in the token record.
+// NewFileTokenStore creates a token store that saves credentials to disk by
+// persisting the auth record's metadata as JSON.
 func NewFileTokenStore() *FileTokenStore {
 	return &FileTokenStore{}
 }
@@ -92,23 +92,7 @@ func (s *FileTokenStore) Save(ctx context.Context, auth *cliproxyauth.Auth) (str
 		return "", fmt.Errorf("auth filestore: create dir failed: %w", err)
 	}
 
-	// metadataSetter is a private interface for TokenStorage implementations that support metadata injection.
-	type metadataSetter interface {
-		SetMetadata(map[string]any)
-	}
-
 	switch {
-	case auth.Storage != nil:
-		if auth.Metadata == nil {
-			auth.Metadata = make(map[string]any)
-		}
-		auth.Metadata["disabled"] = auth.Disabled
-		if setter, ok := auth.Storage.(metadataSetter); ok {
-			setter.SetMetadata(auth.Metadata)
-		}
-		if err = auth.Storage.SaveTokenToFile(path); err != nil {
-			return "", err
-		}
 	case auth.Metadata != nil:
 		auth.Metadata["disabled"] = auth.Disabled
 		raw, errMarshal := json.Marshal(auth.Metadata)

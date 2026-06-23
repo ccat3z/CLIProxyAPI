@@ -12,8 +12,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	baseauth "github.com/router-for-me/CLIProxyAPI/v7/internal/auth"
 )
 
 // PostAuthHook defines a function that is called after an Auth record is created
@@ -55,8 +53,6 @@ type Auth struct {
 	Prefix string `json:"prefix,omitempty"`
 	// FileName stores the relative or absolute path of the backing auth file.
 	FileName string `json:"-"`
-	// Storage holds the token persistence implementation used during login flows.
-	Storage baseauth.TokenStorage `json:"-"`
 	// Label is an optional human readable label for logging.
 	Label string `json:"label,omitempty"`
 	// Status is the lifecycle status managed by the AuthManager.

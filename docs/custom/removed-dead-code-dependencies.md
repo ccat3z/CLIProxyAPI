@@ -181,3 +181,20 @@ No tests in `internal/thinking/` exercised the deleted providers (the per-provid
 
 The matching assertions in `internal/watcher/diff/config_diff_test.go` (two `QuotaExceeded{...}` struct literals and four `expectContains(...)` lines for the removed diff keys) were trimmed. The `QuotaExceeded` struct is now empty but retained so existing YAML `quota-exceeded:` blocks (e.g. `antigravity-credits`) continue to deserialize without error.
 
+## Removed: `internal/auth` package + `Auth.Storage` field
+
+The `custom` branch only uses the `claude-api-key` and `openai-compatibility` providers with API keys. After the OAuth removal, the `internal/auth/` package existed only to define the `TokenStorage` interface, and it had no live implementations. The `Auth.Storage` field (typed `baseauth.TokenStorage`) was read in `sdk/auth/filestore.go` but never assigned anywhere — it was always `nil`, so the `case auth.Storage != nil:` branch in `FileTokenStore.Save` was dead code.
+
+| Item | Disposition |
+| --- | --- |
+| `internal/auth/` directory (`models.go`) | Deleted in full — only defined `TokenStorage`, which had no live implementations or importers after the field removal. |
+| `Auth.Storage` field (`sdk/cliproxy/auth/types.go`) | Removed. |
+| `baseauth "github.com/router-for-me/CLIProxyAPI/v7/internal/auth"` import (`sdk/cliproxy/auth/types.go`) | Removed (only used by the deleted field). |
+| `case auth.Storage != nil:` branch in `FileTokenStore.Save` (`sdk/auth/filestore.go`) | Removed — dead branch (field was always `nil`). |
+| Local `metadataSetter` interface in `FileTokenStore.Save` (`sdk/auth/filestore.go`) | Removed — only used by the deleted branch. |
+| `sdk/auth/filestore_disabled_test.go` | Deleted in full — only exercised the removed `Storage`-based branch via a `testTokenStorage` stub. |
+
+The live `case auth.Metadata != nil:` branch (which persists auth metadata as JSON) was kept and is the only remaining save path. The `Storage` field deletion and the dead-branch removal shipped in the same commit so the build never broke.
+
+Each reference was re-verified with `grep -rn "internal/auth\|TokenStorage\|baseauth" --include="*.go" . | grep -v "internal/auth/"` after the edits — zero matches.
+
