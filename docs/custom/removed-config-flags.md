@@ -98,6 +98,28 @@ The following routes were removed from `internal/api/server.go` (and their handl
 
 The `claude-api-key` and `openai-compatibility` routes are unchanged. `config_apikey_disable.go` now only iterates `cfg.ClaudeKey` when applying the `*` exclusion wildcard.
 
+## config.example.yaml Cleanup
+
+The example config template (`config.example.yaml`) was swept to remove entries that no longer correspond to a live config struct field. The following commented-out sections were removed because their underlying config types were deleted in prior cleanup rounds:
+
+| Removed Example Entry | Reason |
+|-----------------------|--------|
+| `gemini-api-key` section | `GeminiKey` struct removed |
+| `codex-api-key` section | `CodexKey` struct removed |
+| `codex` section (identity-confuse) | `CodexConfig` struct removed |
+| `codex-header-defaults` section | `CodexHeaderDefaults` struct removed |
+| `vertex-api-key` section | `VertexCompatKey` struct removed |
+| `oauth-model-alias` section | `OAuthModelAlias` map removed |
+| `oauth-excluded-models` section | `OAuthExcludedModels` map removed |
+| `antigravity-signature-cache-enabled` | Field removed from struct |
+| `antigravity-signature-bypass-strict` | Field removed from struct |
+| `gpt-image-2-base-model` | Field removed from struct |
+| `quota-exceeded.antigravity-credits` | Field removed from `QuotaExceeded` struct |
+| `claude-header-defaults` sub-fields `os`, `arch`, `stabilize-device-profile` | Fields removed from `ClaudeHeaderDefaults` struct |
+| Plugin provider reference in oauth-model-alias comment | Plugin system removed |
+
+The `claude-header-defaults` comment was also updated to remove references to the deleted `os`/`arch`/`stabilize-device-profile` fields.
+
 ## Config Fields Kept for Compatibility
 
 The following config fields are still accepted because they are used by runtime code, management handlers, or the conductor:

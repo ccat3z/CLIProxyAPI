@@ -97,17 +97,12 @@ disable-claude-cloak-mode: false
 # - "passthrough": never inject or strip image_generation on non-images endpoints (forward the client payload unchanged); behaves like "chat" on /v1/images/* endpoints.
 disable-image-generation: false
 
-# Base model used when proxying gpt-image-2 via the hosted image_generation tool (Responses API).
-# Must start with "gpt-" (case-insensitive). If unset or invalid, defaults to "gpt-5.4-mini".
-# gpt-image-2-base-model: "gpt-5.4-mini"
-
 # Core auth auto-refresh worker pool size (OAuth/file-based auth token refresh).
 # When > 0, overrides the default worker count (16).
 # auth-auto-refresh-workers: 16
 
 # Quota exceeded behavior
 quota-exceeded:
-  antigravity-credits: true # Whether to use credits as last-resort fallback when all free-tier auths are exhausted for Claude models
 
 # Routing strategy for selecting credentials when multiple match.
 routing:
@@ -121,14 +116,6 @@ routing:
   # How long session-to-auth bindings are retained. Default: 1h
   session-affinity-ttl: "1h"
 
-# Codex provider behavior.
-codex:
-  # When true, and routing.strategy is fill-first or routing.session-affinity is true,
-  # remap Codex prompt_cache_key and installation identity per selected auth.
-  # Some superstitious users believe request tracking identifiers can be used
-  # as evidence for TOS enforcement bans; this option only satisfies those odd concerns.
-  identity-confuse: false
-
 # When true, enable authentication for the WebSocket API (/v1/ws).
 ws-auth: true
 
@@ -138,51 +125,6 @@ nonstream-keepalive-interval: 0
 # streaming:
 #   keepalive-seconds: 15   # Default: 0 (disabled). <= 0 disables keep-alives.
 #   bootstrap-retries: 1    # Default: 0 (disabled). Retries before first byte is sent.
-
-# Signature cache validation for thinking blocks (Antigravity/Claude).
-# When true (default), cached signatures are preferred and validated.
-# When false, client signatures are used directly after normalization (bypass mode for testing).
-# antigravity-signature-cache-enabled: true
-
-# Bypass mode signature validation strictness (only applies when signature cache is disabled).
-# When true, validates full Claude protobuf tree (Field 2 -> Field 1 structure).
-# When false (default), only checks R/E prefix + base64 + first byte 0x12.
-# antigravity-signature-bypass-strict: false
-
-# Gemini API keys
-# gemini-api-key:
-#   - api-key: "AIzaSy...01"
-#     prefix: "test" # optional: require calls like "test/gemini-3-pro-preview" to target this credential
-#     disable-cooling: false # optional: per-auth override for auth/model cooldown scheduling
-#     base-url: "https://generativelanguage.googleapis.com"
-#     headers:
-#       X-Custom-Header: "custom-value"
-#     models:
-#       - name: "gemini-2.5-flash" # upstream model name
-#         alias: "gemini-flash"    # client alias mapped to the upstream model
-#     excluded-models:
-#       - "gemini-2.5-pro"     # exclude specific models from this provider (exact match)
-#       - "gemini-2.5-*"       # wildcard matching prefix (e.g. gemini-2.5-flash, gemini-2.5-pro)
-#       - "*-preview"          # wildcard matching suffix (e.g. gemini-3-pro-preview)
-#       - "*flash*"            # wildcard matching substring (e.g. gemini-2.5-flash-lite)
-#   - api-key: "AIzaSy...02"
-
-# Codex API keys
-# codex-api-key:
-#   - api-key: "sk-atSM..."
-#     prefix: "test" # optional: require calls like "test/gpt-5-codex" to target this credential
-#     disable-cooling: false # optional: per-auth override for auth/model cooldown scheduling
-#     base-url: "https://www.example.com" # use the custom codex API endpoint
-#     headers:
-#       X-Custom-Header: "custom-value"
-#     models:
-#       - name: "gpt-5-codex"   # upstream model name
-#         alias: "codex-latest" # client alias mapped to the upstream model
-#     excluded-models:
-#       - "gpt-5.1"         # exclude specific models (exact match)
-#       - "gpt-5-*"         # wildcard matching prefix (e.g. gpt-5-medium, gpt-5-codex)
-#       - "*-mini"          # wildcard matching suffix (e.g. gpt-5-codex-mini)
-#       - "*codex*"         # wildcard matching substring (e.g. gpt-5-codex-low)
 
 # Claude API keys
 # claude-api-key:
@@ -232,27 +174,12 @@ nonstream-keepalive-interval: 0
 #                                     # keep this disabled unless you explicitly need the behavior, so upstream seed changes fall back to legacy proxy behavior
 
 # Default headers for Claude API requests. Update when Claude Code releases new versions.
-# In legacy mode, user-agent/package-version/runtime-version/timeout are used as fallbacks
-# when the client omits them, while OS/arch remain runtime-derived. When
-# stabilize-device-profile is enabled, OS/arch stay pinned to the baseline values below,
-# while user-agent/package-version/runtime-version seed a software fingerprint that can
-# still upgrade to newer official Claude client versions.
+# user-agent/package-version/runtime-version/timeout are used as fallbacks when the client omits them.
 # claude-header-defaults:
 #   user-agent: "claude-cli/2.1.44 (external, sdk-cli)"
 #   package-version: "0.74.0"
 #   runtime-version: "v24.3.0"
-#   os: "MacOS"
-#   arch: "arm64"
 #   timeout: "600"
-#   stabilize-device-profile: false  # optional, default false; set true to enable per-auth/API-key fingerprint pinning
-
-# Default headers for Codex OAuth model requests.
-# These are used only for file-backed/OAuth Codex requests when the client
-# does not send the header. `user-agent` applies to HTTP and websocket requests;
-# `beta-features` only applies to websocket requests. They do not apply to codex-api-key entries.
-# codex-header-defaults:
-#   user-agent: "codex_cli_rs/0.114.0 (Mac OS 14.2.0; x86_64) vscode/1.111.0"
-#   beta-features: "multi_agent"
 
 # OpenAI compatibility providers
 # openai-compatibility:
@@ -297,82 +224,6 @@ nonstream-keepalive-interval: 0
 #         alias: "claude-opus-4.66"
 #       - name: "kimi-k2.5"
 #         alias: "claude-opus-4.66"
-
-# Vertex API keys (Vertex-compatible endpoints, base-url is optional)
-# vertex-api-key:
-#   - api-key: "vk-123..."                        # x-goog-api-key header
-#     prefix: "test"                              # optional: require calls like "test/vertex-pro" to target this credential
-#     base-url: "https://example.com/api"         # optional, e.g. https://zenmux.ai/api; falls back to Google Vertex when omitted
-#     headers:
-#       X-Custom-Header: "custom-value"
-#     models:                                     # optional: map aliases to upstream model names
-#       - name: "gemini-2.5-flash"                # upstream model name
-#         alias: "vertex-flash"                   # client-visible alias
-#       - name: "gemini-2.5-pro"
-#         alias: "vertex-pro"
-#     excluded-models:                            # optional: models to exclude from listing
-#       - "imagen-3.0-generate-002"
-#       - "imagen-*"
-
-# Global OAuth model name aliases (per channel)
-# These aliases rename model IDs for both model listing and request routing.
-# Supported channels: gemini-cli, vertex, aistudio, antigravity, claude, codex, kimi, xai.
-# NOTE: Aliases do not apply to gemini-api-key, codex-api-key, claude-api-key, openai-compatibility, or vertex-api-key.
-# NOTE: Because aliases affect the merged /v1 model list and merged request routing, overlapping
-# client-visible names can become ambiguous across providers. For strict backend pinning, use
-# unique aliases/prefixes or avoid overlapping names.
-# You can repeat the same name with different aliases to expose multiple client model names.
-# oauth-model-alias:
-#   gemini-cli:
-#     - name: "gemini-2.5-pro"          # original model name under this channel
-#       alias: "g2.5p"                  # client-visible alias
-#       fork: true                      # when true, keep original and also add the alias as an extra model (default: false)
-#   vertex:
-#     - name: "gemini-2.5-pro"
-#       alias: "g2.5p"
-#   aistudio:
-#     - name: "gemini-2.5-pro"
-#       alias: "g2.5p"
-#   antigravity:
-#     - name: "gemini-3-pro-high"
-#       alias: "gemini-3-pro-preview"
-#   claude:
-#     - name: "claude-sonnet-4-5-20250929"
-#       alias: "cs4.5"
-#   codex:
-#     - name: "gpt-5"
-#       alias: "g5"
-#   kimi:
-#     - name: "kimi-k2.5"
-#       alias: "k2.5"
-#   xai:
-#     - name: "grok-4.3"
-#       alias: "grok-latest"
-#   sample-provider:                  # plugin provider keys are supported for OAuth plugins
-#     - name: "sample-model-latest"
-#       alias: "sample-latest"
-
-# OAuth provider excluded models
-# oauth-excluded-models:
-#   gemini-cli:
-#     - "gemini-2.5-pro"     # exclude specific models (exact match)
-#     - "gemini-2.5-*"       # wildcard matching prefix (e.g. gemini-2.5-flash, gemini-2.5-pro)
-#     - "*-preview"          # wildcard matching suffix (e.g. gemini-3-pro-preview)
-#     - "*flash*"            # wildcard matching substring (e.g. gemini-2.5-flash-lite)
-#   vertex:
-#     - "gemini-3-pro-preview"
-#   aistudio:
-#     - "gemini-3-pro-preview"
-#   antigravity:
-#     - "gemini-3-pro-preview"
-#   claude:
-#     - "claude-3-5-haiku-20241022"
-#   codex:
-#     - "gpt-5-codex-mini"
-#   kimi:
-#     - "kimi-k2-thinking"
-#   xai:
-#     - "grok-3-mini"
 
 # Optional payload configuration
 # payload:
