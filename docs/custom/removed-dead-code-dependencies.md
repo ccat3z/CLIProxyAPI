@@ -283,3 +283,31 @@ The `net/url` import was used solely by `WebsocketUpgradeRequestURL` and was rem
 
 Each public symbol was re-verified before deletion with `grep -rn "<symbol>" --include="*.go" . | grep -v helps/logging_helpers.go` — all returned zero matches (the apparent `apiWebsocketTimelineSource` hits in `response_writer.go` / `request_logger.go` are unrelated local variables and parameters, not calls). `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
 
+## Removed: dead Google API retry parser and unused JSON field deleter
+
+Two single-export helper files in `internal/runtime/executor/helps/` had zero callers on the `custom` branch and were deleted in full.
+
+### Google API 429 retry-delay parser
+
+`retry_delay.go` exported `ParseRetryDelay`, which extracted the retry delay from a Google API 429 error response (parsing `RetryInfo.retryDelay`, `ErrorInfo.metadata.quotaResetDelay`, and a human-readable "Your quota will reset after Xs" fallback). Its only callers were the removed Codex and Gemini executors; after those were deleted in earlier cleanups, the function was unreachable.
+
+| Symbol | File | Kind | Reason |
+| --- | --- | --- | --- |
+| `ParseRetryDelay` | `internal/runtime/executor/helps/retry_delay.go` | function | Zero callers outside the file. Codex/Gemini callers removed earlier. |
+
+The file's `github.com/tidwall/gjson`, `regexp`, `strconv`, `strings`, and `fmt` imports were used only by this function. `gjson` remains widely imported elsewhere.
+
+### JSON field deleter
+
+`json_helpers.go` exported `DeleteJSONField`, a thin wrapper around `sjson.DeleteBytes`. No live caller remained on the `custom` branch.
+
+| Symbol | File | Kind | Reason |
+| --- | --- | --- | --- |
+| `DeleteJSONField` | `internal/runtime/executor/helps/json_helpers.go` | function | Zero callers outside the file. |
+
+The file's `github.com/tidwall/sjson` import was used solely by this function. `sjson` remains widely imported elsewhere.
+
+### Verification
+
+Each symbol was re-verified before deletion with `grep -rn "ParseRetryDelay\|DeleteJSONField" --include="*.go" .` — only the definitions themselves appeared, with zero external callers and zero test references. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
+
