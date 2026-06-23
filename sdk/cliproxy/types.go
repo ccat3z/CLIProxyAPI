@@ -9,7 +9,6 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/watcher"
 	coreauth "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/auth"
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/config"
-	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginapi"
 )
 
 // TokenClientProvider loads clients backed by stored authentication tokens.
@@ -81,11 +80,6 @@ type APIKeyClientResult struct {
 //   - error: An error if watcher creation fails
 type WatcherFactory func(configPath, authDir string, reload func(*config.Config)) (*WatcherWrapper, error)
 
-// PluginAuthParser parses auth JSON owned by plugin providers.
-type PluginAuthParser interface {
-	ParseAuth(context.Context, pluginapi.AuthParseRequest) (*coreauth.Auth, bool, error)
-}
-
 // WatcherWrapper exposes the subset of watcher methods required by the SDK.
 type WatcherWrapper struct {
 	start func(ctx context.Context) error
@@ -96,7 +90,6 @@ type WatcherWrapper struct {
 	setUpdateQueue        func(queue chan<- watcher.AuthUpdate)
 	dispatchRuntimeUpdate func(update watcher.AuthUpdate) bool
 	dispatchPersistedAuth func(update watcher.AuthUpdate) bool
-	setPluginAuthParser   func(parser PluginAuthParser)
 }
 
 // Start proxies to the underlying watcher Start implementation.
@@ -121,14 +114,6 @@ func (w *WatcherWrapper) SetConfig(cfg *config.Config) {
 		return
 	}
 	w.setConfig(cfg)
-}
-
-// SetPluginAuthParser updates the plugin auth parser used by the watcher.
-func (w *WatcherWrapper) SetPluginAuthParser(parser PluginAuthParser) {
-	if w == nil || w.setPluginAuthParser == nil {
-		return
-	}
-	w.setPluginAuthParser(parser)
 }
 
 // DispatchRuntimeAuthUpdate forwards runtime auth updates (e.g., websocket providers)

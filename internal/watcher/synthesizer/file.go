@@ -1,7 +1,6 @@
 package synthesizer
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -10,7 +9,6 @@ import (
 	"strings"
 
 	coreauth "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/auth"
-	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginapi"
 )
 
 // FileSynthesizer generates Auth entries from OAuth JSON files.
@@ -75,27 +73,6 @@ func synthesizeFileAuths(ctx *SynthesisContext, fullPath string, data []byte) []
 	}
 	t, _ := metadata["type"].(string)
 	provider := strings.ToLower(strings.TrimSpace(t))
-	if ctx.PluginAuthParser != nil {
-		auth, handled, errParse := ctx.PluginAuthParser.ParseAuth(context.Background(), pluginapi.AuthParseRequest{
-			Provider: provider,
-			Path:     fullPath,
-			FileName: filepath.Base(fullPath),
-			RawJSON:  data,
-		})
-		if errParse == nil && handled && auth != nil {
-			auth.CreatedAt = now
-			auth.UpdatedAt = now
-			if auth.Attributes == nil {
-				auth.Attributes = make(map[string]string)
-			}
-			auth.Attributes["path"] = fullPath
-			auth.Attributes["source"] = fullPath
-			perAccountExcluded := extractExcludedModelsFromMetadata(metadata)
-			ApplyAuthExcludedModelsMeta(auth, cfg, perAccountExcluded, "oauth")
-			coreauth.ApplyCustomHeadersFromMetadata(auth)
-			return []*coreauth.Auth{auth}
-		}
-	}
 	if provider == "" {
 		return nil
 	}

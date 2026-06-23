@@ -14,7 +14,6 @@ type Registry struct {
 	mu        sync.RWMutex
 	requests  map[Format]map[Format]RequestTransform
 	responses map[Format]map[Format]ResponseTransform
-	hooks     PluginHooks
 }
 
 // NewRegistry constructs an empty translator registry.
@@ -43,14 +42,6 @@ func (r *Registry) Register(from, to Format, request RequestTransform, response 
 	r.responses[from][to] = response
 }
 
-// SetPluginHooks stores translator plugin hooks for this registry.
-func (r *Registry) SetPluginHooks(hooks PluginHooks) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.hooks = hooks
-}
-
 // TranslateRequest converts a payload between schemas, returning the original payload
 // if no translator is registered. When falling back to the original payload, the
 // "model" field is still updated to match the resolved model name so that
@@ -61,7 +52,6 @@ func (r *Registry) TranslateRequest(from, to Format, model string, rawJSON []byt
 	if byTarget, ok := r.requests[from]; ok {
 		fn = byTarget[to]
 	}
-	hooks := r.hooks
 	r.mu.RUnlock()
 
 	body := rawJSON
@@ -73,15 +63,6 @@ func (r *Registry) TranslateRequest(from, to Format, model string, rawJSON []byt
 				log.Warnf("translator: failed to normalize model in request fallback: %v", err)
 			} else {
 				body = updated
-			}
-		}
-	}
-
-	if hooks != nil {
-		body = hooks.NormalizeRequest(context.Background(), from, to, model, body, stream)
-		if fn == nil {
-			if translated, ok := hooks.TranslateRequest(context.Background(), from, to, model, body, stream); ok {
-				body = translated
 			}
 		}
 	}
@@ -147,31 +128,14 @@ func (r *Registry) TranslateStream(ctx context.Context, from, to Format, model s
 	if byTarget, ok := r.responses[to]; ok {
 		stream = byTarget[from].Stream
 	}
-	hooks := r.hooks
 	r.mu.RUnlock()
 
-	body := rawJSON
-	if hooks != nil {
-		body = hooks.NormalizeResponseBefore(ctx, from, to, model, originalRequestRawJSON, requestRawJSON, body, true)
-	}
-
 	var outputs [][]byte
-	usedNativeTransform := false
 	if stream != nil {
-		usedNativeTransform = true
-		outputs = stream(ctx, model, originalRequestRawJSON, requestRawJSON, body, param)
-	} else if hooks != nil {
-		if translated, ok := hooks.TranslateResponse(ctx, from, to, model, originalRequestRawJSON, requestRawJSON, body, true); ok {
-			outputs = [][]byte{translated}
-		}
+		outputs = stream(ctx, model, originalRequestRawJSON, requestRawJSON, rawJSON, param)
 	}
-	if outputs == nil && !usedNativeTransform {
-		outputs = [][]byte{body}
-	}
-	if hooks != nil {
-		for i, output := range outputs {
-			outputs[i] = hooks.NormalizeResponseAfter(ctx, from, to, model, originalRequestRawJSON, requestRawJSON, output, true)
-		}
+	if outputs == nil {
+		outputs = [][]byte{rawJSON}
 	}
 	return outputs
 }
@@ -183,22 +147,11 @@ func (r *Registry) TranslateNonStream(ctx context.Context, from, to Format, mode
 	if byTarget, ok := r.responses[to]; ok {
 		fn = byTarget[from]
 	}
-	hooks := r.hooks
 	r.mu.RUnlock()
 
 	body := rawJSON
-	if hooks != nil {
-		body = hooks.NormalizeResponseBefore(ctx, from, to, model, originalRequestRawJSON, requestRawJSON, body, false)
-	}
 	if fn.NonStream != nil {
 		body = fn.NonStream(ctx, model, originalRequestRawJSON, requestRawJSON, body, param)
-	} else if hooks != nil {
-		if translated, ok := hooks.TranslateResponse(ctx, from, to, model, originalRequestRawJSON, requestRawJSON, body, false); ok {
-			body = translated
-		}
-	}
-	if hooks != nil {
-		body = hooks.NormalizeResponseAfter(ctx, from, to, model, originalRequestRawJSON, requestRawJSON, body, false)
 	}
 	return body
 }
@@ -226,11 +179,6 @@ func Default() *Registry {
 // Register attaches transforms to the default registry.
 func Register(from, to Format, request RequestTransform, response ResponseTransform) {
 	defaultRegistry.Register(from, to, request, response)
-}
-
-// SetPluginHooks stores plugin hooks on the default registry.
-func SetPluginHooks(hooks PluginHooks) {
-	defaultRegistry.SetPluginHooks(hooks)
 }
 
 // TranslateRequest is a helper on the default registry.

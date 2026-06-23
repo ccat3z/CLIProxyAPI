@@ -1,18 +1,10 @@
 package synthesizer
 
 import (
-	"context"
 	"time"
 
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/config"
-	coreauth "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/auth"
-	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginapi"
 )
-
-// PluginAuthParser parses auth JSON owned by plugin providers.
-type PluginAuthParser interface {
-	ParseAuth(context.Context, pluginapi.AuthParseRequest) (*coreauth.Auth, bool, error)
-}
 
 // SynthesisContext provides the context needed for auth synthesis.
 type SynthesisContext struct {
@@ -24,6 +16,4 @@ type SynthesisContext struct {
 	Now time.Time
 	// IDGenerator generates stable IDs for auth entries
 	IDGenerator *StableIDGenerator
-	// PluginAuthParser parses plugin-owned auth files
-	PluginAuthParser PluginAuthParser
 }

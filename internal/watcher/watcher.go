@@ -11,7 +11,6 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/config"
-	"github.com/router-for-me/CLIProxyAPI/v7/internal/watcher/synthesizer"
 	"gopkg.in/yaml.v3"
 
 	sdkAuth "github.com/router-for-me/CLIProxyAPI/v7/sdk/auth"
@@ -59,7 +58,6 @@ type Watcher struct {
 	pendingOrder      []string
 	dispatchCancel    context.CancelFunc
 	storePersister    storePersister
-	pluginAuthParser  synthesizer.PluginAuthParser
 	mirroredAuthDir   string
 	oldConfigYaml     []byte
 }
@@ -141,13 +139,6 @@ func (w *Watcher) SetConfig(cfg *config.Config) {
 	w.oldConfigYaml, _ = yaml.Marshal(cfg)
 }
 
-// SetPluginAuthParser updates the plugin auth parser used for file auth synthesis.
-func (w *Watcher) SetPluginAuthParser(parser synthesizer.PluginAuthParser) {
-	w.clientsMutex.Lock()
-	defer w.clientsMutex.Unlock()
-	w.pluginAuthParser = parser
-}
-
 // SetAuthUpdateQueue sets the queue used to emit auth updates.
 func (w *Watcher) SetAuthUpdateQueue(queue chan<- AuthUpdate) {
 	w.setAuthUpdateQueue(queue)
@@ -171,7 +162,6 @@ func (w *Watcher) SnapshotCoreAuths() []*coreauth.Auth {
 	w.clientsMutex.RLock()
 	cfg := w.config
 	authDir := w.authDir
-	parser := w.pluginAuthParser
 	w.clientsMutex.RUnlock()
-	return snapshotCoreAuths(cfg, authDir, parser)
+	return snapshotCoreAuths(cfg, authDir)
 }

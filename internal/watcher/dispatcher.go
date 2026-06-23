@@ -126,9 +126,8 @@ func (w *Watcher) refreshAuthState(force bool) {
 	w.clientsMutex.RLock()
 	cfg := w.config
 	authDir := w.authDir
-	parser := w.pluginAuthParser
 	w.clientsMutex.RUnlock()
-	auths := snapshotCoreAuthsFunc(cfg, authDir, parser)
+	auths := snapshotCoreAuthsFunc(cfg, authDir)
 	w.clientsMutex.Lock()
 	if len(w.runtimeAuths) > 0 {
 		for _, a := range w.runtimeAuths {
@@ -313,13 +312,12 @@ func normalizeAuth(a *coreauth.Auth) *coreauth.Auth {
 	return clone
 }
 
-func snapshotCoreAuths(cfg *config.Config, authDir string, parser synthesizer.PluginAuthParser) []*coreauth.Auth {
+func snapshotCoreAuths(cfg *config.Config, authDir string) []*coreauth.Auth {
 	ctx := &synthesizer.SynthesisContext{
-		Config:           cfg,
-		AuthDir:          authDir,
-		Now:              time.Now(),
-		IDGenerator:      synthesizer.NewStableIDGenerator(),
-		PluginAuthParser: parser,
+		Config:      cfg,
+		AuthDir:     authDir,
+		Now:         time.Now(),
+		IDGenerator: synthesizer.NewStableIDGenerator(),
 	}
 
 	var out []*coreauth.Auth

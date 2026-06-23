@@ -79,14 +79,36 @@ The entire plugin system is gone: the plugin host (`internal/pluginhost/`), the 
 
 ## Remaining Interfaces
 
-The following interfaces remain in the codebase but have no implementation after this removal. They serve as extension points for future use:
+After the host/store removal above, a layer of extension-point interfaces and the `sdk/pluginapi/` type package were left in place as stubs. None of them had any production implementation: the runtime only ever wired them to `nil`, and the only callers that exercised them were unit-test stubs. They have since been removed as well (see "Extension-point and pluginapi removal" below).
 
-- `PluginInterceptorHost`, `PluginModelRouterHost`, `PluginExecutorHost` in `sdk/api/handlers/handlers.go`
-- `PluginScheduler` in `sdk/cliproxy/auth/conductor.go`
-- `PluginAuthParser` in `sdk/auth/filestore.go`
-- `PluginHooks` in `sdk/translator/plugin_hooks.go`
+## Extension-point and pluginapi removal
 
-The `sdk/pluginapi/` package is also kept: it is still imported by the interfaces above and by `cmd/server`.
+The leftover plugin extension machinery has been deleted entirely. None of it was reachable at runtime: every registration site (`SetPluginHost`, `SetModelRouterHost`, `SetPluginScheduler`, `RegisterPluginAuthParser`, `SetPluginAuthParser`, `SetPluginHooks`) was only ever called with `nil` in production, and the dispatch paths all short-circuited to the native executors/translators/schedulers. The only code that exercised these interfaces was unit-test stubs, which were dropped alongside them.
+
+### Deleted Package
+
+- `sdk/pluginapi/` — host-side plugin capability schema (`Plugin`, `Capabilities`, request/response intercept types, scheduler types, model-route types, host model-execution request types). No code imports it after this removal.
+
+### Deleted Files
+
+- `sdk/translator/plugin_hooks.go` — the `PluginHooks` translator extension interface.
+- `sdk/api/handlers/handlers_interceptors_test.go` — tests for the plugin request/response/stream interceptors.
+- `sdk/api/handlers/handlers_model_router_test.go` — tests for the plugin model router and plugin-executor routes.
+- `sdk/api/handlers/model_execution_test.go` — tests for the plugin host model-execution callback API.
+
+### Removed Interfaces and Dispatch Code
+
+- `sdk/api/handlers/handlers.go` — removed `PluginInterceptorHost`, `PluginModelRouterHost`, `PluginExecutorHost` and their `*Except`/detector helper interfaces; removed `BaseAPIHandler.PluginHost`/`ModelRouterHost` fields and the `SetPluginHost`/`SetModelRouterHost` setters; removed the plugin-executor execution paths (`executeWithPluginExecutor`, `countWithPluginExecutor`, `streamWithPluginExecutor`, `pluginExecutorRequest`), the model router (`applyModelRouter`, `routeModel`, `modelRoutersEnabled`, `modelRouteDecision`), and every request/response/stream interceptor helper (`applyRequestInterceptorsBeforeAuth`, `requestAfterAuthInterceptor`, `applyRequestInterceptorsAfterAuth`, `applyResponseInterceptors`, the `intercept*` helpers, `requestAfterAuthCapture`, and the now-dead stream-history/header helpers). The native Execute/Stream/Count paths are unchanged in behavior.
+- `sdk/api/handlers/model_execution.go` — removed the plugin host model-execution callback API (`ExecuteModel`, `ExecuteModelStream`, `ModelExecutionRequest/Response/Stream/Chunk/Error` and their stream-wrapping helpers) and the plugin-marker fields (`SkipInterceptorPluginID`, `SkipRouterPluginID`, `InternalSource`). Only the internal `modelExecutionOptions` (headers/query) and protocol/header/query helpers remain.
+- `sdk/cliproxy/auth/conductor.go` — removed `PluginScheduler`, the `pluginScheduler` field, `SetPluginScheduler`, `hasPluginScheduler`, and the scheduler dispatch (`pickViaPluginScheduler`, `pickViaBuiltinScheduler`, `builtinSchedulerStrategy`, `schedulerAuthCandidates`, `schedulerProviders`, `schedulerOptions`, `pickSchedulerAuthByID`, and the attribute/metadata cloning helpers that only served them). Auth selection now goes straight to the native selector.
+- `sdk/auth/filestore.go` — removed `PluginAuthParser`, `RegisterPluginAuthParser`, and the auth-file parsing hook.
+- `sdk/cliproxy/types.go`, `internal/watcher/watcher.go`, `internal/watcher/clients.go`, `internal/watcher/dispatcher.go`, `internal/watcher/synthesizer/context.go`, `internal/watcher/synthesizer/file.go` — removed the `PluginAuthParser` threading through the watcher and auth-synthesis pipeline.
+- `sdk/translator/registry.go` — removed the `PluginHooks` field, `SetPluginHooks`, and the hook-driven translate/normalize fallbacks; translation now uses only the registered native transforms.
+
+### Runtime Wiring
+
+- `sdk/cliproxy/service.go` — replaced the no-op plugin sync layer (`syncPluginRuntime`, `syncPluginRuntimeConfig`, `syncPluginModelRuntime`) and the `includePlugins` registration flag with a single `reregisterExecutors` helper that rebuilds the executor set, and dropped the shutdown-time plugin clear calls.
+- `config.example.yaml` — removed the `plugins:` configuration block. `internal/config/config.go` still strips a leftover `plugins` key from older user configs via `removeRemovedIntegrationKeys`, so existing `data/config.yaml` files keep loading unchanged.
 
 ## Routes Removed
 

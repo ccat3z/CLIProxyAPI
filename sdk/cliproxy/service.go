@@ -29,7 +29,6 @@ import (
 	coreauth "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/auth"
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/usage"
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/config"
-	sdktranslator "github.com/router-for-me/CLIProxyAPI/v7/sdk/translator"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -114,7 +113,6 @@ type modelRegistrationTask struct {
 
 type executorRegistrationOptions struct {
 	includeBaseline   bool
-	includePlugins    bool
 	forceReplaceAuths bool
 	auths             []*coreauth.Auth
 }
@@ -128,33 +126,8 @@ func (s *Service) RegisterUsagePlugin(plugin usage.Plugin) {
 	usage.RegisterPlugin(plugin)
 }
 
-func (s *Service) syncPluginRuntime(ctx context.Context) {
-	if !s.syncPluginRuntimeConfig(ctx) {
-		return
-	}
-	s.syncPluginModelRuntime(ctx)
-}
-
-func (s *Service) syncPluginRuntimeConfig(ctx context.Context) bool {
-	if s == nil {
-		sdkAuth.RegisterPluginAuthParser(nil)
-		return false
-	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	if s.coreManager != nil {
-		s.coreManager.SetPluginScheduler(nil)
-	}
-	sdkAuth.RegisterPluginAuthParser(nil)
-	if s.watcher != nil {
-		s.watcher.SetPluginAuthParser(nil)
-	}
-	return false
-}
-
-func (s *Service) syncPluginModelRuntime(ctx context.Context) {
+// reregisterExecutors rebuilds the executor set for all currently registered auths.
+func (s *Service) reregisterExecutors(ctx context.Context) {
 	if s == nil || s.coreManager == nil {
 		return
 	}
@@ -163,7 +136,6 @@ func (s *Service) syncPluginModelRuntime(ctx context.Context) {
 	}
 	s.registerAvailableExecutors(ctx, executorRegistrationOptions{
 		includeBaseline:   s.cfg != nil && s.cfg.Home.Enabled,
-		includePlugins:    false,
 		forceReplaceAuths: true,
 		auths:             s.coreManager.List(),
 	})
@@ -394,7 +366,7 @@ func (s *Service) handleAuthUpdates(ctx context.Context, updates []watcher.AuthU
 	}
 
 	tasks := make([]modelRegistrationTask, 0, len(updates))
-	needsPluginSync := false
+	needsExecutorSync := false
 	for _, update := range updates {
 		switch update.Action {
 		case watcher.AuthUpdateActionAdd, watcher.AuthUpdateActionModify:
@@ -413,7 +385,7 @@ func (s *Service) handleAuthUpdates(ctx context.Context, updates []watcher.AuthU
 					s.completeModelRegistrationForAuth(ctx, authForRegistration)
 				},
 			})
-			needsPluginSync = true
+			needsExecutorSync = true
 		case watcher.AuthUpdateActionDelete:
 			id := update.ID
 			if id == "" && update.Auth != nil {
@@ -429,8 +401,8 @@ func (s *Service) handleAuthUpdates(ctx context.Context, updates []watcher.AuthU
 	}
 
 	s.runModelRegistrationTasks(ctx, tasks)
-	if needsPluginSync {
-		s.syncPluginRuntime(ctx)
+	if needsExecutorSync {
+		s.reregisterExecutors(ctx)
 	}
 }
 
@@ -479,7 +451,7 @@ func (s *Service) applyCoreAuthAddOrUpdate(ctx context.Context, auth *coreauth.A
 		return
 	}
 	s.completeModelRegistrationForAuth(ctx, auth)
-	s.syncPluginRuntime(ctx)
+	s.reregisterExecutors(ctx)
 }
 
 func (s *Service) prepareCoreAuthForModelRegistration(ctx context.Context, auth *coreauth.Auth) *coreauth.Auth {
@@ -545,7 +517,7 @@ func (s *Service) applyCoreAuthRemoval(ctx context.Context, id string) {
 	GlobalModelRegistry().UnregisterClient(id)
 	s.coreManager.Remove(ctx, id)
 	limiter.DefaultLimiter().RemoveAllForAuth(id)
-	s.syncPluginRuntime(ctx)
+	s.reregisterExecutors(ctx)
 }
 
 func (s *Service) applyRetryConfig(cfg *config.Config) {
@@ -786,7 +758,7 @@ func (s *Service) applyConfigUpdate(newCfg *config.Config) {
 	})
 	ctx := coreauth.WithSkipPersist(context.Background())
 	s.registerConfigAPIKeyAuths(ctx, newCfg)
-	s.syncPluginRuntime(ctx)
+	s.reregisterExecutors(ctx)
 }
 
 func (s *Service) registerConfigAPIKeyAuths(ctx context.Context, cfg *config.Config) {
@@ -1072,9 +1044,8 @@ func (s *Service) Run(ctx context.Context) error {
 
 	// handlers no longer depend on legacy clients; pass nil slice initially
 	s.server = api.NewServer(s.cfg, s.coreManager, s.accessManager, s.configPath, s.serverOptions...)
-	s.syncPluginRuntimeConfig(ctx)
 	if homeEnabled {
-		s.syncPluginModelRuntime(ctx)
+		s.reregisterExecutors(ctx)
 	}
 
 	if s.authManager == nil {
@@ -1126,7 +1097,7 @@ func (s *Service) Run(ctx context.Context) error {
 			return fmt.Errorf("cliproxy: failed to start watcher: %w", errStart)
 		}
 		log.Info("file watcher started for config and auth directory changes")
-		s.syncPluginModelRuntime(ctx)
+		s.reregisterExecutors(ctx)
 	}
 
 	// Prefer core auth manager auto refresh if available.
@@ -1211,11 +1182,6 @@ func (s *Service) Shutdown(ctx context.Context) error {
 		}
 
 		iusage.ClosePersistStore()
-		sdktranslator.SetPluginHooks(nil)
-		sdkAuth.RegisterPluginAuthParser(nil)
-		if s.watcher != nil {
-			s.watcher.SetPluginAuthParser(nil)
-		}
 
 		usage.StopDefault()
 	})

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -24,7 +23,6 @@ import (
 	coreexecutor "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/executor"
 	coreusage "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/usage"
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/config"
-	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginapi"
 	sdktranslator "github.com/router-for-me/CLIProxyAPI/v7/sdk/translator"
 	"github.com/tidwall/gjson"
 	"golang.org/x/net/context"
@@ -55,67 +53,12 @@ const idempotencyKeyMetadataKey = "idempotency_key"
 const (
 	defaultStreamingKeepAliveSeconds = 0
 	defaultStreamingBootstrapRetries = 0
-	// Stream interceptor history is intentionally bounded and not configurable in the first SDK surface.
-	maxStreamInterceptorHistoryChunks = 64
-	maxStreamInterceptorHistoryBytes  = 1 << 20
 )
 
 type pinnedAuthContextKey struct{}
 type selectedAuthCallbackContextKey struct{}
 type executionSessionContextKey struct{}
 type disallowFreeAuthContextKey struct{}
-
-// PluginInterceptorHost applies plugin interceptors around handler execution.
-type PluginInterceptorHost interface {
-	InterceptRequestBeforeAuth(context.Context, pluginapi.RequestInterceptRequest) pluginapi.RequestInterceptResponse
-	InterceptRequestAfterAuth(context.Context, pluginapi.RequestInterceptRequest) pluginapi.RequestInterceptResponse
-	InterceptResponse(context.Context, pluginapi.ResponseInterceptRequest) pluginapi.ResponseInterceptResponse
-	InterceptStreamChunk(context.Context, pluginapi.StreamChunkInterceptRequest) pluginapi.StreamChunkInterceptResponse
-}
-
-type pluginInterceptorSkipHost interface {
-	InterceptRequestBeforeAuthExcept(context.Context, pluginapi.RequestInterceptRequest, string) pluginapi.RequestInterceptResponse
-	InterceptRequestAfterAuthExcept(context.Context, pluginapi.RequestInterceptRequest, string) pluginapi.RequestInterceptResponse
-	InterceptResponseExcept(context.Context, pluginapi.ResponseInterceptRequest, string) pluginapi.ResponseInterceptResponse
-	InterceptStreamChunkExcept(context.Context, pluginapi.StreamChunkInterceptRequest, string) pluginapi.StreamChunkInterceptResponse
-}
-
-type streamInterceptorDetector interface {
-	HasStreamInterceptors() bool
-}
-
-type requestInterceptorDetector interface {
-	HasRequestInterceptors() bool
-}
-
-// PluginModelRouterHost routes matching requests to a plugin executor, the router's own executor,
-// or a built-in provider before model-to-provider resolution and auth selection.
-type PluginModelRouterHost interface {
-	RouteModel(context.Context, pluginapi.ModelRouteRequest) (pluginapi.ModelRouteResponse, bool)
-}
-
-// PluginExecutorHost executes a routed request with a specific plugin executor.
-type PluginExecutorHost interface {
-	ExecutePluginExecutor(context.Context, string, coreexecutor.Request, coreexecutor.Options) (coreexecutor.Response, error)
-	ExecutePluginExecutorStream(context.Context, string, coreexecutor.Request, coreexecutor.Options) (*coreexecutor.StreamResult, error)
-	CountPluginExecutor(context.Context, string, coreexecutor.Request, coreexecutor.Options) (coreexecutor.Response, error)
-}
-
-type pluginExecutorFormatResolver interface {
-	PluginExecutorRequestToFormat(string, coreexecutor.Request, coreexecutor.Options) sdktranslator.Format
-}
-
-type pluginModelRouterSkipHost interface {
-	RouteModelExcept(context.Context, pluginapi.ModelRouteRequest, string) (pluginapi.ModelRouteResponse, bool)
-}
-
-type modelRouterDetector interface {
-	HasModelRouters() bool
-}
-
-type modelRouterSkipDetector interface {
-	HasModelRoutersExcept(string) bool
-}
 
 // WithPinnedAuthID returns a child context that requests execution on a specific auth ID.
 func WithPinnedAuthID(ctx context.Context, authID string) context.Context {
@@ -402,13 +345,6 @@ type BaseAPIHandler struct {
 
 	// Cfg holds the current application configuration.
 	Cfg *config.SDKConfig
-
-	// PluginHost optionally applies plugin interceptors around upstream execution.
-	PluginHost PluginInterceptorHost
-
-	// ModelRouterHost optionally routes matching requests to a plugin executor, the router's own
-	// executor, or a built-in provider before model-to-provider resolution and auth selection.
-	ModelRouterHost PluginModelRouterHost
 }
 
 // NewBaseAPIHandlers creates a new API handlers instance.
@@ -434,52 +370,6 @@ func NewBaseAPIHandlers(cfg *config.SDKConfig, authManager *coreauth.Manager) *B
 //   - clients: The new slice of AI service clients
 //   - cfg: The new application configuration
 func (h *BaseAPIHandler) UpdateClients(cfg *config.SDKConfig) { h.Cfg = cfg }
-
-// SetPluginHost configures the optional plugin interceptor host.
-func (h *BaseAPIHandler) SetPluginHost(host PluginInterceptorHost) {
-	if h == nil {
-		return
-	}
-	if isNilPluginInterceptorHost(host) {
-		h.PluginHost = nil
-		return
-	}
-	h.PluginHost = host
-}
-
-// SetModelRouterHost configures the optional plugin model router host.
-func (h *BaseAPIHandler) SetModelRouterHost(host PluginModelRouterHost) {
-	if h == nil {
-		return
-	}
-	if isNilPluginModelRouterHost(host) {
-		h.ModelRouterHost = nil
-		return
-	}
-	h.ModelRouterHost = host
-}
-
-func isNilPluginInterceptorHost(host PluginInterceptorHost) bool {
-	return isNilInterface(host)
-}
-
-func isNilPluginModelRouterHost(host PluginModelRouterHost) bool {
-	return isNilInterface(host)
-}
-
-func isNilInterface(value any) bool {
-	if value == nil {
-		return true
-	}
-	// A typed nil pointer stored in an interface is not equal to nil.
-	reflected := reflect.ValueOf(value)
-	switch reflected.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
-		return reflected.IsNil()
-	default:
-		return false
-	}
-}
 
 // GetAlt extracts the 'alt' parameter from the request query string.
 // It checks both 'alt' and '$alt' parameters and returns the appropriate value.
@@ -708,18 +598,13 @@ func (h *BaseAPIHandler) executeWithAuthManager(ctx context.Context, handlerType
 
 func (h *BaseAPIHandler) executeWithAuthManagerFormats(ctx context.Context, entryProtocol, exitProtocol, modelName string, rawJSON []byte, alt string, allowImageModel bool, execOptions modelExecutionOptions) ([]byte, http.Header, *interfaces.ErrorMessage) {
 	originalRequestedModel := modelName
-	routeDecision := h.applyModelRouter(ctx, entryProtocol, modelName, rawJSON, false, execOptions)
 	responseProtocol := modelExecutionResponseProtocol(entryProtocol, exitProtocol)
-	if routeDecision.ExecutorPluginID != "" {
-		return h.executeWithPluginExecutor(ctx, entryProtocol, responseProtocol, modelName, originalRequestedModel, rawJSON, alt, routeDecision.ExecutorPluginID, execOptions)
-	}
-	providers, normalizedModel, errMsg := h.providersForExecution(modelName, originalRequestedModel, allowImageModel, routeDecision)
+	providers, normalizedModel, errMsg := h.providersForExecution(modelName, allowImageModel)
 	if errMsg != nil {
 		return nil, nil, errMsg
 	}
 	reqMeta := requestExecutionMetadata(ctx)
 	reqMeta[coreexecutor.RequestedModelMetadataKey] = originalRequestedModel
-	addModelExecutionSourceMetadata(reqMeta, execOptions.InternalSource)
 	setReasoningEffortMetadata(reqMeta, entryProtocol, normalizedModel, rawJSON)
 	setServiceTierMetadata(reqMeta, rawJSON)
 	payload := rawJSON
@@ -730,19 +615,16 @@ func (h *BaseAPIHandler) executeWithAuthManagerFormats(ctx context.Context, entr
 		Model:   normalizedModel,
 		Payload: payload,
 	}
-	afterAuthCapture := &requestAfterAuthCapture{}
 	opts := coreexecutor.Options{
-		Stream:                      false,
-		Alt:                         alt,
-		OriginalRequest:             rawJSON,
-		SourceFormat:                sdktranslator.FromString(entryProtocol),
-		ResponseFormat:              sdktranslator.FromString(responseProtocol),
-		Headers:                     modelExecutionHeaders(ctx, execOptions.Headers),
-		Query:                       modelExecutionQuery(ctx, execOptions.Query),
-		RequestAfterAuthInterceptor: h.requestAfterAuthInterceptor(afterAuthCapture, execOptions.SkipInterceptorPluginID),
+		Stream:          false,
+		Alt:             alt,
+		OriginalRequest: rawJSON,
+		SourceFormat:    sdktranslator.FromString(entryProtocol),
+		ResponseFormat:  sdktranslator.FromString(responseProtocol),
+		Headers:         modelExecutionHeaders(ctx, execOptions.Headers),
+		Query:           modelExecutionQuery(ctx, execOptions.Query),
 	}
 	opts.Metadata = reqMeta
-	req, opts = h.applyRequestInterceptorsBeforeAuth(ctx, entryProtocol, originalRequestedModel, req, opts, execOptions.SkipInterceptorPluginID)
 	resp, err := h.AuthManager.Execute(ctx, providers, req, opts)
 	if err != nil {
 		err = enrichAuthSelectionError(err, providers, normalizedModel)
@@ -760,11 +642,9 @@ func (h *BaseAPIHandler) executeWithAuthManagerFormats(ctx context.Context, entr
 		}
 		return nil, nil, &interfaces.ErrorMessage{StatusCode: status, Error: err, Addon: addon}
 	}
-	executedReq, executedOpts := afterAuthCapture.apply(req, opts)
 	rawResponseHeaders := cloneHeader(resp.Headers)
 	responseHeaders := downstreamHeadersFromExecutor(rawResponseHeaders, PassthroughHeadersEnabled(h.Cfg))
-	body, responseHeaders := h.applyResponseInterceptors(ctx, responseProtocol, normalizedModel, originalRequestedModel, executedOpts, rawResponseHeaders, responseHeaders, executedOpts.OriginalRequest, executedReq.Payload, resp.Payload, http.StatusOK, execOptions.SkipInterceptorPluginID)
-	return body, responseHeaders, nil
+	return resp.Payload, responseHeaders, nil
 }
 
 // ExecuteCountWithAuthManager executes a non-streaming request via the core auth manager.
@@ -775,11 +655,7 @@ func (h *BaseAPIHandler) ExecuteCountWithAuthManager(ctx context.Context, handle
 
 func (h *BaseAPIHandler) executeCountWithAuthManager(ctx context.Context, handlerType, modelName string, rawJSON []byte, alt string, execOptions modelExecutionOptions) ([]byte, http.Header, *interfaces.ErrorMessage) {
 	originalRequestedModel := modelName
-	routeDecision := h.applyModelRouter(ctx, handlerType, modelName, rawJSON, false, execOptions)
-	if routeDecision.ExecutorPluginID != "" {
-		return h.countWithPluginExecutor(ctx, handlerType, modelName, originalRequestedModel, rawJSON, alt, routeDecision.ExecutorPluginID, execOptions)
-	}
-	providers, normalizedModel, errMsg := h.providersForExecution(modelName, originalRequestedModel, false, routeDecision)
+	providers, normalizedModel, errMsg := h.providersForExecution(modelName, false)
 	if errMsg != nil {
 		return nil, nil, errMsg
 	}
@@ -795,18 +671,15 @@ func (h *BaseAPIHandler) executeCountWithAuthManager(ctx context.Context, handle
 		Model:   normalizedModel,
 		Payload: payload,
 	}
-	afterAuthCapture := &requestAfterAuthCapture{}
 	opts := coreexecutor.Options{
-		Stream:                      false,
-		Alt:                         alt,
-		OriginalRequest:             rawJSON,
-		SourceFormat:                sdktranslator.FromString(handlerType),
-		Headers:                     modelExecutionHeaders(ctx, execOptions.Headers),
-		Query:                       modelExecutionQuery(ctx, execOptions.Query),
-		RequestAfterAuthInterceptor: h.requestAfterAuthInterceptor(afterAuthCapture, execOptions.SkipInterceptorPluginID),
+		Stream:          false,
+		Alt:             alt,
+		OriginalRequest: rawJSON,
+		SourceFormat:    sdktranslator.FromString(handlerType),
+		Headers:         modelExecutionHeaders(ctx, execOptions.Headers),
+		Query:           modelExecutionQuery(ctx, execOptions.Query),
 	}
 	opts.Metadata = reqMeta
-	req, opts = h.applyRequestInterceptorsBeforeAuth(ctx, handlerType, originalRequestedModel, req, opts, execOptions.SkipInterceptorPluginID)
 	resp, err := h.AuthManager.ExecuteCount(ctx, providers, req, opts)
 	if err != nil {
 		err = enrichAuthSelectionError(err, providers, normalizedModel)
@@ -824,115 +697,9 @@ func (h *BaseAPIHandler) executeCountWithAuthManager(ctx context.Context, handle
 		}
 		return nil, nil, &interfaces.ErrorMessage{StatusCode: status, Error: err, Addon: addon}
 	}
-	executedReq, executedOpts := afterAuthCapture.apply(req, opts)
 	rawResponseHeaders := cloneHeader(resp.Headers)
 	responseHeaders := downstreamHeadersFromExecutor(rawResponseHeaders, PassthroughHeadersEnabled(h.Cfg))
-	body, responseHeaders := h.applyResponseInterceptors(ctx, handlerType, normalizedModel, originalRequestedModel, executedOpts, rawResponseHeaders, responseHeaders, executedOpts.OriginalRequest, executedReq.Payload, resp.Payload, http.StatusOK, execOptions.SkipInterceptorPluginID)
-	return body, responseHeaders, nil
-}
-
-func (h *BaseAPIHandler) executeWithPluginExecutor(ctx context.Context, entryProtocol, responseProtocol, modelName, originalRequestedModel string, rawJSON []byte, alt, executorPluginID string, execOptions modelExecutionOptions) ([]byte, http.Header, *interfaces.ErrorMessage) {
-	host := h.pluginExecutorHost()
-	if host == nil {
-		return nil, nil, &interfaces.ErrorMessage{StatusCode: http.StatusBadGateway, Error: fmt.Errorf("plugin executor host is unavailable")}
-	}
-	req, opts := h.pluginExecutorRequest(ctx, entryProtocol, responseProtocol, modelName, originalRequestedModel, rawJSON, alt, false, execOptions)
-	req, opts = h.applyRequestInterceptorsBeforeAuth(ctx, entryProtocol, originalRequestedModel, req, opts, execOptions.SkipInterceptorPluginID)
-	req, opts = h.applyRequestInterceptorsAfterPluginExecutorRoute(ctx, host, executorPluginID, entryProtocol, originalRequestedModel, req, opts, execOptions.SkipInterceptorPluginID)
-	resp, errExecute := host.ExecutePluginExecutor(ctx, executorPluginID, req, opts)
-	if errExecute != nil {
-		return nil, nil, executionErrorMessage(errExecute)
-	}
-	rawResponseHeaders := cloneHeader(resp.Headers)
-	responseHeaders := downstreamHeadersFromExecutor(rawResponseHeaders, PassthroughHeadersEnabled(h.Cfg))
-	body, responseHeaders := h.applyResponseInterceptors(ctx, responseProtocol, modelName, originalRequestedModel, opts, rawResponseHeaders, responseHeaders, opts.OriginalRequest, req.Payload, resp.Payload, http.StatusOK, execOptions.SkipInterceptorPluginID)
-	return body, responseHeaders, nil
-}
-
-func (h *BaseAPIHandler) countWithPluginExecutor(ctx context.Context, handlerType, modelName, originalRequestedModel string, rawJSON []byte, alt, executorPluginID string, execOptions modelExecutionOptions) ([]byte, http.Header, *interfaces.ErrorMessage) {
-	host := h.pluginExecutorHost()
-	if host == nil {
-		return nil, nil, &interfaces.ErrorMessage{StatusCode: http.StatusBadGateway, Error: fmt.Errorf("plugin executor host is unavailable")}
-	}
-	req, opts := h.pluginExecutorRequest(ctx, handlerType, handlerType, modelName, originalRequestedModel, rawJSON, alt, false, execOptions)
-	req, opts = h.applyRequestInterceptorsBeforeAuth(ctx, handlerType, originalRequestedModel, req, opts, execOptions.SkipInterceptorPluginID)
-	req, opts = h.applyRequestInterceptorsAfterPluginExecutorRoute(ctx, host, executorPluginID, handlerType, originalRequestedModel, req, opts, execOptions.SkipInterceptorPluginID)
-	resp, errCount := host.CountPluginExecutor(ctx, executorPluginID, req, opts)
-	if errCount != nil {
-		return nil, nil, executionErrorMessage(errCount)
-	}
-	rawResponseHeaders := cloneHeader(resp.Headers)
-	responseHeaders := downstreamHeadersFromExecutor(rawResponseHeaders, PassthroughHeadersEnabled(h.Cfg))
-	body, responseHeaders := h.applyResponseInterceptors(ctx, handlerType, modelName, originalRequestedModel, opts, rawResponseHeaders, responseHeaders, opts.OriginalRequest, req.Payload, resp.Payload, http.StatusOK, execOptions.SkipInterceptorPluginID)
-	return body, responseHeaders, nil
-}
-
-func (h *BaseAPIHandler) pluginExecutorRequest(ctx context.Context, entryProtocol, responseProtocol, modelName, originalRequestedModel string, rawJSON []byte, alt string, stream bool, execOptions modelExecutionOptions) (coreexecutor.Request, coreexecutor.Options) {
-	reqMeta := requestExecutionMetadata(ctx)
-	reqMeta[coreexecutor.RequestedModelMetadataKey] = originalRequestedModel
-	addModelExecutionSourceMetadata(reqMeta, execOptions.InternalSource)
-	setReasoningEffortMetadata(reqMeta, entryProtocol, modelName, rawJSON)
-	setServiceTierMetadata(reqMeta, rawJSON)
-	payload := rawJSON
-	if len(payload) == 0 {
-		payload = nil
-	}
-	req := coreexecutor.Request{Model: modelName, Payload: payload}
-	opts := coreexecutor.Options{
-		Stream:          stream,
-		Alt:             alt,
-		OriginalRequest: rawJSON,
-		SourceFormat:    sdktranslator.FromString(entryProtocol),
-		ResponseFormat:  sdktranslator.FromString(responseProtocol),
-		Headers:         modelExecutionHeaders(ctx, execOptions.Headers),
-		Query:           modelExecutionQuery(ctx, execOptions.Query),
-		Metadata:        reqMeta,
-	}
-	return req, opts
-}
-
-func (h *BaseAPIHandler) applyRequestInterceptorsAfterPluginExecutorRoute(ctx context.Context, host PluginExecutorHost, executorPluginID, entryProtocol, originalRequestedModel string, req coreexecutor.Request, opts coreexecutor.Options, skipPluginID string) (coreexecutor.Request, coreexecutor.Options) {
-	if !requestInterceptorsEnabled(h.interceptorHost()) {
-		return req, opts
-	}
-	toFormat := sdktranslator.FromString(entryProtocol)
-	if resolver, ok := host.(pluginExecutorFormatResolver); ok && resolver != nil {
-		if resolved := resolver.PluginExecutorRequestToFormat(executorPluginID, req, opts); resolved != "" {
-			toFormat = resolved
-		}
-	}
-	resp := h.applyRequestInterceptorsAfterAuth(ctx, coreexecutor.RequestAfterAuthInterceptRequest{
-		SourceFormat:   opts.SourceFormat,
-		ToFormat:       toFormat,
-		Model:          req.Model,
-		RequestedModel: originalRequestedModel,
-		Stream:         opts.Stream,
-		Headers:        cloneHeader(opts.Headers),
-		Body:           cloneBytes(req.Payload),
-		Metadata:       opts.Metadata,
-	}, skipPluginID)
-	opts.Headers = mergeRequestInterceptorHeaders(opts.Headers, resp.Headers, resp.ClearHeaders)
-	if len(resp.Body) > 0 {
-		req.Payload = cloneBytes(resp.Body)
-		opts.OriginalRequest = cloneBytes(resp.Body)
-	}
-	return req, opts
-}
-
-func executionErrorMessage(err error) *interfaces.ErrorMessage {
-	status := http.StatusInternalServerError
-	if se, ok := err.(interface{ StatusCode() int }); ok && se != nil {
-		if code := se.StatusCode(); code > 0 {
-			status = code
-		}
-	}
-	var addon http.Header
-	if he, ok := err.(interface{ Headers() http.Header }); ok && he != nil {
-		if hdr := he.Headers(); hdr != nil {
-			addon = hdr.Clone()
-		}
-	}
-	return &interfaces.ErrorMessage{StatusCode: status, Error: err, Addon: addon}
+	return resp.Payload, responseHeaders, nil
 }
 
 // ExecuteStreamWithAuthManager executes a streaming request via the core auth manager.
@@ -947,160 +714,14 @@ func (h *BaseAPIHandler) ExecuteImageStreamWithAuthManager(ctx context.Context, 
 	return h.executeStreamWithAuthManager(ctx, handlerType, modelName, rawJSON, alt, true)
 }
 
-func (h *BaseAPIHandler) streamWithPluginExecutor(ctx context.Context, entryProtocol, responseProtocol, modelName, originalRequestedModel string, rawJSON []byte, alt, executorPluginID string, execOptions modelExecutionOptions) (<-chan []byte, http.Header, <-chan *interfaces.ErrorMessage) {
-	host := h.pluginExecutorHost()
-	if host == nil {
-		errChan := make(chan *interfaces.ErrorMessage, 1)
-		errChan <- &interfaces.ErrorMessage{StatusCode: http.StatusBadGateway, Error: fmt.Errorf("plugin executor host is unavailable")}
-		close(errChan)
-		return nil, nil, errChan
-	}
-	req, opts := h.pluginExecutorRequest(ctx, entryProtocol, responseProtocol, modelName, originalRequestedModel, rawJSON, alt, true, execOptions)
-	req, opts = h.applyRequestInterceptorsBeforeAuth(ctx, entryProtocol, originalRequestedModel, req, opts, execOptions.SkipInterceptorPluginID)
-	req, opts = h.applyRequestInterceptorsAfterPluginExecutorRoute(ctx, host, executorPluginID, entryProtocol, originalRequestedModel, req, opts, execOptions.SkipInterceptorPluginID)
-	streamResult, errStream := host.ExecutePluginExecutorStream(ctx, executorPluginID, req, opts)
-	if errStream != nil {
-		errChan := make(chan *interfaces.ErrorMessage, 1)
-		errChan <- executionErrorMessage(errStream)
-		close(errChan)
-		return nil, nil, errChan
-	}
-	if streamResult == nil {
-		errChan := make(chan *interfaces.ErrorMessage, 1)
-		errChan <- &interfaces.ErrorMessage{StatusCode: http.StatusBadGateway, Error: fmt.Errorf("plugin executor returned nil stream")}
-		close(errChan)
-		return nil, nil, errChan
-	}
-
-	passthroughHeadersEnabled := PassthroughHeadersEnabled(h.Cfg)
-	interceptorHost := h.interceptorHost()
-	streamInterceptorsActive := streamInterceptorsEnabled(interceptorHost)
-	rawStreamHeaders := cloneHeader(streamResult.Headers)
-	baseStreamHeaders := cloneHeader(streamResult.Headers)
-	upstreamHeaders := downstreamHeadersFromExecutor(rawStreamHeaders, passthroughHeadersEnabled)
-	if upstreamHeaders == nil && (passthroughHeadersEnabled || streamInterceptorsActive) {
-		upstreamHeaders = make(http.Header)
-	}
-	streamHeadersCommitted := false
-	applyStreamHeaders := func(headers http.Header) {
-		rawStreamHeaders = finalInterceptorHeaders(rawStreamHeaders, headers)
-		if streamHeadersCommitted || upstreamHeaders == nil {
-			return
-		}
-		nextHeaders := downstreamHeadersAfterInterceptors(baseStreamHeaders, rawStreamHeaders, passthroughHeadersEnabled)
-		replaceHeader(upstreamHeaders, nextHeaders)
-	}
-	if streamInterceptorsActive {
-		intercepted := interceptStreamChunk(ctx, interceptorHost, pluginapi.StreamChunkInterceptRequest{
-			SourceFormat:    responseProtocol,
-			Model:           modelName,
-			RequestedModel:  originalRequestedModel,
-			RequestHeaders:  cloneHeader(opts.Headers),
-			ResponseHeaders: cloneHeader(rawStreamHeaders),
-			OriginalRequest: cloneBytes(opts.OriginalRequest),
-			RequestBody:     cloneBytes(req.Payload),
-			ChunkIndex:      pluginapi.StreamChunkHeaderInitIndex,
-			Metadata:        opts.Metadata,
-		}, execOptions.SkipInterceptorPluginID)
-		applyStreamHeaders(intercepted.Headers)
-	}
-
-	dataChan := make(chan []byte)
-	errChan := make(chan *interfaces.ErrorMessage, 1)
-	var done <-chan struct{}
-	if ctx != nil {
-		done = ctx.Done()
-	}
-	chunks := streamResult.Chunks
-	if chunks == nil {
-		closed := make(chan coreexecutor.StreamChunk)
-		close(closed)
-		chunks = closed
-	}
-	go func() {
-		defer close(dataChan)
-		defer close(errChan)
-		chunkIndex := 0
-		var historyChunks [][]byte
-		for {
-			chunk, ok, canceled := nextStreamChunk(ctx, nil, nil, chunks)
-			if canceled {
-				return
-			}
-			if !ok {
-				return
-			}
-			if chunk.Err != nil {
-				select {
-				case errChan <- executionErrorMessage(chunk.Err):
-				case <-done:
-				}
-				return
-			}
-			if len(chunk.Payload) == 0 {
-				continue
-			}
-			payload := cloneBytes(chunk.Payload)
-			if streamInterceptorsActive {
-				intercepted := interceptStreamChunk(ctx, interceptorHost, pluginapi.StreamChunkInterceptRequest{
-					SourceFormat:    responseProtocol,
-					Model:           modelName,
-					RequestedModel:  originalRequestedModel,
-					RequestHeaders:  cloneHeader(opts.Headers),
-					ResponseHeaders: cloneHeader(rawStreamHeaders),
-					OriginalRequest: cloneBytes(opts.OriginalRequest),
-					RequestBody:     cloneBytes(req.Payload),
-					Body:            payload,
-					HistoryChunks:   cloneByteSlices(historyChunks),
-					ChunkIndex:      chunkIndex,
-					Metadata:        opts.Metadata,
-				}, execOptions.SkipInterceptorPluginID)
-				applyStreamHeaders(intercepted.Headers)
-				if len(intercepted.Body) > 0 {
-					payload = cloneBytes(intercepted.Body)
-				}
-				chunkIndex++
-				if intercepted.DropChunk {
-					continue
-				}
-			} else {
-				chunkIndex++
-			}
-			if responseProtocol == "openai-response" {
-				if errValidate := validateSSEDataJSON(payload); errValidate != nil {
-					select {
-					case errChan <- &interfaces.ErrorMessage{StatusCode: http.StatusBadGateway, Error: errValidate}:
-					case <-done:
-					}
-					return
-				}
-			}
-			streamHeadersCommitted = true
-			select {
-			case dataChan <- payload:
-				if streamInterceptorsActive {
-					historyChunks = appendStreamInterceptorHistory(historyChunks, payload)
-				}
-			case <-done:
-				return
-			}
-		}
-	}()
-	return dataChan, upstreamHeaders, errChan
-}
-
 func (h *BaseAPIHandler) executeStreamWithAuthManager(ctx context.Context, handlerType, modelName string, rawJSON []byte, alt string, allowImageModel bool) (<-chan []byte, http.Header, <-chan *interfaces.ErrorMessage) {
 	return h.executeStreamWithAuthManagerFormats(ctx, handlerType, handlerType, modelName, rawJSON, alt, allowImageModel, modelExecutionOptions{})
 }
 
 func (h *BaseAPIHandler) executeStreamWithAuthManagerFormats(ctx context.Context, entryProtocol, exitProtocol, modelName string, rawJSON []byte, alt string, allowImageModel bool, execOptions modelExecutionOptions) (<-chan []byte, http.Header, <-chan *interfaces.ErrorMessage) {
 	originalRequestedModel := modelName
-	routeDecision := h.applyModelRouter(ctx, entryProtocol, modelName, rawJSON, true, execOptions)
 	responseProtocol := modelExecutionResponseProtocol(entryProtocol, exitProtocol)
-	if routeDecision.ExecutorPluginID != "" {
-		return h.streamWithPluginExecutor(ctx, entryProtocol, responseProtocol, modelName, originalRequestedModel, rawJSON, alt, routeDecision.ExecutorPluginID, execOptions)
-	}
-	providers, normalizedModel, errMsg := h.providersForExecution(modelName, originalRequestedModel, allowImageModel, routeDecision)
+	providers, normalizedModel, errMsg := h.providersForExecution(modelName, allowImageModel)
 	if errMsg != nil {
 		errChan := make(chan *interfaces.ErrorMessage, 1)
 		errChan <- errMsg
@@ -1109,7 +730,6 @@ func (h *BaseAPIHandler) executeStreamWithAuthManagerFormats(ctx context.Context
 	}
 	reqMeta := requestExecutionMetadata(ctx)
 	reqMeta[coreexecutor.RequestedModelMetadataKey] = originalRequestedModel
-	addModelExecutionSourceMetadata(reqMeta, execOptions.InternalSource)
 	setReasoningEffortMetadata(reqMeta, entryProtocol, normalizedModel, rawJSON)
 	setServiceTierMetadata(reqMeta, rawJSON)
 	payload := rawJSON
@@ -1120,19 +740,16 @@ func (h *BaseAPIHandler) executeStreamWithAuthManagerFormats(ctx context.Context
 		Model:   normalizedModel,
 		Payload: payload,
 	}
-	afterAuthCapture := &requestAfterAuthCapture{}
 	opts := coreexecutor.Options{
-		Stream:                      true,
-		Alt:                         alt,
-		OriginalRequest:             rawJSON,
-		SourceFormat:                sdktranslator.FromString(entryProtocol),
-		ResponseFormat:              sdktranslator.FromString(responseProtocol),
-		Headers:                     modelExecutionHeaders(ctx, execOptions.Headers),
-		Query:                       modelExecutionQuery(ctx, execOptions.Query),
-		RequestAfterAuthInterceptor: h.requestAfterAuthInterceptor(afterAuthCapture, execOptions.SkipInterceptorPluginID),
+		Stream:          true,
+		Alt:             alt,
+		OriginalRequest: rawJSON,
+		SourceFormat:    sdktranslator.FromString(entryProtocol),
+		ResponseFormat:  sdktranslator.FromString(responseProtocol),
+		Headers:         modelExecutionHeaders(ctx, execOptions.Headers),
+		Query:           modelExecutionQuery(ctx, execOptions.Query),
 	}
 	opts.Metadata = reqMeta
-	req, opts = h.applyRequestInterceptorsBeforeAuth(ctx, entryProtocol, originalRequestedModel, req, opts, execOptions.SkipInterceptorPluginID)
 	streamResult, err := h.AuthManager.ExecuteStream(ctx, providers, req, opts)
 	if err != nil {
 		err = enrichAuthSelectionError(err, providers, normalizedModel)
@@ -1153,54 +770,17 @@ func (h *BaseAPIHandler) executeStreamWithAuthManagerFormats(ctx context.Context
 		close(errChan)
 		return nil, nil, errChan
 	}
-	executedRequest := func() (coreexecutor.Request, coreexecutor.Options) {
-		return afterAuthCapture.apply(req, opts)
-	}
 	passthroughHeadersEnabled := PassthroughHeadersEnabled(h.Cfg)
-	interceptorHost := h.interceptorHost()
-	streamInterceptorsActive := streamInterceptorsEnabled(interceptorHost)
 	// Capture upstream headers from the initial connection synchronously before the goroutine starts.
 	// Keep a mutable map so bootstrap retries can replace it before first payload is sent.
 	rawStreamHeaders := cloneHeader(streamResult.Headers)
-	baseStreamHeaders := cloneHeader(streamResult.Headers)
 	upstreamHeaders := downstreamHeadersFromExecutor(rawStreamHeaders, passthroughHeadersEnabled)
-	if upstreamHeaders == nil && (passthroughHeadersEnabled || streamInterceptorsActive) {
+	if upstreamHeaders == nil && passthroughHeadersEnabled {
 		upstreamHeaders = make(http.Header)
 	}
 	chunks := streamResult.Chunks
 	dataChan := make(chan []byte)
 	errChan := make(chan *interfaces.ErrorMessage, 1)
-	streamHeaderInitialized := false
-	streamHeadersCommitted := false
-
-	applyStreamHeaders := func(headers http.Header) {
-		rawStreamHeaders = finalInterceptorHeaders(rawStreamHeaders, headers)
-		if streamHeadersCommitted {
-			return
-		}
-		nextHeaders := downstreamHeadersAfterInterceptors(baseStreamHeaders, rawStreamHeaders, passthroughHeadersEnabled)
-		replaceHeader(upstreamHeaders, nextHeaders)
-	}
-
-	applyStreamHeaderInit := func() {
-		if !streamInterceptorsActive || streamHeaderInitialized {
-			return
-		}
-		executedReq, executedOpts := executedRequest()
-		intercepted := interceptStreamChunk(ctx, interceptorHost, pluginapi.StreamChunkInterceptRequest{
-			SourceFormat:    responseProtocol,
-			Model:           normalizedModel,
-			RequestedModel:  originalRequestedModel,
-			RequestHeaders:  cloneHeader(executedOpts.Headers),
-			ResponseHeaders: cloneHeader(rawStreamHeaders),
-			OriginalRequest: cloneBytes(executedOpts.OriginalRequest),
-			RequestBody:     cloneBytes(executedReq.Payload),
-			ChunkIndex:      pluginapi.StreamChunkHeaderInitIndex,
-			Metadata:        executedOpts.Metadata,
-		}, execOptions.SkipInterceptorPluginID)
-		applyStreamHeaders(intercepted.Headers)
-		streamHeaderInitialized = true
-	}
 
 	pendingChunks := make([]coreexecutor.StreamChunk, 0, 1)
 	streamClosedBeforeRead := false
@@ -1221,7 +801,6 @@ func (h *BaseAPIHandler) executeStreamWithAuthManagerFormats(ctx context.Context
 			}
 			if !ok {
 				streamClosedBeforeRead = true
-				applyStreamHeaderInit()
 				return
 			}
 			pendingChunks = append(pendingChunks, chunk)
@@ -1229,7 +808,6 @@ func (h *BaseAPIHandler) executeStreamWithAuthManagerFormats(ctx context.Context
 				return
 			}
 			if len(chunk.Payload) > 0 {
-				applyStreamHeaderInit()
 				return
 			}
 		}
@@ -1244,8 +822,6 @@ func (h *BaseAPIHandler) executeStreamWithAuthManagerFormats(ctx context.Context
 		}
 		sentPayload := false
 		bootstrapRetries := 0
-		chunkIndex := 0
-		var historyChunks [][]byte
 		maxBootstrapRetries := StreamingBootstrapRetries(h.Cfg)
 
 		sendErr := func(msg *interfaces.ErrorMessage) bool {
@@ -1296,7 +872,6 @@ func (h *BaseAPIHandler) executeStreamWithAuthManagerFormats(ctx context.Context
 					return
 				}
 				if !ok {
-					applyStreamHeaderInit()
 					return
 				}
 				if chunk.Err != nil {
@@ -1309,10 +884,7 @@ func (h *BaseAPIHandler) executeStreamWithAuthManagerFormats(ctx context.Context
 							retryResult, retryErr := h.AuthManager.ExecuteStream(ctx, providers, req, opts)
 							if retryErr == nil {
 								rawStreamHeaders = cloneHeader(retryResult.Headers)
-								baseStreamHeaders = cloneHeader(retryResult.Headers)
 								replaceHeader(upstreamHeaders, downstreamHeadersFromExecutor(rawStreamHeaders, passthroughHeadersEnabled))
-								streamHeaderInitialized = false
-								streamHeadersCommitted = false
 								pendingChunks = nil
 								streamClosedBeforeRead = false
 								chunks = retryResult.Chunks
@@ -1338,34 +910,7 @@ func (h *BaseAPIHandler) executeStreamWithAuthManagerFormats(ctx context.Context
 					return
 				}
 				if len(chunk.Payload) > 0 {
-					applyStreamHeaderInit()
 					payload := cloneBytes(chunk.Payload)
-					if streamInterceptorsActive {
-						executedReq, executedOpts := executedRequest()
-						intercepted := interceptStreamChunk(ctx, interceptorHost, pluginapi.StreamChunkInterceptRequest{
-							SourceFormat:    responseProtocol,
-							Model:           normalizedModel,
-							RequestedModel:  originalRequestedModel,
-							RequestHeaders:  cloneHeader(executedOpts.Headers),
-							ResponseHeaders: cloneHeader(rawStreamHeaders),
-							OriginalRequest: cloneBytes(executedOpts.OriginalRequest),
-							RequestBody:     cloneBytes(executedReq.Payload),
-							Body:            payload,
-							HistoryChunks:   cloneByteSlices(historyChunks),
-							ChunkIndex:      chunkIndex,
-							Metadata:        executedOpts.Metadata,
-						}, execOptions.SkipInterceptorPluginID)
-						applyStreamHeaders(intercepted.Headers)
-						if len(intercepted.Body) > 0 {
-							payload = cloneBytes(intercepted.Body)
-						}
-						chunkIndex++
-						if intercepted.DropChunk {
-							continue
-						}
-					} else {
-						chunkIndex++
-					}
 					if responseProtocol == "openai-response" {
 						if errValidate := validateSSEDataJSON(payload); errValidate != nil {
 							_ = sendErr(&interfaces.ErrorMessage{StatusCode: http.StatusBadGateway, Error: errValidate})
@@ -1373,17 +918,11 @@ func (h *BaseAPIHandler) executeStreamWithAuthManagerFormats(ctx context.Context
 						}
 					}
 					sentPayload = true
-					streamHeadersCommitted = true
 					if okSendData := sendData(payload); !okSendData {
 						return
 					}
-					if streamInterceptorsActive {
-						historyChunks = appendStreamInterceptorHistory(historyChunks, payload)
-					}
 				}
 			}
-			applyStreamHeaderInit()
-			return
 		}
 	}()
 	return dataChan, upstreamHeaders, errChan
@@ -1437,17 +976,7 @@ func (h *BaseAPIHandler) getRequestDetails(modelName string) (providers []string
 // providersForExecution resolves the providers and normalized model for a request. When a model
 // router selected a built-in provider, it skips model->provider resolution and uses the router's
 // provider (with an optional target model); otherwise it falls back to the registry-based path.
-func (h *BaseAPIHandler) providersForExecution(modelName, originalRequestedModel string, allowImageModel bool, routeDecision modelRouteDecision) ([]string, string, *interfaces.ErrorMessage) {
-	if routeDecision.Provider != "" {
-		normalizedModel := originalRequestedModel
-		if routeDecision.Model != "" {
-			normalizedModel = routeDecision.Model
-		}
-		if errMsg := h.validateImageOnlyModel(normalizedModel, allowImageModel); errMsg != nil {
-			return nil, "", errMsg
-		}
-		return []string{routeDecision.Provider}, normalizedModel, nil
-	}
+func (h *BaseAPIHandler) providersForExecution(modelName string, allowImageModel bool) ([]string, string, *interfaces.ErrorMessage) {
 	return h.getRequestDetailsWithOptions(modelName, allowImageModel)
 }
 
@@ -1545,17 +1074,6 @@ func cloneHeader(src http.Header) http.Header {
 	return dst
 }
 
-func cloneByteSlices(src [][]byte) [][]byte {
-	if len(src) == 0 {
-		return nil
-	}
-	dst := make([][]byte, 0, len(src))
-	for _, item := range src {
-		dst = append(dst, cloneBytes(item))
-	}
-	return dst
-}
-
 func nextStreamChunk(ctx context.Context, pending *[]coreexecutor.StreamChunk, closed *bool, chunks <-chan coreexecutor.StreamChunk) (coreexecutor.StreamChunk, bool, bool) {
 	if pending != nil && len(*pending) > 0 {
 		chunk := (*pending)[0]
@@ -1583,29 +1101,6 @@ func nextStreamChunk(ctx context.Context, pending *[]coreexecutor.StreamChunk, c
 	return chunk, ok, false
 }
 
-func appendStreamInterceptorHistory(history [][]byte, chunk []byte) [][]byte {
-	if len(chunk) == 0 {
-		return history
-	}
-	history = append(history, cloneBytes(chunk))
-	for len(history) > maxStreamInterceptorHistoryChunks || byteSlicesSize(history) > maxStreamInterceptorHistoryBytes {
-		history[0] = nil
-		history = history[1:]
-	}
-	if len(history) == 0 {
-		return nil
-	}
-	return history
-}
-
-func byteSlicesSize(items [][]byte) int {
-	total := 0
-	for _, item := range items {
-		total += len(item)
-	}
-	return total
-}
-
 func replaceHeader(dst http.Header, src http.Header) {
 	for key := range dst {
 		delete(dst, key)
@@ -1615,379 +1110,11 @@ func replaceHeader(dst http.Header, src http.Header) {
 	}
 }
 
-func finalInterceptorHeaders(current, intercepted http.Header) http.Header {
-	if intercepted == nil {
-		return current
-	}
-	if len(intercepted) == 0 {
-		return nil
-	}
-	return cloneHeader(intercepted)
-}
-
 func downstreamHeadersFromExecutor(headers http.Header, passthrough bool) http.Header {
 	if !passthrough {
 		return nil
 	}
 	return FilterUpstreamHeaders(headers)
-}
-
-func downstreamHeadersAfterInterceptors(baseRaw, finalRaw http.Header, passthrough bool) http.Header {
-	if passthrough {
-		return FilterUpstreamHeaders(finalRaw)
-	}
-	return FilterUpstreamHeaders(diffHeaders(baseRaw, finalRaw))
-}
-
-func diffHeaders(base, next http.Header) http.Header {
-	if len(next) == 0 {
-		return nil
-	}
-	baseValues := make(map[string][]string, len(base))
-	for key, values := range base {
-		baseValues[http.CanonicalHeaderKey(key)] = values
-	}
-	out := make(http.Header)
-	for key, values := range next {
-		canonicalKey := http.CanonicalHeaderKey(key)
-		if stringSlicesEqual(baseValues[canonicalKey], values) {
-			continue
-		}
-		out[canonicalKey] = append([]string(nil), values...)
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
-
-func stringSlicesEqual(left, right []string) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for i := range left {
-		if left[i] != right[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func (h *BaseAPIHandler) interceptorHost() PluginInterceptorHost {
-	if h == nil {
-		return nil
-	}
-	return h.PluginHost
-}
-
-func (h *BaseAPIHandler) modelRouterHost() PluginModelRouterHost {
-	if h == nil {
-		return nil
-	}
-	if !isNilPluginModelRouterHost(h.ModelRouterHost) {
-		return h.ModelRouterHost
-	}
-	host := h.interceptorHost()
-	if host == nil {
-		return nil
-	}
-	router, ok := host.(PluginModelRouterHost)
-	if !ok {
-		return nil
-	}
-	return router
-}
-
-func (h *BaseAPIHandler) pluginExecutorHost() PluginExecutorHost {
-	if h == nil {
-		return nil
-	}
-	if executorHost, ok := h.ModelRouterHost.(PluginExecutorHost); ok && executorHost != nil {
-		return executorHost
-	}
-	if executorHost, ok := h.PluginHost.(PluginExecutorHost); ok && executorHost != nil {
-		return executorHost
-	}
-	return nil
-}
-
-type modelRouteDecision struct {
-	ExecutorPluginID string
-	Provider         string
-	Model            string
-}
-
-func routeModel(ctx context.Context, host PluginModelRouterHost, req pluginapi.ModelRouteRequest, skipPluginID string) (pluginapi.ModelRouteResponse, bool) {
-	if host == nil {
-		return pluginapi.ModelRouteResponse{}, false
-	}
-	skipPluginID = strings.TrimSpace(skipPluginID)
-	if skipPluginID != "" {
-		if skipper, ok := host.(pluginModelRouterSkipHost); ok {
-			return skipper.RouteModelExcept(ctx, req, skipPluginID)
-		}
-		return pluginapi.ModelRouteResponse{}, false
-	}
-	return host.RouteModel(ctx, req)
-}
-
-func modelRoutersEnabled(host PluginModelRouterHost, skipPluginID string) bool {
-	if host == nil {
-		return false
-	}
-	skipPluginID = strings.TrimSpace(skipPluginID)
-	if skipPluginID != "" {
-		if _, ok := host.(pluginModelRouterSkipHost); !ok {
-			return false
-		}
-		if detector, ok := host.(modelRouterSkipDetector); ok {
-			return detector.HasModelRoutersExcept(skipPluginID)
-		}
-	}
-	if detector, ok := host.(modelRouterDetector); ok {
-		return detector.HasModelRouters()
-	}
-	// No detector: treat routing as disabled (same conservative default as before any
-	// ModelRouter existed).
-	return false
-}
-
-func (h *BaseAPIHandler) applyModelRouter(ctx context.Context, handlerType, modelName string, rawJSON []byte, stream bool, execOptions modelExecutionOptions) modelRouteDecision {
-	var decision modelRouteDecision
-	host := h.modelRouterHost()
-	if host == nil || !modelRoutersEnabled(host, execOptions.SkipRouterPluginID) {
-		return decision
-	}
-	meta := requestExecutionMetadata(ctx)
-	meta[coreexecutor.RequestedModelMetadataKey] = modelName
-	addModelExecutionSourceMetadata(meta, execOptions.InternalSource)
-	resp, ok := routeModel(ctx, host, pluginapi.ModelRouteRequest{
-		SourceFormat:   handlerType,
-		RequestedModel: modelName,
-		Stream:         stream,
-		Headers:        modelExecutionHeaders(ctx, execOptions.Headers),
-		Query:          modelExecutionQuery(ctx, execOptions.Query),
-		Body:           cloneBytes(rawJSON),
-		Metadata:       meta,
-	}, execOptions.SkipRouterPluginID)
-	if !ok || !resp.Handled {
-		return decision
-	}
-	switch resp.TargetKind {
-	case pluginapi.ModelRouteTargetSelf, pluginapi.ModelRouteTargetExecutor:
-		decision.ExecutorPluginID = strings.TrimSpace(resp.Target)
-	case pluginapi.ModelRouteTargetProvider:
-		decision.Provider = strings.ToLower(strings.TrimSpace(resp.Target))
-		decision.Model = strings.TrimSpace(resp.TargetModel)
-	}
-	return decision
-}
-
-func streamInterceptorsEnabled(host PluginInterceptorHost) bool {
-	if host == nil {
-		return false
-	}
-	if detector, ok := host.(streamInterceptorDetector); ok {
-		return detector.HasStreamInterceptors()
-	}
-	return true
-}
-
-func requestInterceptorsEnabled(host PluginInterceptorHost) bool {
-	if host == nil {
-		return false
-	}
-	if detector, ok := host.(requestInterceptorDetector); ok {
-		return detector.HasRequestInterceptors()
-	}
-	return true
-}
-
-type requestAfterAuthCapture struct {
-	mu                      sync.Mutex
-	set                     bool
-	headers                 http.Header
-	body                    []byte
-	originalRequest         []byte
-	originalRequestReplaced bool
-}
-
-func (c *requestAfterAuthCapture) record(req coreexecutor.RequestAfterAuthInterceptRequest, resp coreexecutor.RequestAfterAuthInterceptResponse) {
-	if c == nil {
-		return
-	}
-	headers := mergeRequestInterceptorHeaders(req.Headers, resp.Headers, resp.ClearHeaders)
-	body := cloneBytes(req.Body)
-	var originalRequest []byte
-	originalRequestReplaced := false
-	if len(resp.Body) > 0 {
-		body = cloneBytes(resp.Body)
-		originalRequest = cloneBytes(resp.Body)
-		originalRequestReplaced = true
-	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.set = true
-	c.headers = headers
-	c.body = body
-	c.originalRequest = originalRequest
-	c.originalRequestReplaced = originalRequestReplaced
-}
-
-func (c *requestAfterAuthCapture) apply(req coreexecutor.Request, opts coreexecutor.Options) (coreexecutor.Request, coreexecutor.Options) {
-	if c == nil {
-		return req, opts
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if !c.set {
-		return req, opts
-	}
-	req.Payload = cloneBytes(c.body)
-	opts.Headers = cloneHeader(c.headers)
-	if c.originalRequestReplaced {
-		opts.OriginalRequest = cloneBytes(c.originalRequest)
-	}
-	return req, opts
-}
-
-func mergeRequestInterceptorHeaders(current, updates http.Header, clear []string) http.Header {
-	if updates == nil && len(clear) == 0 {
-		return cloneHeader(current)
-	}
-	out := cloneHeader(current)
-	if out == nil && (len(updates) > 0 || len(clear) > 0) {
-		out = make(http.Header)
-	}
-	for _, key := range clear {
-		out.Del(key)
-	}
-	for key, values := range updates {
-		out.Del(key)
-		for _, value := range values {
-			out.Add(key, value)
-		}
-	}
-	return out
-}
-
-func interceptRequestBeforeAuth(ctx context.Context, host PluginInterceptorHost, req pluginapi.RequestInterceptRequest, skipPluginID string) pluginapi.RequestInterceptResponse {
-	if skipPluginID != "" {
-		if skipper, ok := host.(pluginInterceptorSkipHost); ok {
-			return skipper.InterceptRequestBeforeAuthExcept(ctx, req, skipPluginID)
-		}
-	}
-	return host.InterceptRequestBeforeAuth(ctx, req)
-}
-
-func interceptRequestAfterAuth(ctx context.Context, host PluginInterceptorHost, req pluginapi.RequestInterceptRequest, skipPluginID string) pluginapi.RequestInterceptResponse {
-	if skipPluginID != "" {
-		if skipper, ok := host.(pluginInterceptorSkipHost); ok {
-			return skipper.InterceptRequestAfterAuthExcept(ctx, req, skipPluginID)
-		}
-	}
-	return host.InterceptRequestAfterAuth(ctx, req)
-}
-
-func interceptResponse(ctx context.Context, host PluginInterceptorHost, req pluginapi.ResponseInterceptRequest, skipPluginID string) pluginapi.ResponseInterceptResponse {
-	if skipPluginID != "" {
-		if skipper, ok := host.(pluginInterceptorSkipHost); ok {
-			return skipper.InterceptResponseExcept(ctx, req, skipPluginID)
-		}
-	}
-	return host.InterceptResponse(ctx, req)
-}
-
-func interceptStreamChunk(ctx context.Context, host PluginInterceptorHost, req pluginapi.StreamChunkInterceptRequest, skipPluginID string) pluginapi.StreamChunkInterceptResponse {
-	if skipPluginID != "" {
-		if skipper, ok := host.(pluginInterceptorSkipHost); ok {
-			return skipper.InterceptStreamChunkExcept(ctx, req, skipPluginID)
-		}
-	}
-	return host.InterceptStreamChunk(ctx, req)
-}
-
-func (h *BaseAPIHandler) applyRequestInterceptorsBeforeAuth(ctx context.Context, handlerType, requestedModel string, req coreexecutor.Request, opts coreexecutor.Options, skipPluginID string) (coreexecutor.Request, coreexecutor.Options) {
-	host := h.interceptorHost()
-	if host == nil {
-		return req, opts
-	}
-	resp := interceptRequestBeforeAuth(ctx, host, pluginapi.RequestInterceptRequest{
-		SourceFormat:   handlerType,
-		Model:          req.Model,
-		RequestedModel: requestedModel,
-		Stream:         opts.Stream,
-		Headers:        cloneHeader(opts.Headers),
-		Body:           cloneBytes(req.Payload),
-		Metadata:       opts.Metadata,
-	}, skipPluginID)
-	opts.Headers = finalInterceptorHeaders(opts.Headers, resp.Headers)
-	if len(resp.Body) > 0 {
-		req.Payload = cloneBytes(resp.Body)
-		opts.OriginalRequest = cloneBytes(resp.Body)
-	}
-	return req, opts
-}
-
-func (h *BaseAPIHandler) requestAfterAuthInterceptor(capture *requestAfterAuthCapture, skipPluginID string) coreexecutor.RequestAfterAuthInterceptor {
-	if !requestInterceptorsEnabled(h.interceptorHost()) {
-		return nil
-	}
-	return func(ctx context.Context, req coreexecutor.RequestAfterAuthInterceptRequest) coreexecutor.RequestAfterAuthInterceptResponse {
-		resp := h.applyRequestInterceptorsAfterAuth(ctx, req, skipPluginID)
-		if capture != nil {
-			capture.record(req, resp)
-		}
-		return resp
-	}
-}
-
-func (h *BaseAPIHandler) applyRequestInterceptorsAfterAuth(ctx context.Context, req coreexecutor.RequestAfterAuthInterceptRequest, skipPluginID string) coreexecutor.RequestAfterAuthInterceptResponse {
-	host := h.interceptorHost()
-	if !requestInterceptorsEnabled(host) {
-		return coreexecutor.RequestAfterAuthInterceptResponse{}
-	}
-	resp := interceptRequestAfterAuth(ctx, host, pluginapi.RequestInterceptRequest{
-		SourceFormat:   req.SourceFormat.String(),
-		ToFormat:       req.ToFormat.String(),
-		Model:          req.Model,
-		RequestedModel: req.RequestedModel,
-		Stream:         req.Stream,
-		Headers:        cloneHeader(req.Headers),
-		Body:           cloneBytes(req.Body),
-		Metadata:       req.Metadata,
-	}, skipPluginID)
-	return coreexecutor.RequestAfterAuthInterceptResponse{
-		Headers:      resp.Headers,
-		Body:         resp.Body,
-		ClearHeaders: resp.ClearHeaders,
-	}
-}
-
-func (h *BaseAPIHandler) applyResponseInterceptors(ctx context.Context, handlerType, normalizedModel, requestedModel string, opts coreexecutor.Options, rawResponseHeaders, responseHeaders http.Header, originalRequest, requestBody, body []byte, statusCode int, skipPluginID string) ([]byte, http.Header) {
-	host := h.interceptorHost()
-	if host == nil {
-		return body, responseHeaders
-	}
-	resp := interceptResponse(ctx, host, pluginapi.ResponseInterceptRequest{
-		SourceFormat:    handlerType,
-		Model:           normalizedModel,
-		RequestedModel:  requestedModel,
-		Stream:          false,
-		RequestHeaders:  cloneHeader(opts.Headers),
-		ResponseHeaders: cloneHeader(rawResponseHeaders),
-		OriginalRequest: cloneBytes(originalRequest),
-		RequestBody:     cloneBytes(requestBody),
-		Body:            cloneBytes(body),
-		StatusCode:      statusCode,
-		Metadata:        opts.Metadata,
-	}, skipPluginID)
-	responseHeaders = downstreamHeadersAfterInterceptors(rawResponseHeaders, finalInterceptorHeaders(rawResponseHeaders, resp.Headers), PassthroughHeadersEnabled(h.Cfg))
-	if len(resp.Body) > 0 {
-		body = cloneBytes(resp.Body)
-	}
-	return body, responseHeaders
 }
 
 func enrichAuthSelectionError(err error, providers []string, model string) error {

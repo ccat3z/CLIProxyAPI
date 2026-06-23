@@ -81,10 +81,6 @@ func (w *Watcher) reloadClients(rescanAuth bool, affectedOAuthProviders []string
 		}
 		newFileAuthsByPath := make(map[string]map[string]*coreauth.Auth)
 
-		w.clientsMutex.RLock()
-		parser := w.pluginAuthParser
-		w.clientsMutex.RUnlock()
-
 		if resolvedAuthDir, errResolveAuthDir := util.ResolveAuthDir(cfg.AuthDir); errResolveAuthDir != nil {
 			log.Errorf("failed to resolve auth directory for hash cache: %v", errResolveAuthDir)
 		} else if resolvedAuthDir != "" {
@@ -113,11 +109,10 @@ func (w *Watcher) reloadClients(rescanAuth bool, affectedOAuthProviders []string
 							}
 						}
 						ctx := &synthesizer.SynthesisContext{
-							Config:           cfg,
-							AuthDir:          resolvedAuthDir,
-							Now:              time.Now(),
-							IDGenerator:      synthesizer.NewStableIDGenerator(),
-							PluginAuthParser: parser,
+							Config:      cfg,
+							AuthDir:     resolvedAuthDir,
+							Now:         time.Now(),
+							IDGenerator: synthesizer.NewStableIDGenerator(),
 						}
 						if generated := synthesizer.SynthesizeAuthFile(ctx, fullPath, data); len(generated) > 0 {
 							if pathAuths := authSliceToMap(generated); len(pathAuths) > 0 {
@@ -195,7 +190,6 @@ func (w *Watcher) addOrUpdateClientLocked(path string) {
 	}
 	cfg := w.config
 	authDir := w.authDir
-	parser := w.pluginAuthParser
 	if w.fileAuthsByPath == nil {
 		w.fileAuthsByPath = make(map[string]map[string]*coreauth.Auth)
 	}
@@ -243,11 +237,10 @@ func (w *Watcher) addOrUpdateClientLocked(path string) {
 
 	// Build synthesized auth entries for this single file only.
 	sctx := &synthesizer.SynthesisContext{
-		Config:           cfg,
-		AuthDir:          authDir,
-		Now:              time.Now(),
-		IDGenerator:      synthesizer.NewStableIDGenerator(),
-		PluginAuthParser: parser,
+		Config:      cfg,
+		AuthDir:     authDir,
+		Now:         time.Now(),
+		IDGenerator: synthesizer.NewStableIDGenerator(),
 	}
 	generated := synthesizer.SynthesizeAuthFile(sctx, path, data)
 	newByID := authSliceToMap(generated)
