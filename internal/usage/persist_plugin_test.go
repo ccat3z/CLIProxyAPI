@@ -37,70 +37,6 @@ func TestPersistStoreBasic(t *testing.T) {
 	}
 }
 
-func TestPersistStoreQueryUsage(t *testing.T) {
-	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "test.db")
-
-	err := InitPersistStore(dbPath)
-	if err != nil {
-		t.Fatalf("InitPersistStore: %v", err)
-	}
-	defer ClosePersistStore()
-
-	authID := "claude:abc123"
-	model := "claude-sonnet-4-20250514"
-
-	UsageStore.SetModelPrices(authID, model, ModelPrices{InputPriceM: 3.0, OutputPriceM: 15.0, CachePriceM: 0.3})
-
-	now := time.Now()
-	ts1 := now.Add(-2 * time.Hour)
-	ts2 := now.Add(-1 * time.Hour)
-
-	UsageStore.HandleUsage(nil, makeTestRecord(authID, model, ts1, 1000, 500, 200))
-	UsageStore.HandleUsage(nil, makeTestRecord(authID, model, ts2, 2000, 800, 400))
-
-	// Query full range
-	from := now.Add(-3 * time.Hour)
-	summary, err := UsageStore.QueryUsage(authID, model, from, now.Add(time.Hour))
-	if err != nil {
-		t.Fatalf("QueryUsage: %v", err)
-	}
-	if summary.EntryCount != 2 {
-		t.Errorf("EntryCount = %d, want 2", summary.EntryCount)
-	}
-	if summary.InputTokens != 3000 {
-		t.Errorf("InputTokens = %d, want 3000", summary.InputTokens)
-	}
-	if summary.OutputTokens != 1300 {
-		t.Errorf("OutputTokens = %d, want 1300", summary.OutputTokens)
-	}
-	if summary.CachedTokens != 600 {
-		t.Errorf("CachedTokens = %d, want 600", summary.CachedTokens)
-	}
-
-	// Cost: (nonCached * 3.0 + cached * 0.3 + output * 15.0) / 1M
-	// Entry1: nonCached=800, cached=200, output=500 → (800*3 + 200*0.3 + 500*15) / 1M = (2400+60+7500)/1M = 0.009960
-	// Entry2: nonCached=1600, cached=400, output=800 → (1600*3 + 400*0.3 + 800*15) / 1M = (4800+120+12000)/1M = 0.016920
-	// Total: 0.026880
-	expectedCost := 0.009960 + 0.016920
-	if diff := summary.Cost - expectedCost; diff < -0.000001 || diff > 0.000001 {
-		t.Errorf("Cost = %.6f, want %.6f", summary.Cost, expectedCost)
-	}
-
-	// Query partial range (only ts2)
-	from2 := now.Add(-90 * time.Minute)
-	summary2, err := UsageStore.QueryUsage(authID, model, from2, now.Add(time.Hour))
-	if err != nil {
-		t.Fatalf("QueryUsage partial: %v", err)
-	}
-	if summary2.EntryCount != 1 {
-		t.Errorf("Partial EntryCount = %d, want 1", summary2.EntryCount)
-	}
-	if summary2.InputTokens != 2000 {
-		t.Errorf("Partial InputTokens = %d, want 2000", summary2.InputTokens)
-	}
-}
-
 func TestPersistStoreCostFrozenAtRecordTime(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")
@@ -126,7 +62,7 @@ func TestPersistStoreCostFrozenAtRecordTime(t *testing.T) {
 	UsageStore.HandleUsage(nil, makeTestRecord(authID, model, now.Add(time.Minute), 1000, 500, 200))
 
 	// Query again — first entry should still have original cost
-	summary2, _ := UsageStore.QueryUsage(authID, model, now.Add(-time.Hour), now.Add(time.Hour))
+	summary2, _ := UsageStore.QueryUsageMulti(authID, []string{model}, now.Add(-time.Hour), now.Add(time.Hour))
 	if summary2.EntryCount != 2 {
 		t.Fatalf("EntryCount = %d, want 2", summary2.EntryCount)
 	}
@@ -162,7 +98,7 @@ func TestPersistStoreReopen(t *testing.T) {
 	}
 	defer ClosePersistStore()
 
-	summary, err := UsageStore.QueryUsage(authID, model, now.Add(-time.Hour), now.Add(time.Hour))
+	summary, err := UsageStore.QueryUsageMulti(authID, []string{model}, now.Add(-time.Hour), now.Add(time.Hour))
 	if err != nil {
 		t.Fatalf("QueryUsage after reopen: %v", err)
 	}
@@ -184,7 +120,7 @@ func TestPersistStoreEmptyQuery(t *testing.T) {
 	}
 	defer ClosePersistStore()
 
-	summary, err := UsageStore.QueryUsage("nonexistent", "model", time.Now().Add(-time.Hour), time.Now())
+	summary, err := UsageStore.QueryUsageMulti("nonexistent", []string{"model"}, time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		t.Fatalf("QueryUsage empty: %v", err)
 	}
@@ -211,7 +147,7 @@ func TestPersistStoreFailedRecord(t *testing.T) {
 	r.Failed = true
 	UsageStore.HandleUsage(nil, r)
 
-	summary, _ := UsageStore.QueryUsage(authID, model, now.Add(-time.Hour), now.Add(time.Hour))
+	summary, _ := UsageStore.QueryUsageMulti(authID, []string{model}, now.Add(-time.Hour), now.Add(time.Hour))
 	if summary.EntryCount != 1 {
 		t.Errorf("Failed records should be persisted, got EntryCount = %d", summary.EntryCount)
 	}

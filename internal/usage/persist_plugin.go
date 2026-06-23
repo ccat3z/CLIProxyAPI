@@ -229,24 +229,6 @@ func (p *PersistPlugin) HandleUsage(_ context.Context, record coreusage.Record) 
 	}
 }
 
-// QueryUsage returns aggregated usage for an authID+model within a time range [from, to).
-func (p *PersistPlugin) QueryUsage(authID, model string, from, to time.Time) (UsageSummary, error) {
-	var s UsageSummary
-	if p == nil || p.db == nil {
-		return s, fmt.Errorf("persist: store not initialized")
-	}
-	model = strings.ToLower(strings.TrimSpace(model))
-	row := p.db.QueryRow(
-		`SELECT COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0), COALESCE(SUM(cached_tokens),0), COALESCE(SUM(cost),0), COUNT(*)
-		 FROM usage WHERE auth_id = ? AND model = ? AND timestamp >= ? AND timestamp < ?`,
-		authID, model, from.UnixNano(), to.UnixNano())
-	err := row.Scan(&s.InputTokens, &s.OutputTokens, &s.CachedTokens, &s.Cost, &s.EntryCount)
-	if err != nil {
-		return s, fmt.Errorf("persist: query usage: %w", err)
-	}
-	return s, nil
-}
-
 // QueryUsageMulti aggregates usage across multiple models for a given authID.
 // If models is empty/nil, it sums usage across all models for the authID (wildcard).
 // Otherwise, it sums usage for the specified models only.

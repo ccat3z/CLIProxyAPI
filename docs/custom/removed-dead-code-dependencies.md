@@ -418,3 +418,19 @@ Each public symbol was re-verified before deletion with `grep -rn '\b<symbol>\b'
 ### Verification
 
 Each symbol was re-verified before deletion with `grep -rn 'RegisterPluginProvider\|UnregisterPluginProviders\|ClearPluginProviders\|pluginProviderAppliers\|pluginProviderApplier' --include='*.go' .` — every match was self-contained in `internal/thinking/apply.go` (no test references either). The retained `nativeProviderAppliers` map and `RegisterProvider` function are unchanged, and all existing `internal/thinking/` tests pass. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
+
+## Removed: dead usage persistence query (PersistPlugin.QueryUsage)
+
+`internal/usage/persist_plugin.go` exposed two overlapping single-call query helpers: `QueryUsage` (one authID + one model) and `QueryUsageMulti` (one authID + a model list, where an empty list acts as a wildcard). All live callers on the `custom` branch go through `QueryUsageMulti` — `internal/api/handlers/management/usage.go` and `internal/runtime/limiter/limiter.go` — so plain `QueryUsage` had no live callers and was removed.
+
+| Symbol | File | Kind | Reason |
+| --- | --- | --- | --- |
+| `PersistPlugin.QueryUsage` | `internal/usage/persist_plugin.go` | method | Zero callers outside the file/tests. A single-model `QueryUsageMulti(authID, []string{model}, from, to)` is equivalent. |
+
+`QueryUsageMulti` and `QueryFullUsageReport` were kept — both still have live callers (`QueryUsageMulti` in the management usage handler and the rate limiter; `QueryFullUsageReport` in the management usage handler). The `strings` import in `persist_plugin.go` remains in use by `QueryUsageMulti` (it lowercases / trims each model in the list).
+
+The companion `persist_plugin_test.go` was trimmed: the dedicated `TestPersistStoreQueryUsage` was removed entirely. The remaining tests (`TestPersistStoreCostFrozenAtRecordTime`, `TestPersistStoreReopen`, `TestPersistStoreEmptyQuery`, `TestPersistStoreFailedRecord`) used `QueryUsage` purely as a verification helper, so their calls were migrated to the equivalent `QueryUsageMulti(authID, []string{model}, from, to)` form; the behaviour they assert is unchanged.
+
+### Verification
+
+The method was re-verified before deletion with `grep -rn '\.QueryUsage\b\|QueryUsage(' --include='*.go' .` — the only matches were the definition in `persist_plugin.go` and calls in `persist_plugin_test.go`; the distinct `QueryUsageMulti` symbol is a different method and was not touched. After the migration, the same grep returns no matches. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
