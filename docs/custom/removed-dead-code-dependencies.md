@@ -128,3 +128,37 @@ Each symbol was re-verified with `grep -rn "<symbol>" --include="*.go" . | grep 
 - `ParseClaudeUsage`, `ParseClaudeStreamUsage`, plus `parseClaudeUsageNode`.
 
 The matching test cases in `usage_helpers_test.go` (`TestParseGeminiStreamUsage_NullUsageMetadata`, `TestParseGeminiCLIStreamUsage_NullUsageMetadata`, `TestParseAntigravityStreamUsage_NullUsageMetadata`, `TestParseGeminiCLIUsage_TopLevelUsageMetadata`, `TestParseGeminiCLIStreamUsage_ResponseSnakeCaseUsageMetadata`, `TestParseGeminiCLIStreamUsage_IgnoresTrafficTypeOnlyUsageMetadata`) were removed; the OpenAI and Claude tests were left untouched.
+
+## Removed: dead thinking providers
+
+After the Codex / Gemini / Gemini-CLI / Kimi / xAI executors were removed in earlier cleanups, their thinking-config appliers in `internal/thinking/provider/` still self-registered at startup via blank imports in `internal/runtime/executor/helps/thinking_providers.go`. No live caller dispatched to those provider names, so the packages were dead weight.
+
+### Deleted directories
+
+| Path | Reason |
+| --- | --- |
+| `internal/thinking/provider/codex/` | Only self-registers via blank import; no live caller dispatches to `"codex"`. |
+| `internal/thinking/provider/gemini/` | Only self-registers via blank import; no live caller dispatches to `"gemini"`. |
+| `internal/thinking/provider/geminicli/` | Only self-registers via blank import; no live caller dispatches to `"gemini-cli"`. |
+| `internal/thinking/provider/kimi/` | Only self-registers via blank import; no live caller dispatches to `"kimi"`. |
+| `internal/thinking/provider/xai/` | Embeds `codex.Applier`; only self-registers via blank import; no live caller dispatches to `"xai"`. |
+
+`internal/thinking/provider/claude/` and `internal/thinking/provider/openai/` were kept (live providers).
+
+### `internal/runtime/executor/helps/thinking_providers.go`
+
+The five blank imports for the deleted packages were removed; the `claude` and `openai` imports were kept.
+
+### `internal/thinking/apply.go` trims
+
+- `nativeProviderAppliers` map: dropped keys `gemini`, `gemini-cli`, `codex`, `antigravity`, `kimi`, `xai`. Only `claude` and `openai` remain.
+- `extractThinkingConfig` switch: dropped the `case "gemini", "gemini-cli", "antigravity":`, `case "codex", "xai":`, and `case "kimi":` branches (unreachable — corresponding executors are gone). Kept `case "claude":`, `case "openai":`, and the `default:` branch.
+- `extractGeminiConfig` helper: deleted. After the gemini switch branch was removed it had zero callers (re-verified with `grep -rn "extractGeminiConfig" --include="*.go" .` — only the definition remained).
+
+### Kept: `extractCodexConfig`
+
+`extractCodexConfig` is **not** dead: it is still called as a fallback from `ExtractReasoningEffort` and `ExtractTranslatedReasoningEffort` for `openai` / `openai-response` providers (which are live in the custom branch). It was intentionally kept, along with `extractOpenAIConfig` and `extractClaudeConfig`.
+
+### Tests
+
+No tests in `internal/thinking/` exercised the deleted providers (the per-provider `apply_test.go` files lived inside the deleted packages and went with them). The top-level `apply_user_defined_test.go` and `reasoning_effort_test.go` only cover the retained `claude` / `openai` paths and were left untouched.

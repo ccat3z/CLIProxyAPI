@@ -20,14 +20,8 @@ var providerAppliersMu sync.RWMutex
 
 // nativeProviderAppliers maps built-in provider names to their implementations.
 var nativeProviderAppliers = map[string]ProviderApplier{
-	"gemini":      nil,
-	"gemini-cli":  nil,
-	"claude":      nil,
-	"openai":      nil,
-	"codex":       nil,
-	"antigravity": nil,
-	"kimi":        nil,
-	"xai":         nil,
+	"claude": nil,
+	"openai": nil,
 }
 
 // pluginProviderAppliers maps plugin-owned provider names to their implementations.
@@ -413,14 +407,7 @@ func extractThinkingConfig(body []byte, provider string) ThinkingConfig {
 	switch provider {
 	case "claude":
 		return extractClaudeConfig(body)
-	case "gemini", "gemini-cli", "antigravity":
-		return extractGeminiConfig(body, provider)
 	case "openai":
-		return extractOpenAIConfig(body)
-	case "codex", "xai":
-		return extractCodexConfig(body)
-	case "kimi":
-		// Kimi uses OpenAI-compatible reasoning_effort format
 		return extractOpenAIConfig(body)
 	default:
 		return ThinkingConfig{}
@@ -549,61 +536,6 @@ func extractClaudeConfig(body []byte) ThinkingConfig {
 	// If type="enabled" but no budget_tokens, treat as auto (user wants thinking but no budget specified)
 	if thinkingType == "enabled" {
 		return ThinkingConfig{Mode: ModeAuto, Budget: -1}
-	}
-
-	return ThinkingConfig{}
-}
-
-// extractGeminiConfig extracts thinking configuration from Gemini format request body.
-//
-// Gemini API format:
-//   - generationConfig.thinkingConfig.thinkingLevel: "none", "auto", or level name (Gemini 3)
-//   - generationConfig.thinkingConfig.thinkingBudget: integer (Gemini 2.5)
-//
-// For gemini-cli and antigravity providers, the path is prefixed with "request.".
-//
-// Priority: thinkingLevel is checked first (Gemini 3 format), then thinkingBudget (Gemini 2.5 format).
-// This allows newer Gemini 3 level-based configs to take precedence.
-func extractGeminiConfig(body []byte, provider string) ThinkingConfig {
-	prefix := "generationConfig.thinkingConfig"
-	if provider == "gemini-cli" || provider == "antigravity" {
-		prefix = "request.generationConfig.thinkingConfig"
-	}
-
-	// Check thinkingLevel first (Gemini 3 format takes precedence)
-	level := gjson.GetBytes(body, prefix+".thinkingLevel")
-	if !level.Exists() {
-		// Google official Gemini Python SDK sends snake_case field names
-		level = gjson.GetBytes(body, prefix+".thinking_level")
-	}
-	if level.Exists() {
-		value := level.String()
-		switch value {
-		case "none":
-			return ThinkingConfig{Mode: ModeNone, Budget: 0}
-		case "auto":
-			return ThinkingConfig{Mode: ModeAuto, Budget: -1}
-		default:
-			return ThinkingConfig{Mode: ModeLevel, Level: ThinkingLevel(value)}
-		}
-	}
-
-	// Check thinkingBudget (Gemini 2.5 format)
-	budget := gjson.GetBytes(body, prefix+".thinkingBudget")
-	if !budget.Exists() {
-		// Google official Gemini Python SDK sends snake_case field names
-		budget = gjson.GetBytes(body, prefix+".thinking_budget")
-	}
-	if budget.Exists() {
-		value := int(budget.Int())
-		switch value {
-		case 0:
-			return ThinkingConfig{Mode: ModeNone, Budget: 0}
-		case -1:
-			return ThinkingConfig{Mode: ModeAuto, Budget: -1}
-		default:
-			return ThinkingConfig{Mode: ModeBudget, Budget: value}
-		}
 	}
 
 	return ThinkingConfig{}
