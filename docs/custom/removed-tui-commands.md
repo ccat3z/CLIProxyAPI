@@ -1,10 +1,8 @@
 # Removed: TUI and Utility Commands
 
-## What Was Removed
+The terminal management UI and the standalone model-fetching utilities are not used on the `custom` branch. They have been removed along with their flags and dependencies.
 
-The following modules were removed from the `custom` branch because they are not used:
-
-### TUI (Terminal User Interface)
+## TUI (Terminal User Interface)
 
 - **Directory**: `internal/tui/` — entire directory deleted
   - `app.go`, `auth_tab.go`, `browser.go`, `client.go`, `config_tab.go`, `dashboard.go`, `i18n.go`, `keys_tab.go`, `loghook.go`, `logs_tab.go`, `oauth_tab.go`, `styles.go`
@@ -17,16 +15,10 @@ The following modules were removed from the `custom` branch because they are not
   - TUI log hook setup and IO redirection
   - `shouldStartExampleAPIKeyWarningServer` simplified (removed `tuiMode`/`standalone` parameters)
 
-### Utility Commands
+## Utility Commands
 
-- **Directory**: `cmd/fetch_codex_models/` — deleted
-  - Standalone utility for fetching Codex model listings
-- **Directory**: `cmd/fetch_antigravity_models/` — deleted
-  - Standalone utility for fetching Antigravity model listings
-
-## Rationale
-
-The TUI terminal interface and the fetch utility commands are not used on the `custom` branch. Removing them reduces binary size, eliminates unused dependencies (e.g., Bubbletea), and simplifies the server startup path.
+- **Directory**: `cmd/fetch_codex_models/` — deleted. Standalone utility for fetching Codex model listings.
+- **Directory**: `cmd/fetch_antigravity_models/` — deleted. Standalone utility for fetching Antigravity model listings.
 
 ## Impact
 

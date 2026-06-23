@@ -1,8 +1,6 @@
-# Removed: Plugin System (pluginhost + pluginstore)
+# Removed: Plugin System
 
-## Summary
-
-Removed the entire plugin system including the plugin host (`internal/pluginhost/`) and plugin store (`internal/pluginstore/`), along with all management API routes for plugins and all integration points throughout the codebase.
+The entire plugin system is gone: the plugin host (`internal/pluginhost/`), the plugin store (`internal/pluginstore/`), all management API routes for plugins, and every integration point throughout the codebase. The `custom` branch does not load or execute plugins.
 
 ## Deleted Packages
 
@@ -87,6 +85,8 @@ The following interfaces remain in the codebase but have no implementation after
 - `PluginScheduler` in `sdk/cliproxy/auth/conductor.go`
 - `PluginAuthParser` in `sdk/auth/filestore.go`
 - `PluginHooks` in `sdk/translator/plugin_hooks.go`
+
+The `sdk/pluginapi/` package is also kept: it is still imported by the interfaces above and by `cmd/server`.
 
 ## Routes Removed
 

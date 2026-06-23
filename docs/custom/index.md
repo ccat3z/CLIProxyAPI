@@ -25,17 +25,13 @@ This directory documents all local changes on the `custom` branch that diverge f
 
 ## Removed Modules
 
-- [Removed: TUI and Utility Commands](./removed-tui.md)
-- [Removed: Plugin System (pluginhost + pluginstore)](./removed-plugins.md)
-- [Removed: WebSocket Relay, GeminiCLI Runtime, and Non-File Store Backends](./removed-wsrelay-store.md)
-- [Removed: Non-Essential Providers, OAuth Flows, Browser Login](./removed-providers-oauth.md)
-- [Removed: Claude Executor OAuth Code Paths](./removed-claude-oauth-paths.md)
-- [Removed: Unused Config Fields and Dependencies](./removed-config-fields.md)
-- [Removed: Dead Code (Phase 7 Batch 1)](./removed-dead-code.md)
-- [Removed: Antigravity Residual Code (Phase 7 Batch 2)](./removed-antigravity-residual.md)
-- [Removed: `-local-model` Flag and OAuth Provider Config Types (Phase 7 Batch 3)](./removed-local-model-oauth-config.md)
-- [Removed: utls TLS Fingerprinting (Phase 7 Batch 4)](./removed-utls.md)
-- [Removed: Unused Dependencies (Phase 7 Batch 6)](./removed-dependencies.md)
+- [Removed: Plugin System](./removed-plugins.md) — `pluginhost` + `pluginstore`, management routes, and all integration points
+- [Removed: Non-Essential Providers, OAuth Flows, Browser Login](./removed-providers-oauth.md) — Provider executors, auth packages, translators, browser/login commands, OAuth management handlers, Claude executor OAuth code paths, and Antigravity residual plumbing
+- [Removed: Storage Backends and WebSocket Relay](./removed-storage-relay.md) — Postgres/Git/Object stores, `wsrelay`, and the GeminiCLI shared-credential runtime
+- [Removed: TUI and Utility Commands](./removed-tui-commands.md) — Terminal UI, `--tui`/`--standalone` flags, and `fetch_*_models` utilities
+- [Removed: Config Schema and Server Flags](./removed-config-flags.md) — `-local-model` flag, OAuth provider config types, dead config fields, and related management routes
+- [Removed: utls TLS Fingerprinting](./removed-utls.md) — uTLS Chrome fingerprint spoofing in the Claude executor
+- [Removed: Dead Code and Unused Dependencies](./removed-dead-code-dependencies.md) — Zero-caller directories/files and the final `go mod tidy` pass
 
 ## Integration Tests
 

@@ -1,15 +1,15 @@
-# Removed: WebSocket Relay, GeminiCLI Runtime, and Non-File Store Backends
+# Removed: Storage Backends and WebSocket Relay
+
+The `custom` branch only uses file-based auth storage and does not relay WebSocket traffic. The Postgres, Git, and Object store backends, the WebSocket relay manager (used only by the AI Studio provider), and the GeminiCLI shared-credential runtime have been removed.
 
 ## What Was Removed
 
-The following modules were removed from the `custom` branch because they are not used:
-
-- **WebSocket Relay** (`internal/wsrelay/`): WebSocket relay manager used exclusively by the AI Studio provider for real-time streaming via WebSocket connections. Not used on the custom branch.
-- **GeminiCLI Runtime State** (`internal/runtime/geminicli/`): Shared credential and virtual credential types for multi-project Gemini CLI logins. Not used on the custom branch — all callers were removed alongside the gemini-cli executor and the multi-project virtual-auth synthesizer.
-- **Postgres Store** (`internal/store/postgresstore.go`): PostgreSQL-backed token store for persistent auth storage. Not used on the custom branch.
-- **Git Store** (`internal/store/gitstore.go`, `internal/store/gitstore_test.go`): Git-backed token store for version-controlled auth storage. Not used on the custom branch.
-- **Object Store** (`internal/store/objectstore.go`): S3-compatible object store backend for auth storage. Not used on the custom branch.
-- **AI Studio and Gemini CLI executors** (`internal/runtime/executor/aistudio_executor*.go`, `internal/runtime/executor/gemini_cli_executor*.go`): These executors depend on `wsrelay` (AI Studio) and `internal/runtime/geminicli` (Gemini CLI). They were removed together with the modules they depend on. Phase 4 will remove the remaining provider executors.
+- **WebSocket Relay** (`internal/wsrelay/`): WebSocket relay manager used exclusively by the AI Studio provider for real-time streaming via WebSocket connections.
+- **GeminiCLI Runtime State** (`internal/runtime/geminicli/`): Shared credential and virtual credential types for multi-project Gemini CLI logins. All callers were removed alongside the gemini-cli executor and the multi-project virtual-auth synthesizer.
+- **Postgres Store** (`internal/store/postgresstore.go`): PostgreSQL-backed token store for persistent auth storage.
+- **Git Store** (`internal/store/gitstore.go`, `internal/store/gitstore_test.go`): Git-backed token store for version-controlled auth storage.
+- **Object Store** (`internal/store/objectstore.go`): S3-compatible object store backend for auth storage.
+- **AI Studio and Gemini CLI executors** (`internal/runtime/executor/aistudio_executor*.go`, `internal/runtime/executor/gemini_cli_executor*.go`): These executors depend on `wsrelay` (AI Studio) and `internal/runtime/geminicli` (Gemini CLI). They were removed together with the modules they depend on.
 
 ## Key Deleted Files/Directories
 
@@ -32,16 +32,12 @@ The following modules were removed from the `custom` branch because they are not
 
 ## Helpers Moved to `internal/runtime/executor/helps/`
 
-Two functions previously defined inside deleted executor files are still used by the surviving antigravity executor (slated for removal in Phase 4). They were exported from `internal/runtime/executor/helps/`:
+Two functions previously defined inside deleted executor files were still used by the surviving antigravity executor (later removed in its own cleanup). They were exported from `internal/runtime/executor/helps/`:
 
-- `ParseRetryDelay` (`helps/retry_delay.go`) — moved from `internal/runtime/executor/gemini_cli_executor.go`. Used by `internal/runtime/executor/antigravity_executor.go`.
-- `DeleteJSONField` (`helps/json_helpers.go`) — moved from `internal/runtime/executor/gemini_cli_executor.go`. Used by `internal/runtime/executor/antigravity_executor.go`.
+- `ParseRetryDelay` (`helps/retry_delay.go`) — moved from `internal/runtime/executor/gemini_cli_executor.go`.
+- `DeleteJSONField` (`helps/json_helpers.go`) — moved from `internal/runtime/executor/gemini_cli_executor.go`.
 
 A small antigravity test helper file (`internal/runtime/executor/antigravity_test_helpers_test.go`) was added to keep the surviving antigravity executor tests compilable after the original `_credits_test.go` file was removed.
-
-## Rationale
-
-The custom branch does not use the AI Studio provider (which requires `wsrelay`) or any non-file storage backends (Postgres, Git, Object Store). Only file-based storage is needed. Removing these modules reduces binary size, dependency surface, and maintenance burden.
 
 ## Removed Environment Variables
 
