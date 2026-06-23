@@ -625,6 +625,13 @@ func (m *Manager) selectionModelForAuth(auth *Auth, routeModel string) string {
 	if strings.TrimSpace(requestedModel) == "" {
 		requestedModel = strings.TrimSpace(routeModel)
 	}
+	// For OpenAI-compat alias pools (multiple upstream models sharing one alias),
+	// keep the alias as the selection key. Resolving to a single pool member here
+	// would cause isAuthBlockedForModel to block the entire auth when that one
+	// member is suspended, defeating the per-model fallback in filterExecutionModels.
+	if pool := m.resolveOpenAICompatUpstreamModelPool(auth, requestedModel); len(pool) > 1 {
+		return requestedModel
+	}
 	resolvedModel := m.applyAPIKeyModelAlias(auth, requestedModel)
 	if strings.TrimSpace(resolvedModel) == "" {
 		resolvedModel = requestedModel
