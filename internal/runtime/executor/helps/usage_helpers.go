@@ -562,41 +562,6 @@ func parseClaudeUsageNode(usageNode gjson.Result) usage.Detail {
 	return detail
 }
 
-var stopChunkWithoutUsage sync.Map
-
-func rememberStopWithoutUsage(traceID string) {
-	stopChunkWithoutUsage.Store(traceID, struct{}{})
-	time.AfterFunc(10*time.Minute, func() { stopChunkWithoutUsage.Delete(traceID) })
-}
-
-func hasUsageMetadata(jsonBytes []byte) bool {
-	if len(jsonBytes) == 0 || !gjson.ValidBytes(jsonBytes) {
-		return false
-	}
-	if gjson.GetBytes(jsonBytes, "usageMetadata").Exists() {
-		return true
-	}
-	if gjson.GetBytes(jsonBytes, "response.usageMetadata").Exists() {
-		return true
-	}
-	return false
-}
-
-func isStopChunkWithoutUsage(jsonBytes []byte) bool {
-	if len(jsonBytes) == 0 || !gjson.ValidBytes(jsonBytes) {
-		return false
-	}
-	finishReason := gjson.GetBytes(jsonBytes, "candidates.0.finishReason")
-	if !finishReason.Exists() {
-		finishReason = gjson.GetBytes(jsonBytes, "response.candidates.0.finishReason")
-	}
-	trimmed := strings.TrimSpace(finishReason.String())
-	if !finishReason.Exists() || trimmed == "" {
-		return false
-	}
-	return !hasUsageMetadata(jsonBytes)
-}
-
 func jsonPayload(line []byte) []byte {
 	trimmed := bytes.TrimSpace(line)
 	if len(trimmed) == 0 {

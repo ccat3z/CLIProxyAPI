@@ -327,6 +327,19 @@ The `github.com/tidwall/sjson` import in `usage_helpers.go` was used solely by `
 
 Each public symbol was re-verified before deletion with `grep -rn '\bFilterSSEUsageMetadata\b\|\bStripUsageMetadataFromJSON\b\|\bJSONPayload\b' --include="*.go" .` — all references were self-contained in `usage_helpers.go`. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
 
+### Orphaned sibling helpers
+
+The same filtering path had also left four sibling symbols in `usage_helpers.go` that only referenced each other and had no callers anywhere else in the tree. They were removed in a follow-up:
+
+| Symbol | Kind | Reason |
+| --- | --- | --- |
+| `stopChunkWithoutUsage` | `sync.Map` var | Backing store for `rememberStopWithoutUsage` / `isStopChunkWithoutUsage`; no other readers. |
+| `rememberStopWithoutUsage` | function | Zero callers. |
+| `isStopChunkWithoutUsage` | function | Zero callers. |
+| `hasUsageMetadata` | function | Only caller was `isStopChunkWithoutUsage`. |
+
+`sync` and `time` are still used elsewhere in the file, so no imports were dropped. Re-verified with `grep -rn 'stopChunkWithoutUsage\|rememberStopWithoutUsage\|isStopChunkWithoutUsage\|hasUsageMetadata' --include="*.go" .` (all hits self-contained) and the full verification checklist (format, build, `go test ./...`, `pytest integration/` 37 passed, smoke endpoints).
+
 ## Removed: dead payload config helper (ApplyPayloadConfigWithRoot)
 
 `ApplyPayloadConfigWithRoot` was a thin wrapper that forwarded to `ApplyPayloadConfigWithRequest` with empty `fromProtocol` and nil `headers`. After all Gemini CLI executor callers were removed in earlier cleanups, only `ApplyPayloadConfigWithRequest` remained in use (4 live callers). `ApplyPayloadConfigWithRoot` had zero callers outside its own test file and was removed.
