@@ -128,18 +128,12 @@ type Config struct {
 }
 
 // ClaudeHeaderDefaults configures default header values injected into Claude API requests.
-// In legacy mode, UserAgent/PackageVersion/RuntimeVersion/Timeout act as fallbacks when
-// the client omits them, while OS/Arch remain runtime-derived. When stabilized device
-// profiles are enabled, OS/Arch become the pinned platform baseline, while
-// UserAgent/PackageVersion/RuntimeVersion seed the upgradeable software fingerprint.
+// UserAgent/PackageVersion/RuntimeVersion/Timeout act as fallbacks when the client omits them.
 type ClaudeHeaderDefaults struct {
-	UserAgent              string `yaml:"user-agent" json:"user-agent"`
-	PackageVersion         string `yaml:"package-version" json:"package-version"`
-	RuntimeVersion         string `yaml:"runtime-version" json:"runtime-version"`
-	OS                     string `yaml:"os" json:"os"`
-	Arch                   string `yaml:"arch" json:"arch"`
-	Timeout                string `yaml:"timeout" json:"timeout"`
-	StabilizeDeviceProfile *bool  `yaml:"stabilize-device-profile,omitempty" json:"stabilize-device-profile,omitempty"`
+	UserAgent      string `yaml:"user-agent" json:"user-agent"`
+	PackageVersion string `yaml:"package-version" json:"package-version"`
+	RuntimeVersion string `yaml:"runtime-version" json:"runtime-version"`
+	Timeout        string `yaml:"timeout" json:"timeout"`
 }
 
 // TLSConfig holds HTTPS server settings.
@@ -772,8 +766,6 @@ func (cfg *Config) SanitizeClaudeHeaderDefaults() {
 	cfg.ClaudeHeaderDefaults.UserAgent = strings.TrimSpace(cfg.ClaudeHeaderDefaults.UserAgent)
 	cfg.ClaudeHeaderDefaults.PackageVersion = strings.TrimSpace(cfg.ClaudeHeaderDefaults.PackageVersion)
 	cfg.ClaudeHeaderDefaults.RuntimeVersion = strings.TrimSpace(cfg.ClaudeHeaderDefaults.RuntimeVersion)
-	cfg.ClaudeHeaderDefaults.OS = strings.TrimSpace(cfg.ClaudeHeaderDefaults.OS)
-	cfg.ClaudeHeaderDefaults.Arch = strings.TrimSpace(cfg.ClaudeHeaderDefaults.Arch)
 	cfg.ClaudeHeaderDefaults.Timeout = strings.TrimSpace(cfg.ClaudeHeaderDefaults.Timeout)
 }
 
@@ -1667,9 +1659,14 @@ func removeRemovedIntegrationKeys(root *yaml.Node) {
 	removeMapKey(root, "antigravity-signature-cache-enabled")
 	removeMapKey(root, "antigravity-signature-bypass-strict")
 	removeMapKey(root, "plugins")
+	removeMapKey(root, "gpt-image-2-base-model")
 	// Dead quota-exceeded toggles: dropped from the struct but old user configs may still carry them.
 	removeNestedMapKey(root, "quota-exceeded", "switch-project")
 	removeNestedMapKey(root, "quota-exceeded", "switch-preview-model")
+	// Dead ClaudeHeaderDefaults sub-fields: dropped from the struct but old user configs may still carry them.
+	removeNestedMapKey(root, "claude-header-defaults", "os")
+	removeNestedMapKey(root, "claude-header-defaults", "arch")
+	removeNestedMapKey(root, "claude-header-defaults", "stabilize-device-profile")
 }
 
 // removeNestedMapKey removes a key from a nested mapping located under parentKey in root.

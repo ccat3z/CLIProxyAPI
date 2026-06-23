@@ -14,10 +14,7 @@ claude-header-defaults:
   user-agent: "  claude-cli/2.1.70 (external, cli)  "
   package-version: "  0.80.0  "
   runtime-version: "  v24.5.0  "
-  os: "  MacOS  "
-  arch: "  arm64  "
   timeout: "  900  "
-  stabilize-device-profile: false
 `)
 	if err := os.WriteFile(configPath, configYAML, 0o600); err != nil {
 		t.Fatalf("failed to write config: %v", err)
@@ -37,19 +34,7 @@ claude-header-defaults:
 	if got := cfg.ClaudeHeaderDefaults.RuntimeVersion; got != "v24.5.0" {
 		t.Fatalf("RuntimeVersion = %q, want %q", got, "v24.5.0")
 	}
-	if got := cfg.ClaudeHeaderDefaults.OS; got != "MacOS" {
-		t.Fatalf("OS = %q, want %q", got, "MacOS")
-	}
-	if got := cfg.ClaudeHeaderDefaults.Arch; got != "arm64" {
-		t.Fatalf("Arch = %q, want %q", got, "arm64")
-	}
 	if got := cfg.ClaudeHeaderDefaults.Timeout; got != "900" {
 		t.Fatalf("Timeout = %q, want %q", got, "900")
-	}
-	if cfg.ClaudeHeaderDefaults.StabilizeDeviceProfile == nil {
-		t.Fatal("StabilizeDeviceProfile = nil, want non-nil")
-	}
-	if got := *cfg.ClaudeHeaderDefaults.StabilizeDeviceProfile; got {
-		t.Fatalf("StabilizeDeviceProfile = %v, want false", got)
 	}
 }

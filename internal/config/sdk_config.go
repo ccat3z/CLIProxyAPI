@@ -21,13 +21,6 @@ type SDKConfig struct {
 	//     sent it and do not inject it otherwise; on /v1/images/generations and /v1/images/edits behave like "chat".
 	DisableImageGeneration DisableImageGenerationMode `yaml:"disable-image-generation" json:"disable-image-generation"`
 
-	// GPTImage2BaseModel sets the base (mainline) model used when proxying GPT Image 2
-	// requests via the hosted image_generation tool (e.g. Codex OAuth /v1/images/*).
-	//
-	// The value must start with "gpt-" (case-insensitive). If empty or invalid, the
-	// default base model ("gpt-5.4-mini") is used.
-	GPTImage2BaseModel string `yaml:"gpt-image-2-base-model,omitempty" json:"gpt-image-2-base-model,omitempty"`
-
 	// VideoResultAuthCacheTTL controls how long video IDs stay pinned to the credential
 	// that created them. Accepts duration strings like "30m" or "3h".
 	// Empty or invalid values use the default 3h.

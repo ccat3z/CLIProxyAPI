@@ -434,3 +434,41 @@ The companion `persist_plugin_test.go` was trimmed: the dedicated `TestPersistSt
 ### Verification
 
 The method was re-verified before deletion with `grep -rn '\.QueryUsage\b\|QueryUsage(' --include='*.go' .` — the only matches were the definition in `persist_plugin.go` and calls in `persist_plugin_test.go`; the distinct `QueryUsageMulti` symbol is a different method and was not touched. After the migration, the same grep returns no matches. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
+
+## Removed: dead SDK config fields
+
+A pair of `SDKConfig` / `ClaudeHeaderDefaults` fields were still parsed, sanitized, and diffed, but had no runtime readers on the `custom` branch — leftovers from the removed provider / device-stabilization infrastructure.
+
+### SDK config: GPT image base model
+
+`SDKConfig.GPTImage2BaseModel` (YAML key `gpt-image-2-base-model`) configured the base model for the hosted GPT Image 2 image-generation tool. No executor reads it on the `custom` branch.
+
+| Item | Disposition |
+| --- | --- |
+| `SDKConfig.GPTImage2BaseModel` field | Removed from `internal/config/sdk_config.go`. |
+| `gpt-image-2-base-model` diff entry | Removed from `internal/watcher/diff/config_diff.go`. |
+| `gpt-image-2-base-model` config key | Added to `removeRemovedIntegrationKeys` in `internal/config/config.go` so existing user config files are cleaned on next save. |
+
+### Claude header defaults: OS / Arch / StabilizeDeviceProfile
+
+`ClaudeHeaderDefaults.OS`, `.Arch`, and `.StabilizeDeviceProfile` seeded a stabilized device-profile fingerprint for Claude API requests. No runtime code reads them on the `custom` branch — `claude_executor.go` derives OS/Arch differently and never consulted `StabilizeDeviceProfile`.
+
+| Item | Disposition |
+| --- | --- |
+| `ClaudeHeaderDefaults.OS` field | Removed from `internal/config/config.go`. |
+| `ClaudeHeaderDefaults.Arch` field | Removed from `internal/config/config.go`. |
+| `ClaudeHeaderDefaults.StabilizeDeviceProfile` field | Removed from `internal/config/config.go`. |
+| `TrimSpace` calls for the three removed fields | Removed from `SanitizeClaudeHeaderDefaults`. |
+| `claude-header-defaults.os` / `.arch` / `.stabilize-device-profile` config keys | Added to `removeRemovedIntegrationKeys` (via `removeNestedMapKey`) so existing user config files are cleaned on next save. |
+| `OS` / `Arch` / `StabilizeDeviceProfile` assertions | Removed from `internal/config/claude_header_defaults_test.go`. |
+
+The struct doc comment was updated to drop the OS/Arch/stabilized-profile narrative.
+
+### Kept
+
+`ClaudeHeaderDefaults.UserAgent`, `.PackageVersion`, `.RuntimeVersion`, and `.Timeout` are all retained — each has a live caller in `internal/runtime/executor/claude_executor.go` (UserAgent/PackageVersion/RuntimeVersion seed the client fingerprint headers; `Timeout` is the fallback for the `X-Stainless-Timeout` header at line 1050: `hdrDefault(hd.Timeout, "600")`). `Timeout` was initially considered for removal but re-verification found that runtime caller, so it stays; correspondingly `claude-header-defaults.timeout` was *not* added to the removal key list, and the `Timeout` sanitizer line and test assertion were preserved.
+
+### Verification
+
+Each removed field was re-verified before deletion with `grep -rn 'ClaudeHeaderDefaults\.OS\b\|ClaudeHeaderDefaults\.Arch\b\|ClaudeHeaderDefaults\.StabilizeDeviceProfile\b\|GPTImage2BaseModel' --include='*.go' .` (plus a broader `grep -rn 'hd\.OS\|hd\.Arch\|\.StabilizeDeviceProfile\|\.Timeout\b'` against `internal/` to catch accesses via local variables, which is what surfaced the live `hd.Timeout` caller). `OS` / `Arch` / `StabilizeDeviceProfile` / `GPTImage2BaseModel` returned only their own definitions, sanitizer entries, diff entries, and test assertions — no live callers. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
+
