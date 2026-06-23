@@ -14,16 +14,6 @@ import (
 	"github.com/tidwall/sjson"
 )
 
-// ApplyPayloadConfigWithRoot behaves like applyPayloadConfig but treats all parameter
-// paths as relative to the provided root path (for example, "request" for Gemini CLI)
-// and restricts matches to the given protocol when supplied. Defaults are checked
-// against the original payload when provided. requestedModel carries the client-visible
-// model name before alias resolution so payload rules can target aliases precisely.
-// requestPath is the inbound HTTP request path (when available) used for endpoint-scoped gates.
-func ApplyPayloadConfigWithRoot(cfg *config.Config, model, protocol, root string, payload, original []byte, requestedModel string, requestPath string) []byte {
-	return ApplyPayloadConfigWithRequest(cfg, model, protocol, "", root, payload, original, requestedModel, requestPath, nil)
-}
-
 // ApplyPayloadConfigWithRequest applies payload config using source protocol and request header gates.
 func ApplyPayloadConfigWithRequest(cfg *config.Config, model, protocol, fromProtocol, root string, payload, original []byte, requestedModel string, requestPath string, headers http.Header) []byte {
 	if cfg == nil || len(payload) == 0 {

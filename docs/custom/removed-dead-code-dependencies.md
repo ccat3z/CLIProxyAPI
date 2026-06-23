@@ -327,3 +327,17 @@ The `github.com/tidwall/sjson` import in `usage_helpers.go` was used solely by `
 
 Each public symbol was re-verified before deletion with `grep -rn '\bFilterSSEUsageMetadata\b\|\bStripUsageMetadataFromJSON\b\|\bJSONPayload\b' --include="*.go" .` — all references were self-contained in `usage_helpers.go`. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
 
+## Removed: dead payload config helper (ApplyPayloadConfigWithRoot)
+
+`ApplyPayloadConfigWithRoot` was a thin wrapper that forwarded to `ApplyPayloadConfigWithRequest` with empty `fromProtocol` and nil `headers`. After all Gemini CLI executor callers were removed in earlier cleanups, only `ApplyPayloadConfigWithRequest` remained in use (4 live callers). `ApplyPayloadConfigWithRoot` had zero callers outside its own test file and was removed.
+
+| Symbol | File | Kind | Reason |
+| --- | --- | --- | --- |
+| `ApplyPayloadConfigWithRoot` | `internal/runtime/executor/helps/payload_helpers.go` | function | Zero callers outside the file and tests. Thin wrapper superseded by `ApplyPayloadConfigWithRequest`. |
+
+The companion test file `payload_helpers_disable_image_generation_test.go` was deleted in full — every test case in it called `ApplyPayloadConfigWithRoot`. The remaining `ApplyPayloadConfigWithRequest` and all its internal helpers (`isImagesEndpointRequestPath`, `shouldStripImageGeneration`, `payloadModelRulesMatch`, etc.) are untouched.
+
+### Verification
+
+The function was re-verified before deletion with `grep -rn '\bApplyPayloadConfigWithRoot\b' --include="*.go" .` — only the definition in `payload_helpers.go` and calls in `payload_helpers_disable_image_generation_test.go` appeared. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200, `/v0/management/config` → 401) all pass.
+
