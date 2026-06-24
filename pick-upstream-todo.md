@@ -102,7 +102,7 @@ Total: 109 commits
 | 94 | a183e729 | feat(auth): add ParseAuths method for expanding credential payloads into multiple auth records | ❌ skipped (pluginhost code removed on custom branch: the sole touched file `sdk/pluginhost/host.go` is modify/delete — the entire `pluginhost`/`pluginstore` plugin system was removed via removed-plugins.md; the new `ParseAuths` method only delegates to `h.inner.ParseAuths` on the plugin host, no surviving shared change) |
 | 95 | a7250275 | fix(oauth): force-map responses to config alias not request suffix (#3983) | ❌ skipped (oauth code removed on custom branch) |
 | 96 | df10a5b1 | feat(pluginhost): add shadow plugin management and cleanup functionality | ❌ skipped (pluginhost code removed on custom branch) |
-| 97 | 7712ffed | Merge pull request #3986 from router-for-me/sdk | ⬜ pending |
+| 97 | 7712ffed | Merge pull request #3986 from router-for-me/sdk | ✅ empty commit (merge of removed features) |
 | 98 | b53d1e95 | refactor(pluginhost): replace `Snapshot().records` with `activeRecords` for improved filtering | ⬜ pending |
 | 99 | 810abe5e | feat(pluginhost): add OAuthProvider field to plugin metadata and update related functionality | ⬜ pending |
 | 100 | 29b53434 | Merge pull request #3998 from router-for-me/feat/plugin-OAuth | ⬜ pending |
