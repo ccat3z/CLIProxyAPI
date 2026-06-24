@@ -41,6 +41,24 @@ This directory documents all local changes on the `custom` branch that diverge f
 - [Removed: auth-dir / JSON Auth-File Subsystem](./removed-auth-dir.md) — `auth_dir` config field, `Watcher.authDir`/`mirroredAuthDir`, file-scanning watcher methods (`addOrUpdateClient`, `removeClient`, `loadFileClients`), and all related test infrastructure; `NewWatcher` signature simplified
 - [Removed: Dead Code and Unused Dependencies](./removed-dead-code-dependencies.md) — Zero-caller directories/files and the final `go mod tidy` pass
 
+## Writing Removal Docs
+
+When documenting a removal (a `removed-*.md` file or a section in `removed-dead-code-dependencies.md`), follow these conventions so the notes stay scannable and consistent.
+
+**Organize by feature, not by cleanup round.** Group related removals under a feature heading (e.g. *Providers & Model Catalog*, *Auth & Credentials*, *Config Schema*). Never structure a doc as a chronological sequence of passes — the cleanup history is in git, not in prose.
+
+**Describe what changed vs. upstream, not the steps taken.** State what was removed and why it is unused under the active config. Do not write procedural narration — avoid `Batch N`, `Step N`, `Phase N`, `Round N`, or "first we… then we…" sequences. The doc describes the *result*; the work order is irrelevant to a reader.
+
+**One doc per subsystem.** Each removed subsystem (TLS listen, pprof, redis/home, auth-dir, proxy-url, etc.) gets its own `removed-<feature>.md`. Small zero-caller symbols that do not warrant a standalone doc go into `removed-dead-code-dependencies.md`, organized by feature.
+
+**For each removed symbol, record the reason it was dead.** Use a table with `Symbol | Kind | Reason` columns. State the concrete evidence (zero callers verified by grep, only caller was a removed provider, config-unreachable under `claude-api-key`/`openai-compatibility`). Record the grep command used when the verification was non-trivial.
+
+**Always document what was *kept* and why.** Adjacent symbols that survived (because they have a live caller, satisfy an interface, or are whitelisted) must be listed under a **Kept** note. This is what prevents a future cleanup from re-flagging them and from breaking the build. Call out false-positive traps explicitly (indirect callers, dot-imports, interface satisfaction, struct-field access via a local variable).
+
+**Keep it concise.** One line of verification per change is enough ("`gofmt`, `go build`, `go test ./...`, `pytest integration/`, smoke test pass") — do not repeat the full checklist at the end of every section.
+
+**Update this index.** Add a one-line entry under *Removed Modules* for every new `removed-*.md`, with a short description of the subsystem removed.
+
 ## Integration Tests
 
 Full pytest integration test suite in `integration/` covering rate limits, persistence, dynamic config, management API, usage API, cost calculations, and headers. No environment variables are needed — a mock `llama-server` upstream is auto-downloaded by the test harness.
