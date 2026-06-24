@@ -8,6 +8,10 @@ This directory documents all local changes on the `custom` branch that diverge f
 > This directory only documents server-side changes. Web UI and other non-server component changes are excluded.
 > Bug fixes for features introduced on the `custom` branch are not documented separately.
 
+## Architecture
+
+- [Architecture Diagram](./architecture.svg) — post-cleanup request flow (clients → Gin API → handlers → conductor → executors → upstream). DOT source at [architecture.dot](./architecture.dot).
+
 ## Features
 
 - [Per-API-Key Model Usage Limits](./usage-limits.md)

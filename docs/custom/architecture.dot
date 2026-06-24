@@ -1,0 +1,122 @@
+digraph CLIProxyAPI {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fontname="sans-serif", fontsize=11];
+    edge [fontname="sans-serif", fontsize=9];
+
+    // ── Clients ──
+    subgraph cluster_client {
+        label="Clients"; style=dashed; color=gray60;
+        curl [label="curl / SDK", shape=ellipse, fillcolor=white];
+        browser [label="Management\nPanel", shape=ellipse, fillcolor=white];
+    }
+
+    // ── Entry ──
+    subgraph cluster_entry {
+        label="Entrypoint"; style=filled; fillcolor="#f0f4ff"; color="#4472c4";
+        main [label="cmd/server\nmain.go", fillcolor="#d6e4f0"];
+    }
+
+    // ── API Layer ──
+    subgraph cluster_api {
+        label="HTTP API  (internal/api)"; style=filled; fillcolor="#fff2cc"; color="#bf8f00";
+        gin [label="Gin Engine\n+ Middleware", fillcolor="#ffe699"];
+
+        subgraph cluster_routes {
+            label="Routes"; style=filled; fillcolor="#fff9e6"; color="#d4a800";
+
+            proxy_routes [label="/v1/chat/completions\n/v1/completions\n/v1/responses\n/v1/models\n/v1/messages\n/v1/images/*", fillcolor="#fff4c7"];
+            mgmt_routes [label="/v0/management/*\nconfig / usage / logs", fillcolor="#fff4c7"];
+            health [label="/healthz", fillcolor="#f2f2f2"];
+        }
+    }
+
+    // ── SDK Handlers ──
+    subgraph cluster_handlers {
+        label="SDK Request Handlers  (sdk/api/handlers)"; style=filled; fillcolor="#e2efda"; color="#548235";
+        openai_h [label="OpenAI Handler\n(Chat/Completions/\nImages/Responses)", fillcolor="#c6e0b4"];
+        claude_h [label="Claude Handler\n(Messages/\nCountTokens)", fillcolor="#c6e0b4"];
+    }
+
+    // ── Auth & Selection ──
+    subgraph cluster_auth {
+        label="Auth & Credential Selection  (sdk/cliproxy/auth)"; style=filled; fillcolor="#fce4d6"; color="#c55a11";
+        conductor [label="Conductor\npickNext → select\nbest credential", fillcolor="#f8cbad"];
+        selector [label="Selector\nround-robin /\npriority / quota", fillcolor="#f8cbad"];
+    }
+
+    // ── Executors ──
+    subgraph cluster_executor {
+        label="Executors  (internal/runtime/executor)"; style=filled; fillcolor="#d9e2f3"; color="#4472c4";
+        claude_ex [label="Claude Executor\nstreaming + non-stream\nsigning / session-id", fillcolor="#b4c7e7"];
+        openai_ex [label="OpenAI-compat\nExecutor\nstreaming + non-stream", fillcolor="#b4c7e7"];
+    }
+
+    // ── Translators ──
+    subgraph cluster_translator {
+        label="Protocol Translators  (internal/translator)"; style=filled; fillcolor="#e2d9f3"; color="#7030a0";
+        claude2openai [label="Claude → OpenAI\nresponse format\ntranslation", fillcolor="#ccc0da"];
+        openai2claude [label="OpenAI → Claude\nrequest translation", fillcolor="#ccc0da"];
+    }
+
+    // ── Thinking Pipeline ──
+    subgraph cluster_thinking {
+        label="Thinking Pipeline  (internal/thinking)"; style=filled; fillcolor="#d6dce4"; color="#6b7b8d";
+        thinking [label="ApplyThinking\nsuffix parse → canonical\nconfig → provider output", fillcolor="#b8c6d4"];
+    }
+
+    // ── Infrastructure ──
+    subgraph cluster_infra {
+        label="Infrastructure"; style=filled; fillcolor="#f2f2f2"; color="#808080";
+
+        config [label="Config\n(internal/config)\nYAML + hot-reload", fillcolor="#e6e6e6"];
+        watcher [label="Watcher\n(internal/watcher)\nfsnotify + reload", fillcolor="#e6e6e6"];
+        registry [label="Registry\n(internal/registry)\nclaude model defs", fillcolor="#e6e6e6"];
+        usage [label="Usage\n(internal/usage)\nSQLite persist", fillcolor="#e6e6e6"];
+        logging [label="Logging\n(internal/logging)\nrequest-log + app-log", fillcolor="#e6e6e6"];
+        signature [label="Signature\n(internal/signature)\nprovider compat validation", fillcolor="#e6e6e6"];
+        mgmt_asset [label="Mgmt Assets\n(internal/managementasset)\npanel snapshots", fillcolor="#e6e6e6"];
+    }
+
+    // ── Upstream ──
+    subgraph cluster_upstream {
+        label="Upstream APIs"; style=dashed; color=gray60;
+        claude_api [label="Claude API\n(api.anthropic.com)", shape=doubleoctagon, fillcolor="#d6e4f0"];
+        openai_api [label="OpenAI-compat API\n(configurable base-url)", shape=doubleoctagon, fillcolor="#d6e4f0"];
+    }
+
+    // ── Edges: Request flow ──
+    curl -> gin [label="HTTP"];
+    browser -> gin [label="HTTP"];
+    main -> gin;
+    gin -> proxy_routes;
+    gin -> mgmt_routes;
+    gin -> health;
+
+    proxy_routes -> openai_h [label="/v1/chat\n/v1/responses"];
+    proxy_routes -> claude_h [label="/v1/messages"];
+    mgmt_routes -> config [style=dashed];
+
+    openai_h -> conductor [label="select credential"];
+    claude_h -> conductor;
+    conductor -> selector;
+
+    openai_h -> openai_ex [label="execute"];
+    claude_h -> claude_ex [label="execute"];
+    openai_h -> openai2claude [label="translate request"];
+    claude_h -> claude2openai [label="translate response"];
+
+    claude_ex -> claude_api [label="HTTPS"];
+    openai_ex -> openai_api [label="HTTPS"];
+
+    claude_ex -> thinking [label="apply thinking\nconfig", style=dashed];
+    openai_ex -> thinking [style=dashed];
+    claude_ex -> signature [label="validate\nsignatures", style=dashed];
+
+    // ── Edges: Infra ──
+    watcher -> config [label="hot-reload"];
+    watcher -> registry [label="model refresh"];
+    config -> conductor [label="auth config", style=dashed];
+    openai_ex -> usage [label="record usage"];
+    claude_ex -> usage;
+    gin -> logging [label="request log"];
+}
