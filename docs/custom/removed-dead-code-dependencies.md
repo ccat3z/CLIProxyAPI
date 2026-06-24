@@ -642,7 +642,7 @@ The handler file was upstream-native (`git cat-file -e a5cb8832:sdk/api/handlers
 ### Kept
 
 - `sdk/api/handlers/gemini/gemini_handlers.go` (the regular `/v1beta` Gemini handler) is retained — it is reachable and registered.
-- The `GeminiCLI` constant in `internal/constant` is retained; it is still used by `internal/registry/model_definitions.go` (gemini-cli catalog), `internal/registry/model_catalog.go`, and `internal/misc/header_utils.go` (User-Agent).
+- The `GeminiCLI` constant in `internal/constant` is retained; the registry no longer references it (the gemini-cli catalog was removed — see [Removed: dead provider model catalog definitions](#removed-dead-provider-model-catalog-definitions)), and `internal/misc/header_utils.go` defines its own `GeminiCLI*` symbols (User-Agent) that are independent of this constant.
 - The translator `FormatGeminiCLI` constant, the `gemini-cli` case in `sdk/translator/formats.go`, and the `gemini-cli` provider branches in `sdk/cliproxy/auth/selector.go`, `sdk/cliproxy/auth/types.go`, and `sdk/cliproxy/auth/conductor.go` are left untouched — they live in the translator/auth-infra layer, which is out of scope per the AGENTS.md translator rule and is a shared auth concern across all requests.
 
 ### Verification
@@ -687,11 +687,63 @@ These functions were only called from the deleted route registrations or from ea
 
 - The `FormatGemini` constant in `sdk/translator/formats.go` and the `gemini` case in `sdk/cliproxy/auth/conductor.go` are retained — they are single case statements in otherwise-live switches, not a subsystem.
 - `internal/signature/gemini_validation.go` is retained — it is called by `provider_compatibility.go` which is used by the Claude translator (live dependency chain).
-- Registry Gemini model definitions (`model_definitions.go`, `models.json`) are retained — they are static data, not executable paths.
-- The `GeminiCLI` constant in `internal/constant` is retained; it is still used by the registry, translator, and auth conductor.
+- Registry Gemini model definitions (`model_definitions.go`, `models.json`) have since been removed — see [Removed: dead provider model catalog definitions](#removed-dead-provider-model-catalog-definitions).
+- The `GeminiCLI` constant in `internal/constant` is retained; the registry no longer references it (the gemini-cli catalog was removed — see [Removed: dead provider model catalog definitions](#removed-dead-provider-model-catalog-definitions)), and the translator/auth conductor use their own string literals.
 - All other home model infrastructure (`handleHomeModels`, `handleHomeCodexClientModels`, `loadHomeModelEntries`, `decodeHomeModels`, `homeModelEntry`, etc.) is retained — it serves the live `/v1/models` endpoint.
 
 ### Verification
 
 Each removed symbol was re-verified before deletion: `grep -rn 'handlers/gemini\|geminiHandlers\|geminiModelsHandler\|geminiGetHandler\|handleHomeGeminiModels\|handleHomeGeminiModel\|formatHomeGeminiModels\|formatHomeGeminiModel\|homeGeminiModelMatches' --include='*.go' .` returned zero matches after the edits. `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` → 200 with a real upstream response, `/v0/management/config` → 401) all pass.
+
+## Removed: dead provider model catalog definitions
+
+The `custom` branch only configures the `claude-api-key` and `openai-compatibility` providers. All other providers (gemini, vertex, gemini-cli, aistudio, codex, kimi, xai, antigravity) had their executors and auth deleted in earlier cleanup rounds, but their static MODEL DEFINITIONS still lingered in the embedded catalog. The empty `antigravity` section fired a startup warning (`models catalog: antigravity section is empty, continuing without those model definitions`) on every boot. Since no auth ever registers these providers' models, the static sections could never be served — only `claude` corresponds to a live provider format. (The deployment's real models — `glm-5.1` etc. — are registered dynamically per-auth from `config.yaml`; they are not in the static catalog.)
+
+### Removed catalog sections (`internal/registry/models/models.json`)
+
+The JSON now contains only the `claude` section (13 models). Removed sections: `gemini`, `vertex`, `gemini-cli`, `aistudio`, `codex-free`, `codex-team`, `codex-plus`, `codex-pro`, `kimi`, `xai`, `antigravity`.
+
+### `internal/registry/model_catalog.go`
+
+`requiredSections` was trimmed to `claude` only, so the empty-section startup warning no longer fires.
+
+### `internal/registry/model_definitions.go`
+
+The file was rewritten to keep only the Claude path.
+
+Removed struct fields on `staticModelsJSON`: `Gemini`, `Vertex`, `GeminiCLI`, `AIStudio`, `CodexFree`, `CodexTeam`, `CodexPlus`, `CodexPro`, `Kimi`, `Antigravity`, `XAI` (only `Claude` remains).
+
+Removed accessor functions: `GetGeminiModels`, `GetGeminiVertexModels`, `GetGeminiCLIModels`, `GetAIStudioModels`, `GetCodexFreeModels` / `GetCodexTeamModels` / `GetCodexPlusModels` / `GetCodexProModels`, `GetKimiModels`, `GetAntigravityModels`, `GetXAIModels`.
+
+Removed Antigravity helpers: `AntigravityWebSearchModelFor`, `normalizeAntigravityCapabilityModelID`.
+
+Removed builtin-injection helpers and their model-info builders (only used by the deleted Codex / xAI accessors): `WithCodexBuiltins`, `WithXAIBuiltins`, `codexBuiltinImageModelInfo`, `xaiBuiltinImageModelInfo`, `xaiBuiltinImageQualityModelInfo`, `xaiBuiltinVideoModelInfo`, `xaiBuiltinVideo15PreviewModelInfo`, `upsertModelInfos`, and the `codexBuiltin*` / `xaiBuiltin*` constants.
+
+Switch statements trimmed:
+- `GetStaticModelDefinitionsByChannel` now keeps only `case "claude":` (plus the `default: nil`).
+- `LookupStaticModelInfo` now searches only the Claude section.
+
+### `sdk/cliproxy/service.go`
+
+The dead provider cases in `registerModelsForAuth`'s switch (`gemini`, `vertex`, `gemini-cli`, `aistudio`, `codex` with its plan-type sub-switch, `kimi`, `xai`) were removed. They referenced the deleted accessors and were unreachable — no auth can carry those provider types after the earlier executor/auth removals. Only `case "claude":` and the OpenAI-compatibility `default:` path remain.
+
+### `internal/registry/model_registry.go`
+
+Doc comments referencing removed providers were trimmed: the `SupportsWebSearch` field comment no longer says "Antigravity", and `GetAvailableModelsByProvider`'s provider examples now list `claude` / `openai-compatibility`. The live registry functions (`GetAvailableModelsByProvider`, `GetModelInfo`, `GetModelProviders`, `RegisterClient`, `GetAvailableModels`) are unchanged.
+
+### Tests
+
+- `internal/registry/model_definitions_test.go` — deleted in full. Both tests (`TestWithXAIBuiltinsIncludesVideoPreviewModel`, `TestAntigravityWebSearchModelForRequiresRequestedModelCapability`) only exercised removed accessors.
+- `sdk/cliproxy/service_excluded_models_test.go` — `TestRegisterModelsForAuth_UsesPreMergedExcludedModelsAttribute` was migrated from the removed `gemini-cli` fixture to the live `claude` provider; it still asserts that the `excluded_models` attribute is pre-merged and applied. The OpenAI-compat image test in the same file is unchanged.
+
+### Kept
+
+- The `claude` catalog section and `GetClaudeModels` — the only live static catalog path; the `claude-api-key` provider format still consumes it.
+- `GetStaticModelDefinitionsByChannel` and `LookupStaticModelInfo` (functions retained, switches trimmed) — still called by the management endpoint (`GetStaticModelDefinitions`) and `LookupModelInfo`.
+- `cloneModelInfos` / `cloneModelInfo` helpers (live).
+- All dynamic registry functions (`RegisterClient`, `GetModelInfo`, `GetModelProviders`, `GetAvailableModels`, `GetAvailableModelsByProvider`) — unchanged.
+
+### Verification
+
+Each removed accessor was re-verified before deletion with `grep -rn '\b<symbol>\b' --include='*.go' . | grep -v _test.go | grep -v internal/registry/model_definitions.go` — the only non-test callers were the dead switch cases in `sdk/cliproxy/service.go`, which were removed in the same change. The `models catalog: antigravity section is empty` startup warning is gone (confirmed via the smoke-test server log). `gofmt`, `go build`, `go test ./...`, `pytest integration/` (37 passed), and the standard smoke test (`/v1/models` → 200, `/v1/chat/completions` glm-5.1 → 200, `/v0/management/config` → 401) all pass.
 

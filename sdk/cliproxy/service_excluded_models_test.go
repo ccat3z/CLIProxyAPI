@@ -15,12 +15,12 @@ func TestRegisterModelsForAuth_UsesPreMergedExcludedModelsAttribute(t *testing.T
 		cfg: &config.Config{},
 	}
 	auth := &coreauth.Auth{
-		ID:       "auth-gemini-cli",
-		Provider: "gemini-cli",
+		ID:       "auth-claude-excluded",
+		Provider: "claude",
 		Status:   coreauth.StatusActive,
 		Attributes: map[string]string{
 			"auth_kind":       "oauth",
-			"excluded_models": "gemini-2.5-flash",
+			"excluded_models": "claude-haiku-4-5-20251001",
 		},
 	}
 
@@ -32,9 +32,9 @@ func TestRegisterModelsForAuth_UsesPreMergedExcludedModelsAttribute(t *testing.T
 
 	service.registerModelsForAuth(context.Background(), auth)
 
-	models := registry.GetAvailableModelsByProvider("gemini-cli")
+	models := registry.GetAvailableModelsByProvider("claude")
 	if len(models) == 0 {
-		t.Fatal("expected gemini-cli models to be registered")
+		t.Fatal("expected claude models to be registered")
 	}
 
 	for _, model := range models {
@@ -42,7 +42,7 @@ func TestRegisterModelsForAuth_UsesPreMergedExcludedModelsAttribute(t *testing.T
 			continue
 		}
 		modelID := strings.TrimSpace(model.ID)
-		if strings.EqualFold(modelID, "gemini-2.5-flash") {
+		if strings.EqualFold(modelID, "claude-haiku-4-5-20251001") {
 			t.Fatalf("expected model %q to be excluded by auth attribute", modelID)
 		}
 	}

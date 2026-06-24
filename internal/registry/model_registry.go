@@ -54,7 +54,7 @@ type ModelInfo struct {
 	SupportedInputModalities []string `json:"supportedInputModalities,omitempty"`
 	// SupportedOutputModalities lists supported output modalities (e.g., TEXT, IMAGE)
 	SupportedOutputModalities []string `json:"supportedOutputModalities,omitempty"`
-	// SupportsWebSearch indicates this Antigravity model is listed by
+	// SupportsWebSearch indicates this model is listed by
 	// fetchAvailableModels.webSearchModelIds and can execute native googleSearch.
 	SupportsWebSearch bool `json:"supports_web_search,omitempty"`
 
@@ -880,7 +880,7 @@ func cloneModelMapValue(value any) any {
 
 // GetAvailableModelsByProvider returns models available for the given provider identifier.
 // Parameters:
-//   - provider: Provider identifier (e.g., "codex", "gemini", "antigravity")
+//   - provider: Provider identifier (e.g., "claude", "openai-compatibility")
 //
 // Returns:
 //   - []*ModelInfo: List of available models for the provider
