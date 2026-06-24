@@ -31,12 +31,15 @@ Run through this checklist after every code change, before reporting the work as
 2. **Build**: `go build -o test-output ./cmd/server && rm test-output`
 3. **Unit tests**: `go test ./...`
 4. **Integration tests**: `pytest integration/` (no env vars needed; `llama-server` is auto-downloaded as mock upstream — do NOT set `CLI_PROXY_TEST_UPSTREAM_URL`/`_KEY`/`_MODEL`)
-5. **Smoke test**:
-   - Pick a free port (e.g. via `PORT=$(python -c 'import socket; s=socket.socket(); s.bind(("",0)); print(s.getsockname()[1])')`) and use it consistently.
-   - Start: `go run ./cmd/server --config data/config.yaml --port $PORT` (wait for "API server started", then kill after tests)
+5. **Smoke test** — run in an isolated temp dir so it NEVER writes to `data/` or the repo root (logs and `usage.db` are written relative to the config dir / CWD):
+   - `PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("",0)); print(s.getsockname()[1])')`
+   - `SMOKE=$(mktemp -d /tmp/smoke-XXXXXX) && cp data/config.yaml "$SMOKE/config.yaml"`
+   - Build the binary at the repo root (needs `go.mod`): `go build -o "$SMOKE/cli-proxy-api" ./cmd/server`
+   - Start it with CWD set to `$SMOKE` so all runtime files land there: `( cd "$SMOKE" && ./cli-proxy-api --config "$SMOKE/config.yaml" --port $PORT )` (background it; wait for "API server started"; kill after the curls)
    - `/v1/models`: `curl -s http://localhost:$PORT/v1/models -H "Authorization: Bearer sk-123"`
    - `/v1/chat/completions`: `curl -s http://localhost:$PORT/v1/chat/completions -H "Authorization: Bearer sk-123" -H "Content-Type: application/json" -d '{"model":"glm-5.1","messages":[{"role":"user","content":"hi"}],"max_tokens":10}'`
    - Management API: `curl -s http://localhost:$PORT/v0/management/config`
+   - Cleanup: `rm -rf "$SMOKE"`
 
 The upstream may not respond successfully — focus on the server accepting requests without crashing or returning 500/unknown-provider errors.
 
