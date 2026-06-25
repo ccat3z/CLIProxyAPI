@@ -107,7 +107,7 @@ Total: 109 commits
 | 99 | 810abe5e | feat(pluginhost): add OAuthProvider field to plugin metadata and update related functionality | ❌ skipped (pluginhost code removed on custom branch) |
 | 100 | 29b53434 | Merge pull request #3998 from router-for-me/feat/plugin-OAuth | ✅ empty commit (merge of removed features) |
 | 101 | 192888f9 | feat(pluginhost): enhance logging with plugin name and path fields | ❌ skipped (plugin logging change; shared formatter edit narrows to whitelist, conflicts with custom fallthrough design — no surviving shared change) |
-| 102 | c4cf0fd3 | Merge pull request #4001 from router-for-me/plugin | ⬜ pending |
+| 102 | c4cf0fd3 | Merge pull request #4001 from router-for-me/plugin | ✅ empty commit (merge of removed features) |
 | 103 | eb2e1e33 | fix(auth): rewrite API key alias response models (#4002) | ⬜ pending |
 | 104 | 7d1d2512 | docs: add Universal Chat Provider to "Who is with us?" | ⬜ pending |
 | 105 | abe68cc1 | Merge pull request #4003 from maxdewald/add-universal-chat-provider | ⬜ pending |
