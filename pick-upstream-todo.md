@@ -112,6 +112,6 @@ Total: 109 commits
 | 104 | 7d1d2512 | docs: add Universal Chat Provider to "Who is with us?" | ❌ skipped (non-server README docs) |
 | 105 | abe68cc1 | Merge pull request #4003 from maxdewald/add-universal-chat-provider | ✅ empty commit (merge of non-server README docs; #104 README change skipped) |
 | 106 | cb6992ef | docs: add Universal Chat Provider section to README files | ❌ skipped (non-server README docs; README_CN.md/README_JA.md deleted on custom) |
-| 107 | 65f2288a | feat(models): refine Gemini 3.5 Flash variants and add Medium tier | ⬜ pending |
+| 107 | 65f2288a | feat(models): refine Gemini 3.5 Flash variants and add Medium tier | ❌ skipped (Gemini provider catalog removed on custom; models.json has 0 gemini/antigravity entries — all touched model IDs `gemini-3-flash-agent`/`gemini-3.5-flash-low`/`gemini-3.5-flash-extra-low` absent) |
 | 108 | 6a59d645 | feat(pluginhost): enhance plugin version management and logging for hot reload | ⬜ pending |
 | 109 | 4c0c6029 | Merge pull request #4009 from router-for-me/plugin | ⬜ pending |
