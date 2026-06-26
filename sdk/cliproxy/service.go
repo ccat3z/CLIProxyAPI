@@ -266,12 +266,7 @@ func modelRegistrationCategory(auth *coreauth.Auth) string {
 		provider = "unknown"
 	}
 
-	authKind := strings.ToLower(strings.TrimSpace(auth.Attributes["auth_kind"]))
-	if authKind == "" {
-		if kind, _ := auth.AccountInfo(); strings.EqualFold(kind, "api_key") {
-			authKind = "apikey"
-		}
-	}
+	authKind := auth.AuthKind()
 	if authKind == "" {
 		return provider
 	}
@@ -1168,12 +1163,7 @@ func (s *Service) registerModelsForAuthWithCache(ctx context.Context, a *coreaut
 		GlobalModelRegistry().UnregisterClient(a.ID)
 		return
 	}
-	authKind := strings.ToLower(strings.TrimSpace(a.Attributes["auth_kind"]))
-	if authKind == "" {
-		if kind, _ := a.AccountInfo(); strings.EqualFold(kind, "api_key") {
-			authKind = "apikey"
-		}
-	}
+	authKind := a.AuthKind()
 	// Unregister legacy client ID (if present) to avoid double counting
 	if a.Runtime != nil {
 		if idGetter, ok := a.Runtime.(interface{ GetClientID() string }); ok {

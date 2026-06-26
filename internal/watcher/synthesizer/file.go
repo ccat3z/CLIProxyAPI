@@ -85,8 +85,9 @@ func synthesizeFileAuths(ctx *SynthesisContext, fullPath string, data []byte) []
 		Status:   status,
 		Disabled: disabled,
 		Attributes: map[string]string{
-			"source": fullPath,
-			"path":   fullPath,
+			coreauth.AttributeSource:        fullPath,
+			coreauth.AttributePath:          fullPath,
+			coreauth.AttributeSourceBackend: coreauth.AuthSourceFile,
 		},
 		Metadata:  metadata,
 		CreatedAt: now,

@@ -86,7 +86,9 @@ func (s *FileTokenStore) Save(ctx context.Context, auth *cliproxyauth.Auth) (str
 	if auth.Attributes == nil {
 		auth.Attributes = make(map[string]string)
 	}
-	auth.Attributes["path"] = path
+	auth.Attributes[cliproxyauth.AttributePath] = path
+	auth.Attributes[cliproxyauth.AttributeSource] = path
+	auth.Attributes[cliproxyauth.AttributeSourceBackend] = cliproxyauth.AuthSourceFile
 
 	if strings.TrimSpace(auth.FileName) == "" {
 		auth.FileName = auth.ID
