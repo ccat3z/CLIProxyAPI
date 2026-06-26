@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -519,6 +520,33 @@ func (s *Service) applyRetryConfig(cfg *config.Config) {
 	coreauth.SetTransientErrorCooldownSeconds(cfg.TransientErrorCooldownSeconds)
 }
 
+func (s *Service) configureCooldownStateStore(cfg *config.Config) {
+	if s == nil || s.coreManager == nil {
+		return
+	}
+	if cfg == nil || !cfg.SaveCooldownStatus {
+		s.coreManager.SetCooldownStateStore(nil)
+		return
+	}
+	stateDir := resolveCooldownStateDir(s.configPath)
+	if stateDir == "" {
+		s.coreManager.SetCooldownStateStore(nil)
+		return
+	}
+	s.coreManager.SetCooldownStateStore(coreauth.NewFileCooldownStateStoreWithAuthDir(stateDir, stateDir))
+}
+
+// resolveCooldownStateDir returns the directory used to persist per-auth cooldown
+// state files. On the custom branch there is no dedicated auth directory, so the
+// directory holding the config file (the runtime data location) is used.
+func resolveCooldownStateDir(configPath string) string {
+	configPath = strings.TrimSpace(configPath)
+	if configPath == "" {
+		return ""
+	}
+	return filepath.Dir(configPath)
+}
+
 func openAICompatInfoFromAuth(a *coreauth.Auth) (providerKey string, compatName string, ok bool) {
 	if a == nil {
 		return "", "", false
@@ -737,6 +765,7 @@ func (s *Service) applyConfigUpdateWithAuthSynthesis(newCfg *config.Config, synt
 	}
 
 	s.applyRetryConfig(newCfg)
+	s.configureCooldownStateStore(newCfg)
 	if s.server != nil {
 		s.server.UpdateClients(newCfg)
 	}
@@ -758,6 +787,11 @@ func (s *Service) applyConfigUpdateWithAuthSynthesis(newCfg *config.Config, synt
 	ctx := coreauth.WithSkipPersist(context.Background())
 	if synthesizeConfigAuths {
 		s.registerConfigAPIKeyAuths(ctx, newCfg)
+	}
+	if s.coreManager != nil && newCfg.SaveCooldownStatus {
+		if errRestoreCooldown := s.coreManager.RestoreCooldownStates(context.Background()); errRestoreCooldown != nil {
+			log.Warnf("failed to restore cooldown state after config update: %v", errRestoreCooldown)
+		}
 	}
 	s.reregisterExecutors(ctx)
 }
@@ -842,12 +876,18 @@ func (s *Service) Run(ctx context.Context) error {
 	}()
 
 	s.applyRetryConfig(s.cfg)
+	s.configureCooldownStateStore(s.cfg)
 
 	if s.coreManager != nil {
 		if errLoad := s.coreManager.Load(ctx); errLoad != nil {
 			log.Warnf("failed to load auth store: %v", errLoad)
 		}
 		s.registerConfigAPIKeyAuths(coreauth.WithSkipPersist(ctx), s.cfg)
+		if s.cfg.SaveCooldownStatus {
+			if errRestoreCooldown := s.coreManager.RestoreCooldownStates(ctx); errRestoreCooldown != nil {
+				log.Warnf("failed to restore cooldown state: %v", errRestoreCooldown)
+			}
+		}
 	}
 
 	tokenResult, err := s.tokenProvider.Load(ctx, s.cfg)
