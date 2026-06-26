@@ -100,7 +100,7 @@ func TestSynthesizeAuthFile_ValidAuthFile(t *testing.T) {
 	}
 }
 
-func TestSynthesizeAuthFile_GeminiProviderMapping(t *testing.T) {
+func TestSynthesizeAuthFile_IgnoresGeminiProviderFile(t *testing.T) {
 	tempDir := t.TempDir()
 
 	authData := map[string]any{
@@ -117,12 +117,8 @@ func TestSynthesizeAuthFile_GeminiProviderMapping(t *testing.T) {
 
 	authFile := filepath.Join(tempDir, "gemini-auth.json")
 	auths := SynthesizeAuthFile(ctx, authFile, data)
-	if len(auths) != 1 {
-		t.Fatalf("expected 1 auth, got %d", len(auths))
-	}
-
-	if auths[0].Provider != "gemini-cli" {
-		t.Errorf("gemini should be mapped to gemini-cli, got %s", auths[0].Provider)
+	if len(auths) != 0 {
+		t.Fatalf("expected Gemini auth file to be ignored, got %d auths", len(auths))
 	}
 }
 

@@ -10,7 +10,7 @@ import (
 )
 
 // FileSynthesizer generates Auth entries from OAuth JSON files.
-// It handles file-based authentication and Gemini virtual auth generation.
+// It handles file-based authentication.
 type FileSynthesizer struct{}
 
 // NewFileSynthesizer creates a new FileSynthesizer instance.
@@ -42,11 +42,12 @@ func synthesizeFileAuths(ctx *SynthesisContext, fullPath string, data []byte) []
 	}
 	t, _ := metadata["type"].(string)
 	provider := strings.ToLower(strings.TrimSpace(t))
-	if provider == "" {
+	if provider == "gemini" {
+		// Gemini CLI provider support was removed; ignore Gemini OAuth files.
 		return nil
 	}
-	if provider == "gemini" {
-		provider = "gemini-cli"
+	if provider == "" {
+		return nil
 	}
 	label := provider
 	if email, _ := metadata["email"].(string); email != "" {

@@ -30,7 +30,7 @@ Total: 109 commits
 | 22 | acaf250f | feat(management): add test to validate priority preservation in auth file uploads | ❌ skipped (auth-file upload subsystem removed on custom branch: UploadAuthFile handler, buildAuthFromFileData, cfg.AuthDir field, and codex/antigravity/gemini/kimi/xai auth packages all removed) |
 | 23 | cde5081e | test(translator): add tests to validate omission of top-level `output_text` in OpenAI responses | ✅ picked (clean; openai-responses translator survived; all 3 new tests pass) |
 | 24 | dd49a520 | feat(translator): add tests to validate trailing assistant prefill stripping and sanitize tool call IDs | ✅ picked (conflicts on Gemini translator files — removed on custom; Claude translator changes integrated cleanly: util.SanitizeClaudeToolID added to chat-completions + responses request converters; 2 new Claude tests pass) |
-| 25 | 78ba8ba7 | chore: remove Gemini CLI-related translator packages and logic | ⬜ pending |
+| 25 | 78ba8ba7 | chore: remove Gemini CLI-related translator packages and logic | ✅ picked (most touched files already removed on custom; integrated surviving gemini-cli cleanups: removed dead `GeminiCLI` constant, `FormatGeminiCLI`, `GeminiCLIUserAgent`, GCP project types, `ProjectSelectionError`, gemini virtual-parent scheduler logic, gemini usage parsers, gemini-cli refs in thinking/strip+validate, file.go gemini→skip + test; dropped dead `json_retry_helpers.go`/`login_prompt.go` whose consumers are gone) |
 | 26 | 365e8fc2 | feat(antigravity): HOME reasoning replay for Gemini models | ⬜ pending |
 | 27 | 62c4b377 | Revert "feat(antigravity): HOME reasoning replay for Gemini models" | ⬜ pending |
 | 28 | 292456a8 | feat(antigravity): HOME reasoning replay for Gemini models | ⬜ pending |

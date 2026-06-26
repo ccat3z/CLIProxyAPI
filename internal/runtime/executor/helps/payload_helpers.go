@@ -388,8 +388,6 @@ func normalizePayloadFromProtocol(protocol string) string {
 	switch protocol {
 	case "openai-response", "openai-responses", "response":
 		return "responses"
-	case "gemini-cli":
-		return "gemini"
 	default:
 		return protocol
 	}
