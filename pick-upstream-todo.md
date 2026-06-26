@@ -15,7 +15,7 @@ Total: 109 commits
 | 7 | 7f026e1a | Add runtime config clone | ✅ clean |
 | 8 | a4756ab7 | Use config snapshots for management reload | ⚠️ conflicts resolved |
 | 9 | 7b16321e | Stabilize management reload race tests | ⚠️ conflicts resolved |
-| 10 | a3c87cee | Fix management reload snapshot ordering | ⬜ pending |
+| 10 | a3c87cee | Fix management reload snapshot ordering | ⚠️ conflicts resolved |
 | 11 | 09596d2f | Treat loading plugins as busy | ⬜ pending |
 | 12 | 125c0928 | Merge pull request #3872 from router-for-me/codex/pluginhost-async-reload | ⬜ pending |
 | 13 | 8d2c00c1 | feat(plugin-config): update default plugin `Enabled` behavior to false and expand test coverage | ⬜ pending |
