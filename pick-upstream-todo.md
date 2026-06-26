@@ -75,7 +75,7 @@ Total: 109 commits
 | 67 | eb8d0d06 | Merge pull request #3900 from sususu98/fix/antigravity-replay-fc-order-upstream-dev | ❌ skipped (antigravity code removed on custom branch; only surviving change is .gitignore entries already present from prior commits #26/#28) |
 | 68 | bb414de3 | feat(api): add "max" reasoning depth and `service_tiers` to Codex client models | ✅ picked (clean cherry-pick; added "max" reasoning level + service_tiers to codex client models + test) |
 | 69 | 9a8098d2 | feat(api): prioritize non-template Codex client models and adjust priority calculation logic | ✅ picked (clean cherry-pick; added non-template priority logic + test helper + priority assertion) |
-| 70 | 1f21f946 | feat(api): implement support for multi-auth expansion in plugin systems | ⬜ pending |
+| 70 | 1f21f946 | feat(api): implement support for multi-auth expansion in plugin systems | ❌ skipped (plugin system code removed on custom branch; all surviving file changes are plugin virtual auth / multi-auth expansion infrastructure that is inert when PluginAuthParser is nil) |
 | 71 | 31549af1 | fix(watcher): update Gemini provider name to "gemini-cli" in file synthesizer logic | ⬜ pending |
 | 72 | 5bc0c682 | feat(pluginhost): improve error handling with HTTP status codes for plugin calls | ⬜ pending |
 | 73 | babef2a1 | feat(cliproxy): add `unregisterOpenAICompatExecutor` and sync runtime configuration | ⬜ pending |
