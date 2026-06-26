@@ -21,7 +21,7 @@ Total: 109 commits
 | 13 | 8d2c00c1 | feat(plugin-config): update default plugin `Enabled` behavior to false and expand test coverage | ❌ skipped (code removed on custom branch) |
 | 14 | b9d024af | feat(executor): handle usage limit errors and enhance retry logic | ❌ skipped (code removed on custom branch) |
 | 15 | 8c6f279f | refactor(tests): remove obsolete test files and update reasoning effort logic | ⚠️ partial (applied validate.go isOpenAIFamily xai removal; conflict on test/thinking_conversion_test.go resolved by keeping custom deletion — e2e file imports removed providers; preserved apply_user_defined_test.go + reasoning_effort_test.go as sole coverage since e2e replacement doesn't exist on custom) |
-| 16 | 0e81dee7 | Merge pull request #3873 from router-for-me/thinking | ⬜ pending |
+| 16 | 0e81dee7 | Merge pull request #3873 from router-for-me/thinking | ✅ empty commit (duplicate of #15 partial; validate.go xai removal already applied, kimi/xai test files already removed, e2e test kept deleted — imports removed providers; old unit tests preserved as sole coverage) |
 | 17 | c2967908 | feat(misc): align Antigravity runtime UA with agy CLI version sources | ⬜ pending |
 | 18 | 29f22acd | Merge pull request #3877 from sususu98/feat/antigravity-cli-ua-upstream-dev | ⬜ pending |
 | 19 | 96a8b0cf | feat(executor): normalize reasoning text events and enhance handling logic | ⬜ pending |
