@@ -23,6 +23,7 @@ func ParseConfigBytes(data []byte) (*Config, error) {
 	cfg.ErrorLogsMaxFiles = 10
 	cfg.UsageStatisticsEnabled = false
 	cfg.DisableCooling = false
+	cfg.TransientErrorCooldownSeconds = 0
 	cfg.DisableImageGeneration = DisableImageGenerationOff
 	cfg.RemoteManagement.PanelGitHubRepository = DefaultPanelGitHubRepository
 

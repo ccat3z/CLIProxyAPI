@@ -141,17 +141,18 @@ func TestBuildConfigChangeDetails_SecretsAndCounts(t *testing.T) {
 
 func TestBuildConfigChangeDetails_FlagsAndKeys(t *testing.T) {
 	oldCfg := &config.Config{
-		Port:                   1000,
-		Debug:                  false,
-		LoggingToFile:          false,
-		UsageStatisticsEnabled: false,
-		DisableCooling:         false,
-		RequestRetry:           1,
-		MaxRetryCredentials:    1,
-		MaxRetryInterval:       1,
-		WebsocketAuth:          false,
-		ClaudeKey:              []config.ClaudeKey{{APIKey: "c1"}},
-		RemoteManagement:       config.RemoteManagement{DisableControlPanel: false, PanelGitHubRepository: "old/repo", SecretKey: "keep"},
+		Port:                          1000,
+		Debug:                         false,
+		LoggingToFile:                 false,
+		UsageStatisticsEnabled:        false,
+		DisableCooling:                false,
+		TransientErrorCooldownSeconds: 0,
+		RequestRetry:                  1,
+		MaxRetryCredentials:           1,
+		MaxRetryInterval:              1,
+		WebsocketAuth:                 false,
+		ClaudeKey:                     []config.ClaudeKey{{APIKey: "c1"}},
+		RemoteManagement:              config.RemoteManagement{DisableControlPanel: false, PanelGitHubRepository: "old/repo", SecretKey: "keep"},
 		SDKConfig: sdkconfig.SDKConfig{
 			RequestLog:                 false,
 			APIKeys:                    []string{"key-1"},
@@ -160,15 +161,16 @@ func TestBuildConfigChangeDetails_FlagsAndKeys(t *testing.T) {
 		},
 	}
 	newCfg := &config.Config{
-		Port:                   2000,
-		Debug:                  true,
-		LoggingToFile:          true,
-		UsageStatisticsEnabled: true,
-		DisableCooling:         true,
-		RequestRetry:           2,
-		MaxRetryCredentials:    3,
-		MaxRetryInterval:       3,
-		WebsocketAuth:          true,
+		Port:                          2000,
+		Debug:                         true,
+		LoggingToFile:                 true,
+		UsageStatisticsEnabled:        true,
+		DisableCooling:                true,
+		TransientErrorCooldownSeconds: -1,
+		RequestRetry:                  2,
+		MaxRetryCredentials:           3,
+		MaxRetryInterval:              3,
+		WebsocketAuth:                 true,
 		ClaudeKey: []config.ClaudeKey{
 			{APIKey: "c1", BaseURL: "http://new", Headers: map[string]string{"H": "1"}, ExcludedModels: []string{"a"}},
 			{APIKey: "c2"},
@@ -193,6 +195,7 @@ func TestBuildConfigChangeDetails_FlagsAndKeys(t *testing.T) {
 	expectContains(t, details, "logging-to-file: false -> true")
 	expectContains(t, details, "usage-statistics-enabled: false -> true")
 	expectContains(t, details, "disable-cooling: false -> true")
+	expectContains(t, details, "transient-error-cooldown-seconds: 0 -> -1")
 	expectContains(t, details, "disable-image-generation: false -> true")
 	expectContains(t, details, "request-log: false -> true")
 	expectContains(t, details, "request-retry: 1 -> 2")
@@ -211,15 +214,16 @@ func TestBuildConfigChangeDetails_FlagsAndKeys(t *testing.T) {
 
 func TestBuildConfigChangeDetails_AllBranches(t *testing.T) {
 	oldCfg := &config.Config{
-		Port:                   1,
-		Debug:                  false,
-		LoggingToFile:          false,
-		UsageStatisticsEnabled: false,
-		DisableCooling:         false,
-		RequestRetry:           1,
-		MaxRetryCredentials:    1,
-		MaxRetryInterval:       1,
-		WebsocketAuth:          false,
+		Port:                          1,
+		Debug:                         false,
+		LoggingToFile:                 false,
+		UsageStatisticsEnabled:        false,
+		DisableCooling:                false,
+		TransientErrorCooldownSeconds: 0,
+		RequestRetry:                  1,
+		MaxRetryCredentials:           1,
+		MaxRetryInterval:              1,
+		WebsocketAuth:                 false,
 		ClaudeKey: []config.ClaudeKey{
 			{APIKey: "c-old", BaseURL: "http://c-old", Headers: map[string]string{"H": "1"}, ExcludedModels: []string{"x"}},
 		},
@@ -245,15 +249,16 @@ func TestBuildConfigChangeDetails_AllBranches(t *testing.T) {
 		},
 	}
 	newCfg := &config.Config{
-		Port:                   2,
-		Debug:                  true,
-		LoggingToFile:          true,
-		UsageStatisticsEnabled: true,
-		DisableCooling:         true,
-		RequestRetry:           2,
-		MaxRetryCredentials:    3,
-		MaxRetryInterval:       3,
-		WebsocketAuth:          true,
+		Port:                          2,
+		Debug:                         true,
+		LoggingToFile:                 true,
+		UsageStatisticsEnabled:        true,
+		DisableCooling:                true,
+		TransientErrorCooldownSeconds: -1,
+		RequestRetry:                  2,
+		MaxRetryCredentials:           3,
+		MaxRetryInterval:              3,
+		WebsocketAuth:                 true,
 		ClaudeKey: []config.ClaudeKey{
 			{APIKey: "c-new", BaseURL: "http://c-new", Headers: map[string]string{"H": "2"}, ExcludedModels: []string{"x", "y"}},
 		},
@@ -291,6 +296,7 @@ func TestBuildConfigChangeDetails_AllBranches(t *testing.T) {
 	expectContains(t, changes, "logging-to-file: false -> true")
 	expectContains(t, changes, "usage-statistics-enabled: false -> true")
 	expectContains(t, changes, "disable-cooling: false -> true")
+	expectContains(t, changes, "transient-error-cooldown-seconds: 0 -> -1")
 	expectContains(t, changes, "disable-image-generation: false -> true")
 	expectContains(t, changes, "request-retry: 1 -> 2")
 	expectContains(t, changes, "max-retry-credentials: 1 -> 3")
