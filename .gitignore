@@ -20,7 +20,6 @@ static/*
 
 # Authentication data
 auths/*
-/auths
 !auths/.gitkeep
 
 # docker
@@ -31,7 +30,6 @@ auths/*
 .worktrees/
 .codex/*
 .claude/*
-.claude
 .gemini/*
 .serena/*
 .agent/*
