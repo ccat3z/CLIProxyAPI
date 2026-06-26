@@ -27,7 +27,7 @@ Total: 109 commits
 | 19 | 96a8b0cf | feat(executor): normalize reasoning text events and enhance handling logic | ❌ skipped (code removed on custom branch) |
 | 20 | 644ba74b | feat(videos): implement auth binding for video requests and enhance proxy handling | ❌ skipped (VIDEOS code removed on custom branch) |
 | 21 | f23fb122 | feat(translator): ensure tool uses stay adjacent to tool results in message generation | ✅ |
-| 22 | acaf250f | feat(management): add test to validate priority preservation in auth file uploads | ⬜ pending |
+| 22 | acaf250f | feat(management): add test to validate priority preservation in auth file uploads | ❌ skipped (auth-file upload subsystem removed on custom branch: UploadAuthFile handler, buildAuthFromFileData, cfg.AuthDir field, and codex/antigravity/gemini/kimi/xai auth packages all removed) |
 | 23 | cde5081e | test(translator): add tests to validate omission of top-level `output_text` in OpenAI responses | ⬜ pending |
 | 24 | dd49a520 | feat(translator): add tests to validate trailing assistant prefill stripping and sanitize tool call IDs | ⬜ pending |
 | 25 | 78ba8ba7 | chore: remove Gemini CLI-related translator packages and logic | ⬜ pending |
