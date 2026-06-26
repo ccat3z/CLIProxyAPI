@@ -135,20 +135,43 @@ func (h *Handler) SetConfigReloadHook(hook func(context.Context, *config.Config)
 	h.mu.Unlock()
 }
 
-func (h *Handler) reloadConfigAfterManagementSave(ctx context.Context, cfg *config.Config) {
-	if h == nil || cfg == nil {
+// snapshotConfigLocked clones the full runtime config while h.mu is held.
+// Callers must hold h.mu.
+func (h *Handler) snapshotConfigLocked() *config.Config {
+	if h == nil || h.cfg == nil {
+		return nil
+	}
+	return h.cfg.CloneForRuntime()
+}
+
+// saveConfigAndSnapshotLocked saves h.cfg and returns a full runtime config snapshot.
+// Callers must hold h.mu.
+func (h *Handler) saveConfigAndSnapshotLocked(c *gin.Context) (*config.Config, bool) {
+	if errSave := config.SaveConfigPreserveComments(h.configFilePath, h.cfg); errSave != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to save config: %v", errSave)})
+		return nil, false
+	}
+	return h.snapshotConfigLocked(), true
+}
+
+// reloadConfigAfterManagementSave reloads from an independent config snapshot.
+// Callers must pass a full Config clone captured immediately after a successful save.
+func (h *Handler) reloadConfigAfterManagementSave(ctx context.Context, cfgSnapshot *config.Config) {
+	if h == nil || cfgSnapshot == nil {
 		return
 	}
 	h.mu.Lock()
 	hook := h.configReloadHook
 	h.mu.Unlock()
 	if hook != nil {
-		hook(ctx, cfg)
+		hook(ctx, cfgSnapshot)
 	}
 }
 
-func (h *Handler) reloadConfigAfterManagementSaveAsync(ctx context.Context, cfg *config.Config) {
-	if h == nil || cfg == nil {
+// reloadConfigAfterManagementSaveAsync reloads from an independent config snapshot.
+// Callers must pass a full Config clone captured immediately after a successful save.
+func (h *Handler) reloadConfigAfterManagementSaveAsync(ctx context.Context, cfgSnapshot *config.Config) {
+	if h == nil || cfgSnapshot == nil {
 		return
 	}
 	reloadCtx := context.Background()
@@ -161,7 +184,7 @@ func (h *Handler) reloadConfigAfterManagementSaveAsync(ctx context.Context, cfg 
 				log.WithField("panic", recovered).Error("management: async config reload panicked")
 			}
 		}()
-		h.reloadConfigAfterManagementSave(reloadCtx, cfg)
+		h.reloadConfigAfterManagementSave(reloadCtx, cfgSnapshot)
 	}()
 }
 
