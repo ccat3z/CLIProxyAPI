@@ -41,11 +41,18 @@ type ClaudeExecutor struct {
 	cfg *config.Config
 }
 
+func shouldSanitizeClaudeMessagesForUpstream(baseModel string) bool {
+	return sigcompat.SignatureProviderFromModelName(baseModel) == sigcompat.SignatureProviderClaude
+}
+
 func sanitizeClaudeMessagesForClaudeUpstreamWithDebug(ctx context.Context, body []byte, baseModel string) []byte {
-	sanitized, report := sigcompat.SanitizeClaudeMessagesForClaudeUpstream(body, baseModel)
-	logClaudeSignatureSanitizeReport(ctx, baseModel, report)
-	sanitized = sanitizeClaudeWebSearchDomains(sanitized)
-	return sanitized
+	sanitized := body
+	if shouldSanitizeClaudeMessagesForUpstream(baseModel) {
+		var report sigcompat.SignatureSanitizeReport
+		sanitized, report = sigcompat.SanitizeClaudeMessagesForClaudeUpstream(body, baseModel)
+		logClaudeSignatureSanitizeReport(ctx, baseModel, report)
+	}
+	return sanitizeClaudeWebSearchDomains(sanitized)
 }
 
 // sanitizeClaudeWebSearchDomains removes empty allowed_domains/blocked_domains
