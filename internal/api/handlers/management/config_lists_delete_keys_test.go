@@ -24,7 +24,6 @@ func writeTestConfigFile(t *testing.T) string {
 
 func TestDeleteClaudeKey_DeletesEmptyBaseURLWhenExplicitlyProvided(t *testing.T) {
 	t.Parallel()
-	gin.SetMode(gin.TestMode)
 
 	h := &Handler{
 		cfg: &config.Config{

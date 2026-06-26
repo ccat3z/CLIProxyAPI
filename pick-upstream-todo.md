@@ -14,7 +14,7 @@ Total: 109 commits
 | 6 | a65ced4a | fix(management): reload plugins asynchronously after changes | ❌ skipped (code removed on custom branch) |
 | 7 | 7f026e1a | Add runtime config clone | ✅ clean |
 | 8 | a4756ab7 | Use config snapshots for management reload | ⚠️ conflicts resolved |
-| 9 | 7b16321e | Stabilize management reload race tests | ⬜ pending |
+| 9 | 7b16321e | Stabilize management reload race tests | ⚠️ conflicts resolved |
 | 10 | a3c87cee | Fix management reload snapshot ordering | ⬜ pending |
 | 11 | 09596d2f | Treat loading plugins as busy | ⬜ pending |
 | 12 | 125c0928 | Merge pull request #3872 from router-for-me/codex/pluginhost-async-reload | ⬜ pending |
