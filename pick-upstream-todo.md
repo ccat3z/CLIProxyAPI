@@ -88,7 +88,7 @@ Total: 109 commits
 | 80 | 5d9ea166 | Merge pull request #3963 from router-for-me/home | ✅ done (merge: empty net diff on custom — home/plugins subsystem removed and #79's `auth/types.go` fix already integrated; empty commit to advance base pointer) |
 | 81 | bd646819 | test(translator, runtime): ensure empty text parts are skipped without null values | ❌ skipped (antigravity runtime executor + antigravity/gemini translators all removed on custom branch) |
 | 82 | 7c390a7a | feat(runtime): add Claude Code session handling with caching and tests | ❌ skipped (modifies only removed codex/xai executors; new `claude_code_session.go` helper depends on removed CodexCache infra (`CodexCache`/`CodexPromptCacheKey`/`Get|SetCodexCacheRequired`, deleted in `00ccc5e2`) and its only callers were the removed executors; surviving Claude executor already has its own session handling via `CachedSessionIDRequired`) |
-| 83 | f1ed8912 | feat(translator): wrap message-level system roles as user-visible reminders | ⬜ pending |
+| 83 | f1ed8912 | feat(translator): wrap message-level system roles as user-visible reminders | ✅ done (integrated new `common/claude_system.go` + `ClaudeMessageSystemReminderText` and openai/claude request + test; dropped antigravity/gemini/codex hunks for removed translators) |
 | 84 | 53a21dfb | [codex] Drop foreign encrypted_content before xAI Grok upstream (#3961) | ⬜ pending |
 | 85 | 05d1792d | feat(xai): replay Grok reasoning for Claude messages (#3962) | ⬜ pending |
 | 86 | e9a11db7 | feat(home): enhance plugin management and synchronization | ⬜ pending |
