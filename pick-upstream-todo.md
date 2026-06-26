@@ -86,7 +86,7 @@ Total: 109 commits
 | 78 | 290f421f | Merge pull request #3959 from fdreamsu/codex/fix-codex-ws-prefix | ✅ done (merge: empty net diff on custom — codex subsystem removed; empty commit to advance base pointer) |
 | 79 | c58da381 | feat(plugins): sync home plugin manifests | ⚠️ partial (integrated shared `EnsureIndex` whitespace-trim/normalize fix in `sdk/cliproxy/auth/types.go`; dropped all plugin/home subsystem files — `internal/homeplugins`, `internal/pluginhost`, `internal/pluginstore`, `sdk/pluginhost`, `sdk/pluginstore`, `sdk/cliproxy/home_plugins.go`, `internal/runtime/executor/helps/home_refresh_test.go` — and the home-mode wiring in `cmd/server/main.go` + `sdk/cliproxy/service.go` (`applyHomeOverlay`/`startHomeSubscriber`/`syncHomePlugins`), all removed on custom) |
 | 80 | 5d9ea166 | Merge pull request #3963 from router-for-me/home | ✅ done (merge: empty net diff on custom — home/plugins subsystem removed and #79's `auth/types.go` fix already integrated; empty commit to advance base pointer) |
-| 81 | bd646819 | test(translator, runtime): ensure empty text parts are skipped without null values | ⬜ pending |
+| 81 | bd646819 | test(translator, runtime): ensure empty text parts are skipped without null values | ❌ skipped (antigravity runtime executor + antigravity/gemini translators all removed on custom branch) |
 | 82 | 7c390a7a | feat(runtime): add Claude Code session handling with caching and tests | ⬜ pending |
 | 83 | f1ed8912 | feat(translator): wrap message-level system roles as user-visible reminders | ⬜ pending |
 | 84 | 53a21dfb | [codex] Drop foreign encrypted_content before xAI Grok upstream (#3961) | ⬜ pending |
