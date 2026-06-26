@@ -81,7 +81,7 @@ Total: 109 commits
 | 73 | babef2a1 | feat(cliproxy): add `unregisterOpenAICompatExecutor` and sync runtime configuration | ⚠️ partial (integrated `unregisterOpenAICompatExecutor` method; dropped `hasNativeOpenAICompatExecutorConfig` (only caller is removed pluginHost block), pluginHost unregister call in `registerExecutorForAuth` (pluginHost removed), and `syncPluginRuntimeConfig`/`syncPluginModelRuntime` calls in `applyConfigUpdateWithAuthSynthesis` (both removed with plugin/home subsystem)) |
 | 74 | 369e560f | feat(api): refactor provider key logic for API key usage and add test for compatibility grouping | ✅ integrated |
 | 75 | 1f2504eb | fix(claude): bypass signature sanitizer for non-Claude models (#3946) | ✅ done |
-| 76 | 079ec51f | feat(cliproxy): optimize API key alias rebuild with deferred execution and caching | ⬜ pending |
+| 76 | 079ec51f | feat(cliproxy): optimize API key alias rebuild with deferred execution and caching | ⚠️ partial (integrated `RefreshAPIKeyModelAlias`/deferred-rebuild context, `openAICompatibilityRegistrationCache`, dynamic worker limits, and `!forceReplace` executor cache check; dropped `registerModelRefreshCallback` + `refreshModelRegistrationForAuth*`/`latestAuthForModelRegistration` (depend on removed `registry.SetModelRefreshCallback`), `hasNativeOpenAICompatExecutorConfig` (only caller is removed pluginHost block), pluginHost check + `appendPluginModels` calls, and `syncPluginRuntime`→`reregisterExecutors` rename) |
 | 77 | 36ed0e5c | fix(codex): strip model prefix for websocket payloads | ⬜ pending |
 | 78 | 290f421f | Merge pull request #3959 from fdreamsu/codex/fix-codex-ws-prefix | ⬜ pending |
 | 79 | c58da381 | feat(plugins): sync home plugin manifests | ⬜ pending |
