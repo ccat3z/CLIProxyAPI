@@ -19,7 +19,7 @@ Total: 109 commits
 | 11 | 09596d2f | Treat loading plugins as busy | ❌ skipped (code removed on custom branch) |
 | 12 | 125c0928 | Merge pull request #3872 from router-for-me/codex/pluginhost-async-reload | ✅ empty commit (code removed/already present on custom) |
 | 13 | 8d2c00c1 | feat(plugin-config): update default plugin `Enabled` behavior to false and expand test coverage | ❌ skipped (code removed on custom branch) |
-| 14 | b9d024af | feat(executor): handle usage limit errors and enhance retry logic | ⬜ pending |
+| 14 | b9d024af | feat(executor): handle usage limit errors and enhance retry logic | ❌ skipped (code removed on custom branch) |
 | 15 | 8c6f279f | refactor(tests): remove obsolete test files and update reasoning effort logic | ⬜ pending |
 | 16 | 0e81dee7 | Merge pull request #3873 from router-for-me/thinking | ⬜ pending |
 | 17 | c2967908 | feat(misc): align Antigravity runtime UA with agy CLI version sources | ⬜ pending |
