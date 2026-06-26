@@ -79,7 +79,7 @@ Total: 109 commits
 | 71 | 31549af1 | fix(watcher): update Gemini provider name to "gemini-cli" in file synthesizer logic | ✅ already-present (custom already skips Gemini files via immediate `return nil`; upstream renames to "gemini-cli" then skips — functionally identical) |
 | 72 | 5bc0c682 | feat(pluginhost): improve error handling with HTTP status codes for plugin calls | ❌ skipped (plugin code removed on custom branch) |
 | 73 | babef2a1 | feat(cliproxy): add `unregisterOpenAICompatExecutor` and sync runtime configuration | ⚠️ partial (integrated `unregisterOpenAICompatExecutor` method; dropped `hasNativeOpenAICompatExecutorConfig` (only caller is removed pluginHost block), pluginHost unregister call in `registerExecutorForAuth` (pluginHost removed), and `syncPluginRuntimeConfig`/`syncPluginModelRuntime` calls in `applyConfigUpdateWithAuthSynthesis` (both removed with plugin/home subsystem)) |
-| 74 | 369e560f | feat(api): refactor provider key logic for API key usage and add test for compatibility grouping | ⬜ pending |
+| 74 | 369e560f | feat(api): refactor provider key logic for API key usage and add test for compatibility grouping | ✅ integrated |
 | 75 | 1f2504eb | fix(claude): bypass signature sanitizer for non-Claude models (#3946) | ⬜ pending |
 | 76 | 079ec51f | feat(cliproxy): optimize API key alias rebuild with deferred execution and caching | ⬜ pending |
 | 77 | 36ed0e5c | fix(codex): strip model prefix for websocket payloads | ⬜ pending |
