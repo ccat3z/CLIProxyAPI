@@ -11,7 +11,7 @@ Total: 109 commits
 | 3 | c354f88f | feat(api): Route Anthropic /v1/models requests to the Claude format | ⚠️ conflicts resolved |
 | 4 | 1ed1f7b3 | Merge branch 'dev' into main | ✅ empty (merge of removed features) |
 | 5 | 13f51d96 | fix(pluginhost): avoid holding host lock during plugin lifecycle | ❌ skipped (plugin code removed on custom branch) |
-| 6 | a65ced4a | fix(management): reload plugins asynchronously after changes | ⬜ pending |
+| 6 | a65ced4a | fix(management): reload plugins asynchronously after changes | ❌ skipped (code removed on custom branch) |
 | 7 | 7f026e1a | Add runtime config clone | ⬜ pending |
 | 8 | a4756ab7 | Use config snapshots for management reload | ⬜ pending |
 | 9 | 7b16321e | Stabilize management reload race tests | ⬜ pending |
