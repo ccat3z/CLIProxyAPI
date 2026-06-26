@@ -109,7 +109,7 @@ Total: 109 commits
 | 101 | 192888f9 | feat(pluginhost): enhance logging with plugin name and path fields | ❌ skipped (plugin logging change; shared formatter edit narrows to whitelist, conflicts with custom fallthrough design — no surviving shared change) |
 | 102 | c4cf0fd3 | Merge pull request #4001 from router-for-me/plugin | ✅ empty commit (merge of removed features) |
 | 103 | eb2e1e33 | fix(auth): rewrite API key alias response models (#4002) | ❌ skipped (extends removed OAuth force-mapping response-rewrite machinery to API keys; functional core depends on OAuthModelAliasResult/rewriteForceMappedResponse which custom deleted in removed-providers-oauth — only surviving hunks are dead no-op ForceMapping config fields) |
-| 104 | 7d1d2512 | docs: add Universal Chat Provider to "Who is with us?" | ⬜ pending |
+| 104 | 7d1d2512 | docs: add Universal Chat Provider to "Who is with us?" | ❌ skipped (non-server README docs) |
 | 105 | abe68cc1 | Merge pull request #4003 from maxdewald/add-universal-chat-provider | ⬜ pending |
 | 106 | cb6992ef | docs: add Universal Chat Provider section to README files | ⬜ pending |
 | 107 | 65f2288a | feat(models): refine Gemini 3.5 Flash variants and add Medium tier | ⬜ pending |
