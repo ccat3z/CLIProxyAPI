@@ -40,7 +40,7 @@ Total: 109 commits
 | 32 | ec8c2c29 | test(antigravity): cover invalid-signature replay cache clear | ❌ skipped (antigravity code removed on custom branch) |
 | 33 | ac8fb970 | feat(thinking): remove `thinkingConfig` for `ModeNone` with zero budget and no level | ❌ skipped (touches only `internal/thinking/provider/{antigravity,gemini,geminicli}/apply.go` and `test/thinking_conversion_test.go`, all removed on custom; no surviving core thinking change to integrate) |
 | 34 | c13dbcc2 | feat(translator): add test and logic to ensure `object` schemas include `properties` field | ✅ picked |
-| 35 | 41c52b9d | test(management): add concurrency test for Codex OAuth session handling | ⬜ pending |
+| 35 | 41c52b9d | test(management): add concurrency test for Codex OAuth session handling | ❌ skipped (codex/oauth code removed on custom branch) |
 | 36 | ae6c5eae | feat(runtime): add support for `gpt-image-1.5` and direct image API proxying | ⬜ pending |
 | 37 | 052f1934 | fix(auth): classify transport errors as `home_unavailable` with retryable flag | ⬜ pending |
 | 38 | 1d0551a9 | feat(config): improve config reload handling and introduce async management save hook | ⬜ pending |
