@@ -41,7 +41,7 @@ Total: 109 commits
 | 33 | ac8fb970 | feat(thinking): remove `thinkingConfig` for `ModeNone` with zero budget and no level | ❌ skipped (touches only `internal/thinking/provider/{antigravity,gemini,geminicli}/apply.go` and `test/thinking_conversion_test.go`, all removed on custom; no surviving core thinking change to integrate) |
 | 34 | c13dbcc2 | feat(translator): add test and logic to ensure `object` schemas include `properties` field | ✅ picked |
 | 35 | 41c52b9d | test(management): add concurrency test for Codex OAuth session handling | ❌ skipped (codex/oauth code removed on custom branch) |
-| 36 | ae6c5eae | feat(runtime): add support for `gpt-image-1.5` and direct image API proxying | ⬜ pending |
+| 36 | ae6c5eae | feat(runtime): add support for `gpt-image-1.5` and direct image API proxying | ⚠️ partial (codex executor + codex_openai_images*.go removed on custom; kept surviving handler changes: `isOpenAIImageOnlyModel` helper covering gpt-image-1.5/2 in handlers.go, `gptImage15Model` const + `isDefaultImagesToolModel`→`isCodexImagesToolModel` rename in openai_images_handlers.go, `gpt-image-1.5` added to visibility override in codex_client_models.go, test updates; dropped hunks for codex_openai_images.go/test, model_definitions.go builtins, sdk_config.go GPTImage2BaseModel field, config.example.yaml comment) |
 | 37 | 052f1934 | fix(auth): classify transport errors as `home_unavailable` with retryable flag | ⬜ pending |
 | 38 | 1d0551a9 | feat(config): improve config reload handling and introduce async management save hook | ⬜ pending |
 | 39 | c020e2d0 | feat(translator): drop `apply_patch` custom tool in OpenAI responses | ⬜ pending |
