@@ -36,7 +36,7 @@ Total: 109 commits
 | 28 | 292456a8 | feat(antigravity): HOME reasoning replay for Gemini models | ✅ picked (antigravity executor + reasoning-replay cache/signature_cache all removed on custom; integrated only surviving incidental change: `.gitignore` adds `/auths` and bare `.claude` entries) |
 | 29 | b17d29ad | fix(antigravity): insert replayed functionCall before matching functionResponse | ❌ skipped (antigravity code removed on custom branch) |
 | 30 | ef19f5fc | fix(antigravity): address review on replay call_id and args parsing | ❌ skipped (antigravity code removed on custom branch) |
-| 31 | c55157dc | fix(antigravity): PR review replay scope, signature merge, and tool keys | ⬜ pending |
+| 31 | c55157dc | fix(antigravity): PR review replay scope, signature merge, and tool keys | ❌ skipped (antigravity code removed on custom branch) |
 | 32 | ec8c2c29 | test(antigravity): cover invalid-signature replay cache clear | ⬜ pending |
 | 33 | ac8fb970 | feat(thinking): remove `thinkingConfig` for `ModeNone` with zero budget and no level | ⬜ pending |
 | 34 | c13dbcc2 | feat(translator): add test and logic to ensure `object` schemas include `properties` field | ⬜ pending |
