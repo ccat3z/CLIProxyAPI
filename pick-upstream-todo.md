@@ -103,7 +103,7 @@ Total: 109 commits
 | 95 | a7250275 | fix(oauth): force-map responses to config alias not request suffix (#3983) | ❌ skipped (oauth code removed on custom branch) |
 | 96 | df10a5b1 | feat(pluginhost): add shadow plugin management and cleanup functionality | ❌ skipped (pluginhost code removed on custom branch) |
 | 97 | 7712ffed | Merge pull request #3986 from router-for-me/sdk | ✅ empty commit (merge of removed features) |
-| 98 | b53d1e95 | refactor(pluginhost): replace `Snapshot().records` with `activeRecords` for improved filtering | ⬜ pending |
+| 98 | b53d1e95 | refactor(pluginhost): replace `Snapshot().records` with `activeRecords` for improved filtering | ❌ skipped (pluginhost code removed on custom branch) |
 | 99 | 810abe5e | feat(pluginhost): add OAuthProvider field to plugin metadata and update related functionality | ⬜ pending |
 | 100 | 29b53434 | Merge pull request #3998 from router-for-me/feat/plugin-OAuth | ⬜ pending |
 | 101 | 192888f9 | feat(pluginhost): enhance logging with plugin name and path fields | ⬜ pending |
