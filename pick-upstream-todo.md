@@ -23,7 +23,7 @@ Total: 109 commits
 | 15 | 8c6f279f | refactor(tests): remove obsolete test files and update reasoning effort logic | ⚠️ partial (applied validate.go isOpenAIFamily xai removal; conflict on test/thinking_conversion_test.go resolved by keeping custom deletion — e2e file imports removed providers; preserved apply_user_defined_test.go + reasoning_effort_test.go as sole coverage since e2e replacement doesn't exist on custom) |
 | 16 | 0e81dee7 | Merge pull request #3873 from router-for-me/thinking | ✅ empty commit (duplicate of #15 partial; validate.go xai removal already applied, kimi/xai test files already removed, e2e test kept deleted — imports removed providers; old unit tests preserved as sole coverage) |
 | 17 | c2967908 | feat(misc): align Antigravity runtime UA with agy CLI version sources | ❌ skipped (Antigravity code removed on custom branch) |
-| 18 | 29f22acd | Merge pull request #3877 from sususu98/feat/antigravity-cli-ua-upstream-dev | ⬜ pending |
+| 18 | 29f22acd | Merge pull request #3877 from sususu98/feat/antigravity-cli-ua-upstream-dev | ✅ empty commit (Antigravity code removed on custom branch) |
 | 19 | 96a8b0cf | feat(executor): normalize reasoning text events and enhance handling logic | ⬜ pending |
 | 20 | 644ba74b | feat(videos): implement auth binding for video requests and enhance proxy handling | ⬜ pending |
 | 21 | f23fb122 | feat(translator): ensure tool uses stay adjacent to tool results in message generation | ⬜ pending |
