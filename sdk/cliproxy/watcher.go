@@ -34,5 +34,8 @@ func defaultWatcherFactory(configPath string, reload func(*config.Config)) (*Wat
 		dispatchPersistedAuth: func(update watcher.AuthUpdate) bool {
 			return w.DispatchPersistedAuthUpdate(update)
 		},
+		reloadConfigIfChanged: func() {
+			w.ReloadConfigIfChanged()
+		},
 	}, nil
 }

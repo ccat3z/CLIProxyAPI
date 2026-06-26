@@ -656,6 +656,14 @@ func (s *Service) registerResolvedModelsForAuth(a *coreauth.Auth, providerKey st
 }
 
 func (s *Service) applyConfigUpdate(newCfg *config.Config) {
+	s.applyConfigUpdateWithAuthSynthesis(newCfg, true)
+}
+
+func (s *Service) applyWatcherConfigUpdate(newCfg *config.Config) {
+	s.applyConfigUpdateWithAuthSynthesis(newCfg, false)
+}
+
+func (s *Service) applyConfigUpdateWithAuthSynthesis(newCfg *config.Config, synthesizeConfigAuths bool) {
 	if s == nil {
 		return
 	}
@@ -747,8 +755,17 @@ func (s *Service) applyConfigUpdate(newCfg *config.Config) {
 		auths:             auths,
 	})
 	ctx := coreauth.WithSkipPersist(context.Background())
-	s.registerConfigAPIKeyAuths(ctx, newCfg)
+	if synthesizeConfigAuths {
+		s.registerConfigAPIKeyAuths(ctx, newCfg)
+	}
 	s.reregisterExecutors(ctx)
+}
+
+func (s *Service) reloadConfigFromWatcher() bool {
+	if s == nil || s.watcher == nil {
+		return false
+	}
+	return s.watcher.ReloadConfigIfChanged()
 }
 
 func (s *Service) registerConfigAPIKeyAuths(ctx context.Context, cfg *config.Config) {
@@ -829,6 +846,7 @@ func (s *Service) Run(ctx context.Context) error {
 		if errLoad := s.coreManager.Load(ctx); errLoad != nil {
 			log.Warnf("failed to load auth store: %v", errLoad)
 		}
+		s.registerConfigAPIKeyAuths(coreauth.WithSkipPersist(ctx), s.cfg)
 	}
 
 	tokenResult, err := s.tokenProvider.Load(ctx, s.cfg)
@@ -875,7 +893,7 @@ func (s *Service) Run(ctx context.Context) error {
 	}
 
 	var watcherWrapper *WatcherWrapper
-	reloadCallback := func(newCfg *config.Config) { s.applyConfigUpdate(newCfg) }
+	reloadCallback := func(newCfg *config.Config) { s.applyWatcherConfigUpdate(newCfg) }
 
 	watcherWrapper, errCreate := s.watcherFactory(s.configPath, reloadCallback)
 	if errCreate != nil {
