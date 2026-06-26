@@ -153,6 +153,7 @@ nonstream-keepalive-interval: 0
 #       - "claude-3-*"               # wildcard matching prefix (e.g. claude-3-7-sonnet-20250219)
 #       - "*-thinking"               # wildcard matching suffix (e.g. claude-opus-4-5-thinking)
 #       - "*haiku*"                  # wildcard matching substring (e.g. claude-3-5-haiku-20241022)
+#     rebuild-mid-system-message: false # optional: default is false; when true, move messages with role "system" into the top-level Claude system field
 #     # Per-API-key model usage limits (sliding window). When exceeded, returns HTTP 429.
 #     limits:
 #       - window: 5h                 # Duration of the sliding window (supports h, m, s, d for days)
