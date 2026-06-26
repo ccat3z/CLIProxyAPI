@@ -35,7 +35,7 @@ Total: 109 commits
 | 27 | 62c4b377 | Revert "feat(antigravity): HOME reasoning replay for Gemini models" | ✅ picked (revert of #26; antigravity files already absent on custom so deletions are no-ops/modify-delete resolved by keeping removed; only surviving change is reverting the `.gitignore` entries #26 added — removed `/auths` and bare `.claude`, keeping `.claude/*`/`auths/*`) |
 | 28 | 292456a8 | feat(antigravity): HOME reasoning replay for Gemini models | ✅ picked (antigravity executor + reasoning-replay cache/signature_cache all removed on custom; integrated only surviving incidental change: `.gitignore` adds `/auths` and bare `.claude` entries) |
 | 29 | b17d29ad | fix(antigravity): insert replayed functionCall before matching functionResponse | ❌ skipped (antigravity code removed on custom branch) |
-| 30 | ef19f5fc | fix(antigravity): address review on replay call_id and args parsing | ⬜ pending |
+| 30 | ef19f5fc | fix(antigravity): address review on replay call_id and args parsing | ❌ skipped (antigravity code removed on custom branch) |
 | 31 | c55157dc | fix(antigravity): PR review replay scope, signature merge, and tool keys | ⬜ pending |
 | 32 | ec8c2c29 | test(antigravity): cover invalid-signature replay cache clear | ⬜ pending |
 | 33 | ac8fb970 | feat(thinking): remove `thinkingConfig` for `ModeNone` with zero budget and no level | ⬜ pending |
