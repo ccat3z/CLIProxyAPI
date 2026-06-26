@@ -7,7 +7,7 @@ Total: 109 commits
 | # | SHA | Message | Status |
 |---|-----|---------|--------|
 | 1 | f5484b09 | fix(registry): Conform Claude models listing to Anthropic API schema | ⚠️ conflicts resolved |
-| 2 | e3301ecc | fix(registry): Emit Claude model created_at as RFC 3339 string | ⬜ pending |
+| 2 | e3301ecc | fix(registry): Emit Claude model created_at as RFC 3339 string | ✅ clean |
 | 3 | c354f88f | feat(api): Route Anthropic /v1/models requests to the Claude format | ⬜ pending |
 | 4 | 1ed1f7b3 | Merge branch 'dev' into main | ⬜ pending |
 | 5 | 13f51d96 | fix(pluginhost): avoid holding host lock during plugin lifecycle | ⬜ pending |
