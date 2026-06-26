@@ -18,6 +18,11 @@ import (
 // OpenAIImageModelType marks models that are callable through OpenAI-compatible image endpoints.
 const OpenAIImageModelType = "openai-image"
 
+const (
+	defaultClaudeMaxInputTokens  = 200000
+	defaultClaudeMaxOutputTokens = 64000
+)
+
 // ModelInfo represents information about an available model
 type ModelInfo struct {
 	// ID is the unique identifier for the model
@@ -1169,10 +1174,22 @@ func (r *ModelRegistry) convertModelToMap(model *ModelInfo, handlerType string) 
 		}
 		if model.DisplayName != "" {
 			result["display_name"] = model.DisplayName
+		} else {
+			result["display_name"] = model.ID
 		}
 		if len(model.Extra) > 0 {
 			result["extra"] = model.Extra
 		}
+		maxInput := model.ContextLength
+		if maxInput <= 0 {
+			maxInput = defaultClaudeMaxInputTokens
+		}
+		maxOutput := model.MaxCompletionTokens
+		if maxOutput <= 0 {
+			maxOutput = defaultClaudeMaxOutputTokens
+		}
+		result["max_input_tokens"] = maxInput
+		result["max_tokens"] = maxOutput
 		return result
 
 	case "gemini":
