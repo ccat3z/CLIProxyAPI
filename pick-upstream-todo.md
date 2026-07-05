@@ -34,7 +34,7 @@ Total: 35 commits
 | 26 | e681910c | Merge pull request #4069 from TooYoungTooSimp/patch-1 | ✅ done     |
 | 27 | e1302645 | feat(plugin): add methods for auth provider handling and plugin metadata retrieval | ⚠️ conflict |
 | 28 | cde9336b | Merge pull request #4080 from router-for-me/plugin | ⚠️ conflict |
-| 29 | c1b952da | feat(docs): add Claude API sponsorship information to README files | ⬜ pending |
+| 29 | c1b952da | feat(docs): add Claude API sponsorship information to README files | ⚠️ picked (conflict: README_CN.md/README_JA.md deleted on custom, kept deleted via git rm; applied README.md change; added assets/claudeapi.png) |
 | 30 | 00787ef9 | fix(docs): correct link formatting for Claude API sponsorship in README | ⬜ pending |
 | 31 | 87c091e2 | fix(docs): correct formatting and wording for Claude API sponsorship in README files | ⬜ pending |
 | 32 | ac21758e | feat(docs): add Code0 sponsorship information to README files in English, Chinese, and Japanese | ⬜ pending |
