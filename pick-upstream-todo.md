@@ -28,7 +28,7 @@ Total: 35 commits
 | 20 | 150e7f0d | fix(auth): repair force-mapped Responses SSE framing for WS forwarder | ⚠️ picked (conflict: modify/delete on removed response_model_rewriter.go and tests, kept deleted; conductor.go context-missing hunk for rewriteForceMappedStreamChunk/finishForceMappedStreamChunks discarded — surrounding force-map code path removed on custom; empty commit with original message + author) |
 | 21 | 95b7cd42 | Merge pull request #4051 from sususu98/codex/fix-force-mapped-antigravity-sse-rewriter | ⚠️ picked (merge of 150e7f0d; same conflicts: modify/delete on removed rewriter files, kept deleted; conductor.go context-missing hunk discarded; empty commit with original message + author) |
 | 22 | 8f686345 | fix(responses): full transcript replay on WS-to-SSE Codex paths | ✅ picked (clean — files exist at sdk/api/handlers/openai/, NOT removed on custom; only internal/wsrelay was removed) |
-| 23 | 00114bec | Merge pull request #4052 from sususu98/fix/responses-ws-to-sse-4048 | ⬜ pending |
+| 23 | 00114bec | Merge pull request #4052 from sususu98/fix/responses-ws-to-sse-4048 | ⚠️ picked (merge of 8f686345; clean auto-merge with empty diff; empty commit with original message + author) |
 | 24 | 611d65ea | Improve reasoning content handling in response logic | ⬜ pending |
 | 25 | 956ce7cf | fix(registry): add Claude Sonnet 5 model metadata | ⬜ pending |
 | 26 | e681910c | Merge pull request #4069 from TooYoungTooSimp/patch-1 | ⬜ pending |
