@@ -10,7 +10,7 @@ Total: 35 commits
 | 2 | b05a27e4 | docs(README): add CyberPay to partners section with multilingual updates | ⚠️ picked (conflict: README_CN.md/README_JA.md deleted on custom, kept deleted; applied README.md change) |
 | 3 | 21d8164c | feat(handlers): add `disable-cooling` support in OpenAI compatibility configuration | ✅ done |
 | 4 | 1f16e87e | feat(pluginstore): introduce support for direct install type and version management | ⚠️ conflict |
-| 5 | 884fc3ce | Merge pull request #4035 from router-for-me/plugin | ⬜ pending |
+| 5 | 884fc3ce | Merge pull request #4035 from router-for-me/plugin | ⚠️ picked (conflict: modify/delete on removed plugin files, kept deleted; sdkpluginstore import in config.go reverted) |
 | 6 | 60eae92b | feat(plugins): enhance plugin deletion test and config handling | ⬜ pending |
 | 7 | f106c416 | Merge pull request #4036 from router-for-me/plugins | ⬜ pending |
 | 8 | 00c0b4d7 | feat(auth): refactor authentication handling for plugins and add tests | ⬜ pending |
