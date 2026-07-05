@@ -12,7 +12,7 @@ Total: 35 commits
 | 4 | 1f16e87e | feat(pluginstore): introduce support for direct install type and version management | ⚠️ conflict |
 | 5 | 884fc3ce | Merge pull request #4035 from router-for-me/plugin | ⚠️ picked (conflict: modify/delete on removed plugin files, kept deleted; sdkpluginstore import in config.go reverted) |
 | 6 | 60eae92b | feat(plugins): enhance plugin deletion test and config handling | ⚠️ picked (conflict: modify/delete on removed plugins_test.go, kept deleted; applied generic pruneMappingToGeneratedKeys variadic improvement in config.go) |
-| 7 | f106c416 | Merge pull request #4036 from router-for-me/plugins | ⬜ pending |
+| 7 | f106c416 | Merge pull request #4036 from router-for-me/plugins | ⚠️ picked (empty diff after removing deleted plugins_test.go; created empty commit with original message + author) |
 | 8 | 00c0b4d7 | feat(auth): refactor authentication handling for plugins and add tests | ⬜ pending |
 | 9 | c22795af | Merge pull request #4038 from router-for-me/plugins | ⬜ pending |
 | 10 | 3ea7f189 | feat(pluginstore): add API URL to ReleaseAsset and update asset download logic | ⬜ pending |
