@@ -33,7 +33,7 @@ Total: 35 commits
 | 25 | 956ce7cf | fix(registry): add Claude Sonnet 5 model metadata | ✅ done |
 | 26 | e681910c | Merge pull request #4069 from TooYoungTooSimp/patch-1 | ✅ done     |
 | 27 | e1302645 | feat(plugin): add methods for auth provider handling and plugin metadata retrieval | ⚠️ conflict |
-| 28 | cde9336b | Merge pull request #4080 from router-for-me/plugin | ⬜ pending |
+| 28 | cde9336b | Merge pull request #4080 from router-for-me/plugin | ⚠️ conflict |
 | 29 | c1b952da | feat(docs): add Claude API sponsorship information to README files | ⬜ pending |
 | 30 | 00787ef9 | fix(docs): correct link formatting for Claude API sponsorship in README | ⬜ pending |
 | 31 | 87c091e2 | fix(docs): correct formatting and wording for Claude API sponsorship in README files | ⬜ pending |
