@@ -1,12 +1,12 @@
 # Pick Upstream Todo
 
-Base commit: `4c0c6029`
+Base commit: `2fa4dabe`
 Upstream HEAD: `5afc0f1d`
 Total: 35 commits
 
 | # | SHA | Message | Status |
 |---|-----|---------|--------|
-| 1 | 2fa4dabe | feat(executor): improve downstream response ID rewrite and add test for repeated response scenarios | ⬜ pending |
+| 1 | 2fa4dabe | feat(executor): improve downstream response ID rewrite and add test for repeated response scenarios | ⚠️ picked (conflict: modify/delete on removed xai files, kept deleted) |
 | 2 | b05a27e4 | docs(README): add CyberPay to partners section with multilingual updates | ⬜ pending |
 | 3 | 21d8164c | feat(handlers): add `disable-cooling` support in OpenAI compatibility configuration | ⬜ pending |
 | 4 | 1f16e87e | feat(pluginstore): introduce support for direct install type and version management | ⬜ pending |
