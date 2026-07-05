@@ -31,7 +31,7 @@ Total: 35 commits
 | 23 | 00114bec | Merge pull request #4052 from sususu98/fix/responses-ws-to-sse-4048 | ⚠️ picked (merge of 8f686345; clean auto-merge with empty diff; empty commit with original message + author) |
 | 24 | 611d65ea | Improve reasoning content handling in response logic | ✅ picked (clean — file exists on custom; reasoning_content fallback to reasoning applied as-is) |
 | 25 | 956ce7cf | fix(registry): add Claude Sonnet 5 model metadata | ✅ done |
-| 26 | e681910c | Merge pull request #4069 from TooYoungTooSimp/patch-1 | ⬜ pending |
+| 26 | e681910c | Merge pull request #4069 from TooYoungTooSimp/patch-1 | ✅ done     |
 | 27 | e1302645 | feat(plugin): add methods for auth provider handling and plugin metadata retrieval | ⬜ pending |
 | 28 | cde9336b | Merge pull request #4080 from router-for-me/plugin | ⬜ pending |
 | 29 | c1b952da | feat(docs): add Claude API sponsorship information to README files | ⬜ pending |
