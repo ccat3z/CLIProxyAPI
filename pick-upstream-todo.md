@@ -11,7 +11,7 @@ Total: 35 commits
 | 3 | 21d8164c | feat(handlers): add `disable-cooling` support in OpenAI compatibility configuration | ✅ done |
 | 4 | 1f16e87e | feat(pluginstore): introduce support for direct install type and version management | ⚠️ conflict |
 | 5 | 884fc3ce | Merge pull request #4035 from router-for-me/plugin | ⚠️ picked (conflict: modify/delete on removed plugin files, kept deleted; sdkpluginstore import in config.go reverted) |
-| 6 | 60eae92b | feat(plugins): enhance plugin deletion test and config handling | ⬜ pending |
+| 6 | 60eae92b | feat(plugins): enhance plugin deletion test and config handling | ⚠️ picked (conflict: modify/delete on removed plugins_test.go, kept deleted; applied generic pruneMappingToGeneratedKeys variadic improvement in config.go) |
 | 7 | f106c416 | Merge pull request #4036 from router-for-me/plugins | ⬜ pending |
 | 8 | 00c0b4d7 | feat(auth): refactor authentication handling for plugins and add tests | ⬜ pending |
 | 9 | c22795af | Merge pull request #4038 from router-for-me/plugins | ⬜ pending |
