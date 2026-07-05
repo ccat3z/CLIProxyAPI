@@ -16,7 +16,7 @@ Total: 35 commits
 | 8 | 00c0b4d7 | feat(auth): refactor authentication handling for plugins and add tests | ⚠️ picked (conflict: modify/delete on removed plugin-store files, kept deleted; created empty commit with original message + author) |
 | 9 | c22795af | Merge pull request #4038 from router-for-me/plugins | ⚠️ picked (conflict: modify/delete on removed plugin files auth.go/auth_test.go/plugin_store.go/pluginstore.go, kept deleted; empty commit with original message + author) |
 | 10 | 3ea7f189 | feat(pluginstore): add API URL to ReleaseAsset and update asset download logic | ⚠️ picked (conflict: modify/delete on removed pluginstore github.go/install_test.go, kept deleted; empty commit with original message + author) |
-| 11 | 89708731 | feat(auth): streamline GitHub token handling and enhance download asset logic | ⬜ pending |
+| 11 | 89708731 | feat(auth): streamline GitHub token handling and enhance download asset logic | ⚠️ picked (conflict: modify/delete on removed pluginstore auth.go/auth_test.go/github.go/install_test.go, kept deleted; verified this is pluginstore-internal GitHub-token auth, not shared auth infra; empty commit with original message + author) |
 | 12 | caf70529 | feat(pluginstore): refactor installation tests to improve asset download logic and error handling | ⬜ pending |
 | 13 | dc43747c | Merge pull request #4039 from router-for-me/plugin | ⬜ pending |
 | 14 | c48516c5 | feat(tests): refactor snapshot handling in model registration tests for improved clarity and consistency | ⬜ pending |
