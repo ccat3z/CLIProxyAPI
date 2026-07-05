@@ -7,7 +7,7 @@ Total: 35 commits
 | # | SHA | Message | Status |
 |---|-----|---------|--------|
 | 1 | 2fa4dabe | feat(executor): improve downstream response ID rewrite and add test for repeated response scenarios | ⚠️ picked (conflict: modify/delete on removed xai files, kept deleted) |
-| 2 | b05a27e4 | docs(README): add CyberPay to partners section with multilingual updates | ⬜ pending |
+| 2 | b05a27e4 | docs(README): add CyberPay to partners section with multilingual updates | ⚠️ picked (conflict: README_CN.md/README_JA.md deleted on custom, kept deleted; applied README.md change) |
 | 3 | 21d8164c | feat(handlers): add `disable-cooling` support in OpenAI compatibility configuration | ⬜ pending |
 | 4 | 1f16e87e | feat(pluginstore): introduce support for direct install type and version management | ⬜ pending |
 | 5 | 884fc3ce | Merge pull request #4035 from router-for-me/plugin | ⬜ pending |
