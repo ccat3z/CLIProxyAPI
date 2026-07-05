@@ -23,7 +23,7 @@ Total: 35 commits
 | 15 | 4b51f85c | fix(translator): map OpenAI Responses reasoning to Gemini two-part signatures | ⚠️ picked (conflict: modify/delete on removed antigravity test files and gemini translator files, kept deleted; empty commit with original message + author) |
 | 16 | 3648bc15 | fix(translator): align reasoning merge with Responses visible text rules | ⚠️ picked (conflict: modify/delete on removed gemini translator files, kept deleted; empty commit with original message + author) |
 | 17 | ca7478a1 | fix(antigravity): align CLI User-Agent with agy 1.0.13 short form (#4045) | ⚠️ picked (conflict: modify/delete on removed antigravity files, kept deleted; empty commit with original message + author) |
-| 18 | 8c8009c1 | Merge pull request #4042 from router-for-me/plugin | ⬜ pending |
+| 18 | 8c8009c1 | Merge pull request #4042 from router-for-me/plugin | ⚠️ picked (conflict: modify/delete on removed internal/pluginhost/adapters_test.go, kept deleted; empty commit with original message + author) |
 | 19 | a26d3845 | Merge pull request #4043 from sususu98/fix/responses-gemini-reasoning-signature-upstream-dev | ⬜ pending |
 | 20 | 150e7f0d | fix(auth): repair force-mapped Responses SSE framing for WS forwarder | ⬜ pending |
 | 21 | 95b7cd42 | Merge pull request #4051 from sususu98/codex/fix-force-mapped-antigravity-sse-rewriter | ⬜ pending |
