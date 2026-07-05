@@ -20,7 +20,7 @@ Total: 35 commits
 | 12 | caf70529 | feat(pluginstore): refactor installation tests to improve asset download logic and error handling | ⚠️ picked (conflict: modify/delete on removed pluginstore install_test.go, kept deleted; empty commit with original message + author) |
 | 13 | dc43747c | Merge pull request #4039 from router-for-me/plugin | ⚠️ picked (conflict: modify/delete on removed pluginstore auth.go/auth_test.go/github.go/install_test.go, kept deleted; empty commit with original message + author) |
 | 14 | c48516c5 | feat(tests): refactor snapshot handling in model registration tests for improved clarity and consistency | ⚠️ picked (conflict: modify/delete on removed internal/pluginhost/adapters_test.go, kept deleted; empty commit with original message + author) |
-| 15 | 4b51f85c | fix(translator): map OpenAI Responses reasoning to Gemini two-part signatures | ⬜ pending |
+| 15 | 4b51f85c | fix(translator): map OpenAI Responses reasoning to Gemini two-part signatures | ⚠️ picked (conflict: modify/delete on removed antigravity test files and gemini translator files, kept deleted; empty commit with original message + author) |
 | 16 | 3648bc15 | fix(translator): align reasoning merge with Responses visible text rules | ⬜ pending |
 | 17 | ca7478a1 | fix(antigravity): align CLI User-Agent with agy 1.0.13 short form (#4045) | ⬜ pending |
 | 18 | 8c8009c1 | Merge pull request #4042 from router-for-me/plugin | ⬜ pending |
