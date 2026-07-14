@@ -364,3 +364,61 @@ func TestStreamingTool_StopReasonMixedSuppressedAndValid(t *testing.T) {
 		t.Fatalf("stop_reason = %q, want %q", got, "tool_use")
 	}
 }
+
+// TestStreaming_NeverReturnsNilChunks is a regression test for a bug where the
+// streaming translator returned a nil [][]byte for chunks that map to no
+// Anthropic event (an empty-content delta, and a redundant [DONE] after the
+// stream already terminated). The translator registry treats a nil return as
+// "no translator produced output" and falls back to forwarding the raw upstream
+// line verbatim, which leaked raw OpenAI "chat.completion.chunk" lines (and
+// duplicate "data: [DONE]") into the downstream Claude SSE stream. The leaked
+// raw data: line landed between a tool_use content_block_start and its
+// input_json_delta, merging them into one corrupt SSE block on the client and
+// dropping the tool's input arguments. The translator must return a non-nil
+// (possibly empty) slice so the registry's raw-passthrough fallback never fires
+// for a registered translator.
+func TestStreaming_NeverReturnsNilChunks(t *testing.T) {
+	originalRequest := []byte(streamReq)
+
+	toolCallChunk := []byte(`data: {"id":"c1","model":"m","choices":[{"index":0,"delta":{"content":"","tool_calls":[{"index":0,"id":"call_a","type":"function","function":{"name":"Edit","arguments":"{\"file_path\":\"/a/b\",\"old_string\":\"x\",\"new_string\":\"y\"}"}}]},"finish_reason":null}]}`)
+	emptyContentChunk := []byte(`data: {"id":"c1","model":"m","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}`)
+	finishChunk := []byte(`data: {"id":"c1","model":"m","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}],"usage":{"completion_tokens":1,"prompt_tokens":2,"total_tokens":3}}`)
+
+	inputs := [][]byte{toolCallChunk, emptyContentChunk, finishChunk, []byte("data: [DONE]")}
+
+	// Process the stream once, in order, accumulating every emitted event.
+	var param any
+	var emitted [][]byte
+	for _, in := range inputs {
+		out := ConvertOpenAIResponseToClaude(context.Background(), "m", originalRequest, nil, in, &param)
+		if out == nil {
+			t.Fatalf("translator returned nil for chunk %s; the registry would leak the raw upstream line", string(in))
+		}
+		emitted = append(emitted, out...)
+	}
+
+	// Reassemble the tool_use input and confirm the arguments survived intact.
+	var partialJSON string
+	for _, ev := range emitted {
+		if bytes.Contains(ev, []byte(`input_json_delta`)) {
+			if result := gjson.GetBytes(ev, "delta.partial_json"); result.Exists() {
+				partialJSON += result.String()
+			}
+		}
+	}
+	if !gjson.Valid(partialJSON) {
+		t.Fatalf("assembled tool input is not valid JSON: %q", partialJSON)
+	}
+	got := gjson.Parse(partialJSON)
+	for _, key := range []string{"file_path", "old_string", "new_string"} {
+		if !got.Get(key).Exists() {
+			t.Fatalf("tool input missing key %q: %s", key, partialJSON)
+		}
+	}
+	// Ensure no raw OpenAI chunk ever escaped into the translated output.
+	for _, ev := range emitted {
+		if bytes.Contains(ev, []byte("chat.completion.chunk")) {
+			t.Fatalf("raw OpenAI chunk leaked into translated output: %s", string(ev))
+		}
+	}
+}

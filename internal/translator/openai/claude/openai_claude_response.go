@@ -138,7 +138,14 @@ func effectiveOpenAIFinishReason(param *ConvertOpenAIResponseToAnthropicParams) 
 // convertOpenAIStreamingChunkToAnthropic converts OpenAI streaming chunk to Anthropic streaming events
 func convertOpenAIStreamingChunkToAnthropic(rawJSON []byte, param *ConvertOpenAIResponseToAnthropicParams) [][]byte {
 	root := gjson.ParseBytes(rawJSON)
-	var results [][]byte
+	// Pre-allocate a non-nil slice. Returning a nil slice here is dangerous:
+	// the translator registry treats a nil return from a *registered* streaming
+	// translator as "no translator produced output" and falls back to forwarding
+	// the raw upstream line verbatim. For chunks that map to no Anthropic event
+	// (e.g. an empty-content delta), a nil return therefore leaks the raw OpenAI
+	// chunk into the downstream Claude SSE stream and corrupts tool_use assembly.
+	// An empty (non-nil) slice correctly signals "nothing to emit".
+	results := make([][]byte, 0, 8)
 
 	// Initialize parameters if needed
 	if param.MessageID == "" {
@@ -361,7 +368,10 @@ func convertOpenAIStreamingChunkToAnthropic(rawJSON []byte, param *ConvertOpenAI
 
 // convertOpenAIDoneToAnthropic handles the [DONE] marker and sends final events
 func convertOpenAIDoneToAnthropic(param *ConvertOpenAIResponseToAnthropicParams) [][]byte {
-	var results [][]byte
+	// Non-nil empty slice (see convertOpenAIStreamingChunkToAnthropic): a nil
+	// return here makes the registry forward the raw "data: [DONE]" line,
+	// producing a stray/duplicated [DONE] in the downstream Claude stream.
+	results := make([][]byte, 0, 8)
 
 	// Ensure all content blocks are stopped before final events
 	if param.ThinkingContentBlockStarted {

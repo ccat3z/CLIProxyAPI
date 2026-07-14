@@ -26,6 +26,7 @@ This directory documents all local changes on the `custom` branch that diverge f
 
 - **Claude count_tokens 404** (`internal/runtime/executor/helps/token_helpers.go`): Fall back to local token estimation when upstream returns 404
 - **Auth block/unavailable logging** (`internal/runtime/executor/helps/logging_helpers.go`): Diagnostic logging for auth selection errors
+- **Streaming translator nil return leaks raw OpenAI chunks** (`internal/translator/openai/claude/openai_claude_response.go`): The OpenAI→Claude streaming translator returned a `nil` `[][]byte` for chunks that map to no Anthropic event — an empty-content delta (commonly sent by the upstream right after a tool_call chunk and before the finish chunk) and a redundant `[DONE]` after the stream had already terminated. The translator registry treats a `nil` return as "no translator produced output" and falls back to forwarding the raw upstream line verbatim, so the raw OpenAI `chat.completion.chunk` (and a duplicate `data: [DONE]`) leaked into the downstream Claude SSE stream. The leaked `data:` line landed between a tool_use `content_block_start` and its `input_json_delta`, merging them into one corrupt SSE block on the client and dropping the tool's input arguments (e.g. an `Edit` whose `file_path`/`old_string`/`new_string` vanished). Fix: the two streaming helpers now return a non-nil (possibly empty) slice, so the registry's raw-passthrough fallback never fires for a registered translator. Regression test: `TestStreaming_NeverReturnsNilChunks`.
 
 ## Removed Modules
 
