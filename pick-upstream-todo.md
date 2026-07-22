@@ -49,7 +49,7 @@ Total: 196 commits
 | 41 | f9162d391c954446e3519214b51de50d07bf4913 | feat(executor): add image generation function tool checks and corresponding tests | ⚠️ conflict resolved (modify/delete on `codex_executor.go`/`codex_executor_imagegen_test.go` — both files were removed on the custom branch; the `ensureImageGenerationTool` function the commit extends has no live caller here, the only retained image-generation code is the unrelated `shouldStripImageGeneration` in `helps/payload_helpers.go`; kept deletions → empty pick) |
 | 42 | cfa90f9fbf3f79dabb2eb468d6a098efac8ff06d | Merge pull request #4175 from router-for-me/image | ✅ done (empty merge — #41 f9162d39 already picked; conflict was modify/delete on the removed `codex_executor.go`/`codex_executor_imagegen_test.go`, resolved by keeping the deletions → empty commit) |
 | 43 | 35dba9b4120984db2fbb0fe6edf9831bdfc87595 | chore(models): update default client version and user agent, revise GPT-5.6 Sol configuration | ✅ done |
-| 44 | 20e61f281f4b88e150c5cdfa81c3315d9fcfeabe | Merge pull request #4160 from kogekiplay/fix/codex-client-ultra-reasoning | ⬜ pending |
+| 44 | 20e61f281f4b88e150c5cdfa81c3315d9fcfeabe | Merge pull request #4160 from kogekiplay/fix/codex-client-ultra-reasoning | ✅ done |
 | 45 | bf25331c77a4144daaa919f3dd110f142a1f79d2 | Merge pull request #4157 from Wraient/fix/xai-desktop-tool-schema-and-free-usage-retry | ⬜ pending |
 | 46 | ca67caf0872eef65f8eaedf2e127cf214a49621d | **fix(xai): improve namespace-specific tool parameter handling and simplify Codex automation schema** | ⬜ pending |
 | 47 | f084eefae6a9aa67c273a697e4c3fdfc15102032 | chore(models): remove "ultra" effort level from models.json | ⬜ pending |
