@@ -27,7 +27,7 @@ Total: 196 commits
 | 19 | 4f2e19042cdd174cc6f17651061eb05e47f74660 | Update Antigravity hub user agent (#4142) | ⚠️ conflict resolved (modify/delete on all 5 Antigravity files; entire Antigravity subsystem was removed on the custom branch per docs/custom/removed-providers-oauth.md, so the pick is an empty commit) |
 | 20 | 7c47edb14188e5fd179d73496dd4397b03278bef | feat(models): add Grok 4.5 to model registry with extended capabilities and context | ⚠️ conflict resolved (upstream adds Grok 4.5 to the `xai` section of models.json, which was removed on the custom branch per docs/custom/removed-dead-code-dependencies.md; empty pick) |
 | 21 | 186c87ba6d9a42d209ffb32f312c43774ffacac2 | feat(models): add `xhigh` targeting option to confidence level settings | ⚠️ conflict resolved (upstream adds `xhigh` to the `grok-4.5` entry in the `xai` section of models.json, which was removed on the custom branch per docs/custom/removed-dead-code-dependencies.md; empty pick) |
-| 22 | ec3aba23faf489d06ddfada5baf93ea5a00bf829 | feat(auth): enable automatic credential refresh on unauthorized errors | ⬜ pending |
+| 22 | ec3aba23faf489d06ddfada5baf93ea5a00bf829 | feat(auth): enable automatic credential refresh on unauthorized errors | ✅ clean |
 | 23 | c61210864532e60ecba394d75fa7e1ac8206707e | feat(models): adjust thinking levels by removing "none" and "xhigh" options | ⬜ pending |
 | 24 | 3fd189262da34e8703a31a582207e6636863927c | feat(executor): integrate model registry for reasoning effort support in XAI | ⬜ pending |
 | 25 | bea9567051a1245eb7c3a582a7298628b00c00d2 | feat(translator): add cache control handling for responses and messages | ⬜ pending |
