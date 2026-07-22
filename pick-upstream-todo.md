@@ -29,7 +29,7 @@ Total: 196 commits
 | 21 | 186c87ba6d9a42d209ffb32f312c43774ffacac2 | feat(models): add `xhigh` targeting option to confidence level settings | ⚠️ conflict resolved (upstream adds `xhigh` to the `grok-4.5` entry in the `xai` section of models.json, which was removed on the custom branch per docs/custom/removed-dead-code-dependencies.md; empty pick) |
 | 22 | ec3aba23faf489d06ddfada5baf93ea5a00bf829 | feat(auth): enable automatic credential refresh on unauthorized errors | ✅ clean |
 | 23 | c61210864532e60ecba394d75fa7e1ac8206707e | feat(models): adjust thinking levels by removing "none" and "xhigh" options | ⚠️ conflict resolved (upstream removes `none`/`xhigh` from the `grok-4.5` entry in the `xai` section of models.json, which was removed on the custom branch per docs/custom/removed-dead-code-dependencies.md; empty pick) |
-| 24 | 3fd189262da34e8703a31a582207e6636863927c | feat(executor): integrate model registry for reasoning effort support in XAI | ⬜ pending |
+| 24 | 3fd189262da34e8703a31a582207e6636863927c | feat(executor): integrate model registry for reasoning effort support in XAI | ⚠️ conflict resolved (modify/delete on `internal/runtime/executor/xai_executor.go` and `_test.go`, both removed on the custom branch per docs/custom/removed-providers-oauth.md; kept the deletion → empty pick) |
 | 25 | bea9567051a1245eb7c3a582a7298628b00c00d2 | feat(translator): add cache control handling for responses and messages | ⬜ pending |
 | 26 | d899c9623952299042507cbbfbf6372d0a52d741 | feat(translator): map OpenAI max_tokens to Gemini's maxOutputTokens | ⬜ pending |
 | 27 | 53ebde0393e95bc6d84d72bad4b6fb4e241f3386 | feat(sponsorship): add Fenno.ai sponsorship details and logo to README files | ⬜ pending |
