@@ -84,7 +84,7 @@ Total: 196 commits
 | 76 | 0ba5fab529b24e993ad4ef89a04c6d3145b13ad0 | Merge pull request #4240 from BG-QWQ/fix/xai-cli-user-agent-4233 | ⚠️ done (conflict) — modify/delete on `internal/runtime/executor/xai_executor.go` and `xai_executor_test.go` (XAI removed on custom per removed-providers-oauth.md); merge integrates #73/#74 which were already picked (both empty), so net diff empty → recorded as empty commit with original message/author |
 | 77 | 07455ecba76da31bf98544103c345b60d176db1c | fix(translator): 上游流式 tool_calls 缺少 id 时合成 call_id 保证事件链完整 | ✅ clean |
 | 78 | bd7cc64732faba4c0c3ae5015e95849c5f56c2ba | feat(translator): 支持 Codex additional_tools 工具下发与 custom 工具历史回放 | ✅ clean |
-| 79 | bd2aafb8fc6d09cc7b0d65fb286bcba2bc62bd57 | feat(translator): custom 工具调用以 custom_tool_call item 回放给客户端 | ⬜ pending |
+| 79 | bd2aafb8fc6d09cc7b0d65fb286bcba2bc62bd57 | feat(translator): custom 工具调用以 custom_tool_call item 回放给客户端 | ✅ clean |
 | 80 | e9d3dfbce1788b82f5982ad2a2d1db3160dbd896 | fix(translator): 工具输出与 custom input 解包的健壮性改进 | ⬜ pending |
 | 81 | dc39f445473024ffeb3dbded2f601945884c7f09 | fix(translator): stabilize Responses Lite tool events | ⬜ pending |
 | 82 | f4a8aee69500038289064bf5aba5ffc11cabd603 | feat(translator): support namespace and custom tool handling in OpenAI responses | ⬜ pending |
