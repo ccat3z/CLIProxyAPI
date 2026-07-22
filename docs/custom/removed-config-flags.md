@@ -1,6 +1,6 @@
 # Removed: Config Schema and Server Flags
 
-The config schema is now restricted to the providers that still have runtime support (`claude-api-key` and `openai-compatibility`). The `-local-model` flag, the OAuth-era provider config types (`gemini-api-key`, `codex-api-key`, `vertex-api-key`, `oauth-excluded-models`, `oauth-model-alias`), and a set of dead config fields have been removed. The model catalog is always served from the embedded `models.json` — there is no remote refresh.
+The config schema is now restricted to the providers that still have runtime support (`claude-api-key` and `openai-compatibility`). The `-local-model` flag, the OAuth-era provider config types (`gemini-api-key`, `codex-api-key`, `vertex-api-key`, `oauth-excluded-models`, `oauth-model-alias`), and a set of dead config fields have been removed. The `models.json` catalog is always served from the embedded asset — there is no remote refresh of `models.json`. The `codex_client_models.json` catalog, by contrast, is remote-refreshed in the background (see [Codex Client Model Catalog Refresh](#codex-client-model-catalog-refresh) below).
 
 ## `-local-model` Flag and Remote Model Catalog Refresh
 
@@ -9,6 +9,19 @@ The config schema is now restricted to the providers that still have runtime sup
 - `internal/registry/model_definitions.go` — package comment trimmed to drop the "can be refreshed from network" sentence.
 
 The embedded-catalog helpers (`embeddedModelsJSON`, `modelStore`, `modelsCatalogStore`, `loadModelsFromBytes`, `getModels`, `validateModelsCatalog`, `validateModelSection`) were preserved by moving them into the new `internal/registry/model_catalog.go`. Runtime behaviour is unchanged: `models.json` is loaded once from the embedded asset.
+
+## Codex Client Model Catalog Refresh
+
+Unlike `models.json`, the Codex client model catalog (`codex_client_models.json`) IS remote-refreshed on the `custom` branch, cherry-picked from upstream commit `4fe2c60c` (feat(registry): remote-refresh Codex client model catalog (#4276)):
+
+- `internal/registry/codex_client_models.go` — rewritten to back the catalog by a revisioned in-memory store (`codexClientCatalogStore`) with validation (`ValidateCodexClientModelsJSON`), snapshot reads (`GetCodexClientModelsSnapshot`), and atomic replacement (`loadCodexClientModelsFromBytes`). The embedded `codex_client_models.json` seeds the store at init.
+- `internal/registry/codex_client_models_updater.go` (new) — `StartCodexClientModelsUpdater` polls the upstream model repository every 3 hours, validates fetched bytes, and swaps the catalog revision when content changes. The `modelsRefreshInterval` / `modelsFetchTimeout` constants live here (the upstream `model_updater.go` that held them was deleted on `custom`).
+- `cmd/server/main.go` — calls `registry.StartCodexClientModelsUpdater(context.Background())` unconditionally before starting the proxy service. The upstream `startModelCatalogUpdaters`/`modelCatalogUpdaterPlan` helpers were NOT taken: they gated on the removed `-local-model` flag and `cfg.Home.Enabled` (both absent on `custom`). There is no `-local-model` flag and no Home gate; the Codex client catalog refresh always runs.
+- `cmd/server/main_test.go` — the upstream `TestModelCatalogUpdaterPlan` test was NOT taken (it exercises the removed `modelCatalogUpdaterPlan` helper).
+- `cmd/validate_codex_models/main.go` (new) — standalone validator utility used by CI to bake a validated catalog at build time.
+- `sdk/api/handlers/openai/codex_client_models.go` — template loader switched from `sync.Once` to a revision-keyed mutex so handler reloads pick up refreshed catalogs without restart.
+- `.github/scripts/refresh-model-catalogs.sh` (new) + workflow changes — CI now refreshes both `models.json` and `codex_client_models.json` via the validate utility.
+- `cmd/fetch_codex_models/` remains deleted (see [removed-tui-commands.md](./removed-tui-commands.md)); the upstream modifications to that standalone fetch utility were dropped.
 
 ## OAuth Provider Config Types
 

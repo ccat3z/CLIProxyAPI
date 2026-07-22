@@ -20,6 +20,7 @@ import (
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/config"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/logging"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/managementasset"
+	"github.com/router-for-me/CLIProxyAPI/v7/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/safemode"
 	_ "github.com/router-for-me/CLIProxyAPI/v7/internal/translator"
 	"github.com/router-for-me/CLIProxyAPI/v7/internal/util"
@@ -209,6 +210,9 @@ func main() {
 		}
 		// Start the main proxy service
 		managementasset.StartAutoUpdater(context.Background(), configFilePath)
+		// Codex client model templates refresh in the background; the embedded
+		// catalog is served until the first refresh completes.
+		registry.StartCodexClientModelsUpdater(context.Background())
 		cmd.StartService(cfg, configFilePath, password, serverOptions...)
 	}
 }
