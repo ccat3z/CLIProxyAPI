@@ -85,6 +85,15 @@ func TestParseOpenAIUsageIgnoresNullUsage(t *testing.T) {
 	}
 }
 
+func TestParseOpenAIUsagePreservesResponseTierWithoutUsage(t *testing.T) {
+	t.Parallel()
+
+	detail := ParseOpenAIUsage([]byte(`{"service_tier":"default"}`))
+	if detail.ResponseServiceTier != "default" {
+		t.Fatalf("response service tier = %q, want default", detail.ResponseServiceTier)
+	}
+}
+
 func TestParseOpenAIStreamUsage_NullUsage(t *testing.T) {
 	line := []byte(`data: {"id":"chatcmpl-1","object":"chat.completion.chunk","usage":null}`)
 	detail, ok := ParseOpenAIStreamUsage(line)
@@ -172,6 +181,21 @@ func TestStreamUsageBufferKeepsLastUsage(t *testing.T) {
 	}
 	if detail.CachedTokens != 33280 {
 		t.Fatalf("cached tokens = %d, want %d", detail.CachedTokens, 33280)
+	}
+}
+
+func TestStreamUsageBufferPreservesTierAcrossChunks(t *testing.T) {
+	t.Parallel()
+
+	var buffer StreamUsageBuffer
+	buffer.Observe(ParseOpenAIStreamUsage([]byte(`data: {"service_tier":"default"}`)))
+	buffer.Observe(ParseOpenAIStreamUsage([]byte(`data: {"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`)))
+	detail, ok := buffer.Detail()
+	if !ok {
+		t.Fatal("Detail() ok = false, want true")
+	}
+	if detail.InputTokens != 1 || detail.OutputTokens != 1 || detail.ResponseServiceTier != "default" {
+		t.Fatalf("detail = %+v, want usage with response tier default", detail)
 	}
 }
 

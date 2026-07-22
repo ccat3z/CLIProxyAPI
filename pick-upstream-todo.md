@@ -64,7 +64,7 @@ Total: 196 commits
 | 56 | cc2095f33c2ffa24028ab7e300b36b6af36be550 | chore(docs): remove Unity2.ai sponsorship section from all README translations | ✅ done |
 | 57 | 045a96428f2fee531dc908f79cc7e4eb378522e4 | feat(handlers): extend image-only model support with `grok-imagine-image` and `grok-imagine-image-quality` | ✅ done |
 | 58 | dc4be1674a65fd6b32a3062e231a1e63881534f7 | feat(usage): report request and response service tiers | ⚠️ conflict |
-| 59 | ea20742e77204b5fc553acdaaa3b943afd9bd45b | fix(usage): retain response tier without usage | ⬜ pending |
+| 59 | ea20742e77204b5fc553acdaaa3b943afd9bd45b | fix(usage): retain response tier without usage | ⚠️ done (conflict) — `ParseCodexUsage`/`ParseCodexImageToolUsage` and `TestParseCodexUsagePreservesResponseTierWithoutUsage` dropped (dead code removed on custom branch per `docs/custom/removed-dead-code-dependencies.md`); tier-retention logic in `StreamUsageBuffer.Observe`/`ParseOpenAIUsage`/`ParseOpenAIStreamUsage` + `TestStreamUsageBufferPreservesTierAcrossChunks` already present from #58; added `TestParseOpenAIUsagePreservesResponseTierWithoutUsage` |
 | 60 | 3533484a1f1505c08351c823844ee44446c7da30 | feat(executor): add chat-proxy-specific headers and improve base URL handling | ⬜ pending |
 | 61 | dc162b938e434d28061b1660a39b0f9983b7e03c | feat(executor): refactor XAI header application logic and extend test coverage | ⬜ pending |
 | 62 | bc812e5f740d3285fb3bd7514841631e8eb5dd6c | perf(usage): avoid parsing irrelevant stream chunks | ⬜ pending |
