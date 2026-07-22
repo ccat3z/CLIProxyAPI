@@ -42,7 +42,7 @@ Total: 196 commits
 | 34 | f21beb05b58bab64742d09169ad1c724b833ae00 | feat(models): register additional GPT-5.6 models (Sol, Terra, Luna) to model registry | ⚠️ conflict resolved (models.json additions target the removed `codex-*` sections — custom `models.json` retains only `claude`; the GPT-5.6 Sol/Terra/Luna models are already registered in the retained `codex_client_models.json`; kept HEAD → empty pick) |
 | 35 | b4c594050efffeec30694102c2e08c63ef28e493 | chore(models): update default client version and user agent, revise GPT-5.5 configurations | ✅ done |
 | 36 | ef0a4a56435d56053371fd09685c4c1d4dbac30f | feat(middleware): support logging for Codex response websockets | ✅ done |
-| 37 | ed2933443d2a4e8a9777c02cf993196468d2ba7a | fix: expose ultra reasoning effort to Codex clients | ⬜ pending |
+| 37 | ed2933443d2a4e8a9777c02cf993196468d2ba7a | fix: expose ultra reasoning effort to Codex clients | ✅ done |
 | 38 | 15f30371619a3541637407a0801e48ba72cd9867 | feat(models): restrict Codex input modalities to text and image | ⬜ pending |
 | 39 | 5f8899b795894747adb7402b9435ae06a6a496fc | chore(models): remove GPT-5.6 Sol from model registry | ⬜ pending |
 | 40 | 26d45fd46a2d2911adef14772465131066dae465 | feat(models): add model header overrides from configuration | ⬜ pending |
