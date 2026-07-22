@@ -62,7 +62,7 @@ Total: 196 commits
 | 54 | 3554b63721aac9b4202bf2ef88ba7a82b4e5caf8 | Merge pull request #4192 from router-for-me/codex/fix-sol-responses-lite-image-tool | ⚠️ done (empty pick; merge of #4192 — same modify/delete on the four removed Codex executor files as commit #53; all removed on custom branch per docs/custom/removed-providers-oauth.md; kept deletions → empty commit) |
 | 55 | abb5224880a97e9e0937ead25b5f1db5a93a590f | feat(translator): add support for `cache_write_tokens` in Codex response usage details | ⚠️ done (empty pick; modify/delete on `codex_openai_response.go`/`codex_openai_response_test.go` — both removed on custom branch per docs/custom/removed-providers-oauth.md; `cache_write_tokens` parsing already handled centrally in `internal/runtime/executor/helps/usage_helpers.go` per commit #35; kept deletions → empty commit) |
 | 56 | cc2095f33c2ffa24028ab7e300b36b6af36be550 | chore(docs): remove Unity2.ai sponsorship section from all README translations | ✅ done |
-| 57 | 045a96428f2fee531dc908f79cc7e4eb378522e4 | feat(handlers): extend image-only model support with `grok-imagine-image` and `grok-imagine-image-quality` | ⬜ pending |
+| 57 | 045a96428f2fee531dc908f79cc7e4eb378522e4 | feat(handlers): extend image-only model support with `grok-imagine-image` and `grok-imagine-image-quality` | ✅ done |
 | 58 | dc4be1674a65fd6b32a3062e231a1e63881534f7 | feat(usage): report request and response service tiers | ⬜ pending |
 | 59 | ea20742e77204b5fc553acdaaa3b943afd9bd45b | fix(usage): retain response tier without usage | ⬜ pending |
 | 60 | 3533484a1f1505c08351c823844ee44446c7da30 | feat(executor): add chat-proxy-specific headers and improve base URL handling | ⬜ pending |
