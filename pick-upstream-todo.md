@@ -28,7 +28,7 @@ Total: 196 commits
 | 20 | 7c47edb14188e5fd179d73496dd4397b03278bef | feat(models): add Grok 4.5 to model registry with extended capabilities and context | ⚠️ conflict resolved (upstream adds Grok 4.5 to the `xai` section of models.json, which was removed on the custom branch per docs/custom/removed-dead-code-dependencies.md; empty pick) |
 | 21 | 186c87ba6d9a42d209ffb32f312c43774ffacac2 | feat(models): add `xhigh` targeting option to confidence level settings | ⚠️ conflict resolved (upstream adds `xhigh` to the `grok-4.5` entry in the `xai` section of models.json, which was removed on the custom branch per docs/custom/removed-dead-code-dependencies.md; empty pick) |
 | 22 | ec3aba23faf489d06ddfada5baf93ea5a00bf829 | feat(auth): enable automatic credential refresh on unauthorized errors | ✅ clean |
-| 23 | c61210864532e60ecba394d75fa7e1ac8206707e | feat(models): adjust thinking levels by removing "none" and "xhigh" options | ⬜ pending |
+| 23 | c61210864532e60ecba394d75fa7e1ac8206707e | feat(models): adjust thinking levels by removing "none" and "xhigh" options | ⚠️ conflict resolved (upstream removes `none`/`xhigh` from the `grok-4.5` entry in the `xai` section of models.json, which was removed on the custom branch per docs/custom/removed-dead-code-dependencies.md; empty pick) |
 | 24 | 3fd189262da34e8703a31a582207e6636863927c | feat(executor): integrate model registry for reasoning effort support in XAI | ⬜ pending |
 | 25 | bea9567051a1245eb7c3a582a7298628b00c00d2 | feat(translator): add cache control handling for responses and messages | ⬜ pending |
 | 26 | d899c9623952299042507cbbfbf6372d0a52d741 | feat(translator): map OpenAI max_tokens to Gemini's maxOutputTokens | ⬜ pending |
