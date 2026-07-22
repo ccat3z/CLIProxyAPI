@@ -18,7 +18,7 @@ Total: 196 commits
 | 10 | 3aa42a6f7d40e0a5c204e9d647458d560cc951c2 | fix(auth): handle `invalid_grant` errors with retry suspension logic | ✅ clean |
 | 11 | ab6ed392f257241474d320c1b7455b5520858a2d | test(executor): add unit test to validate complete SSE event passthrough in Claude executor | ⚠️ conflict (dropped `restoreClaudeOAuthToolNamesFromStreamLine` call removed on custom branch; buffered-flush logic applied) |
 | 12 | dc77bf4db339edb08b45e0e28601f6a6ae9ef21b | feat(translator): enhance Claude tool response handling with structured content parsing | ✅ clean |
-| 13 | 078ed1787bc1f59d533ee6253f1e2ed0442310df | feat(openai): add support for input/output modalities in Codex client models | ⬜ pending |
+| 13 | 078ed1787bc1f59d533ee6253f1e2ed0442310df | feat(openai): add support for input/output modalities in Codex client models | ⚠️ conflict resolved (merged upstream modality fields with custom `Extra` field in `buildOpenAICompatibilityConfigModels`; dropped re-introduced Antigravity test referencing removed symbols) |
 | 14 | 4f157fbdffe44432a17fc4e8aec7167221f6c56f | fix(executor): map `message_too_big` WebSocket errors to structured API responses | ⬜ pending |
 | 15 | dea4787970a6e87f5e7f043766c529b083275f66 | refactor(executor): centralize OpenAI stream usage handling with `StreamUsageBuffer` | ⬜ pending |
 | 16 | 14b139661d98acbbd7ac19eb827754e78118736f | refactor(translator): simplify response logic and enhance thinking compatibility handling | ⬜ pending |
