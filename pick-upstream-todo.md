@@ -13,7 +13,7 @@ Total: 196 commits
 | 5 | 3ef74dce8f451bd7d35e4718152308d79769267b | Merge pull request #4109 from router-for-me/websocket | ⚠️ conflict resolved (merge commit only re-adds WebsocketAuth=true default already applied in row 3; dropped pprof lines per removed-pprof.md; empty pick) |
 | 6 | 270869dd20b3d09691d46b22bf9daeb33475b371 | fix(auth): escalate quota backoff once per cooldown window and jitter cooldown waits | ✅ clean |
 | 7 | 0d23f7915169d52ce7cd2cf52b1ec3ecd5a2079e | fix(auth): keep jittered cooldown waits within max-retry-interval | ✅ clean |
-| 8 | 4a2a3b29a875d8d423f23e396460128127c11516 | Merge pull request #4117 from router-for-me/quota-backoff-guard | ⬜ pending |
+| 8 | 4a2a3b29a875d8d423f23e396460128127c11516 | Merge pull request #4117 from router-for-me/quota-backoff-guard | ✅ clean (empty pick; underlying changes already applied via commits 270869dd/#6 and 0d23f791/#7) |
 | 9 | 8b9c4da2452b42aaa917a80daadf72aadc843a13 | feat(interactions): add support for Google Interactions | ⬜ pending |
 | 10 | 3aa42a6f7d40e0a5c204e9d647458d560cc951c2 | fix(auth): handle `invalid_grant` errors with retry suspension logic | ⬜ pending |
 | 11 | ab6ed392f257241474d320c1b7455b5520858a2d | test(executor): add unit test to validate complete SSE event passthrough in Claude executor | ⬜ pending |
