@@ -109,7 +109,7 @@ Total: 196 commits
 | 101 | 4fe2c60c5152f45e1180346a5186743cfac58363 | feat(registry): remote-refresh Codex client model catalog (#4276) | ⚠️ conflicts resolved |
 | 102 | 6279bb8a4c2835ff6ed99c6b85083b2afbefa681 | feat(ui): add provider SVG logos and descriptions in multilingual README files | ⚠️ conflict resolved (modify/delete on README_CN.md and README_JA.md — both removed on custom branch per docs; kept deletions via git rm; applied provider-logo/description table block to README.md only; added 5 SVG logos under assets/logo/; build + UT + 37 integration tests pass; smoke test 200 on glm-5.1) |
 | 103 | ceaeb75d5371fb01fead81e7c7bac8496a78663f | fix(codex): gate tool search by model providers | ✅ clean pick (no conflicts; both target files retained on custom; registry.GetModelProviders exists; build + UT + 37 integration tests pass; smoke test 200 on glm-5.1) |
-| 104 | e73aad2e0afea07a3433a0fa0440f21cac2b339e | fix(codex): require model template for tool search | ⬜ pending |
+| 104 | e73aad2e0afea07a3433a0fa0440f21cac2b339e | fix(codex): require model template for tool search | ✅ clean pick (no conflicts; both target files retained on custom; build + UT + 37 integration tests pass; smoke test 200 on deepseek-v4-pro) |
 | 105 | 7efe8b394ae57d42fbe4231f19464e02811d5c80 | Merge pull request #4278 from huahai0202/fix/disable-custom-tool-search | ⬜ pending |
 | 106 | cf10f25e70aba2d1bdce35b0e28884f3457c3725 | docs(readme): add Grok Search MCP project entry | ⬜ pending |
 | 107 | a9813dcc2cb5d326e597780c18153b7d3d2cb37b | docs(readme): add Grok Search MCP translations | ⬜ pending |
