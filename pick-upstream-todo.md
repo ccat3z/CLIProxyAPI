@@ -43,7 +43,7 @@ Total: 196 commits
 | 35 | b4c594050efffeec30694102c2e08c63ef28e493 | chore(models): update default client version and user agent, revise GPT-5.5 configurations | ✅ done |
 | 36 | ef0a4a56435d56053371fd09685c4c1d4dbac30f | feat(middleware): support logging for Codex response websockets | ✅ done |
 | 37 | ed2933443d2a4e8a9777c02cf993196468d2ba7a | fix: expose ultra reasoning effort to Codex clients | ✅ done |
-| 38 | 15f30371619a3541637407a0801e48ba72cd9867 | feat(models): restrict Codex input modalities to text and image | ⬜ pending |
+| 38 | 15f30371619a3541637407a0801e48ba72cd9867 | feat(models): restrict Codex input modalities to text and image | ✅ clean |
 | 39 | 5f8899b795894747adb7402b9435ae06a6a496fc | chore(models): remove GPT-5.6 Sol from model registry | ⬜ pending |
 | 40 | 26d45fd46a2d2911adef14772465131066dae465 | feat(models): add model header overrides from configuration | ⬜ pending |
 | 41 | f9162d391c954446e3519214b51de50d07bf4913 | feat(executor): add image generation function tool checks and corresponding tests | ⬜ pending |
