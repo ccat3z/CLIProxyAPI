@@ -26,13 +26,13 @@ The top-level `tls:` block and its backing Go type are gone. The plain-HTTP `hos
 
 ### Safemode warning server
 
-The example-API-key warning server (`internal/safemode`) also had an HTTPS mode mirroring the main server's TLS branch. It is now plain-HTTP only:
+The example-API-key warning server (`internal/safemode`) also had an HTTPS mode mirroring the main server's TLS branch. That warning-only server has since been removed entirely (see *Example API key safe mode* below) and replaced by an in-process safe-mode middleware on the main server, so there is no separate listener to carry a TLS branch. The safe-mode warning page is served by the main plain-HTTP server.
 
-- `WarningServerURL` no longer produces `https://` URLs.
-- `StartExampleAPIKeyWarningServer` no longer loads a cert/key pair or wraps its listener with `tls.NewListener`.
 - `sdk/cliproxy`'s home overlay no longer copies a `TLS` field onto the merged config.
 
-The corresponding `TestWarningServerURL` case that asserted an `https://` URL was dropped; the remaining case still covers IPv6 host bracketing over plain HTTP.
+#### Example API key safe mode
+
+The `custom` branch previously ran a separate warning-only HTTP server (`StartExampleAPIKeyWarningServer`, `WarningServerURL`, `NewExampleAPIKeyWarningHandler`) when template API keys were detected. Upstream commit `df080389` replaced that approach with an in-process safe mode: the normal server starts, but a middleware (`exampleAPIKeySafeModeMiddleware`) blocks proxy API endpoints (`/v1/...`, `/v1beta/...`, `/openai/v1/...`, `/backend-api/codex/...`) with `403` while template keys remain, serves the warning page on `/` and `/management.html`, and lets `/management.html?safe-mode=configure` through so management can update the keys. The custom branch adopted this approach, dropping the standalone warning server. The `tuiMode`/`standalone`/`homeMode` parameters of `shouldEnableExampleAPIKeySafeMode` are absent on the custom branch (TUI and home are removed).
 
 ## What was kept
 

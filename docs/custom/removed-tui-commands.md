@@ -13,7 +13,7 @@ The terminal management UI and the standalone model-fetching utilities are not u
   - TUI standalone mode (embedded server + TUI client)
   - TUI pure client mode (connects to running server)
   - TUI log hook setup and IO redirection
-  - `shouldStartExampleAPIKeyWarningServer` simplified (removed `tuiMode`/`standalone` parameters)
+  - `shouldEnableExampleAPIKeySafeMode` simplified (removed `tuiMode`/`standalone`/`homeMode` parameters); the custom branch no longer runs a separate warning-only server, it starts the normal server with the example-API-key safe-mode middleware (see [removed-tls-listen.md](./removed-tls-listen.md#example-api-key-safe-mode))
 
 ## Utility Commands
 

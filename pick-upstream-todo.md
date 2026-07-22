@@ -7,7 +7,7 @@ Total: 196 commits
 | # | SHA | Message | Status |
 |---|-----|---------|--------|
 | 1 | d25b6b41e85e91b8f22e79ba3469a5b5e5508b32 | 🐛 fix(management): filter auth files by identity | ⚠️ conflict resolved (applies to removed auth-files subsystem; empty pick) |
-| 2 | df08038941325d9cc6197dd4da9ac2faae959e78 | fix: allow management access in example API key safe mode | ⬜ pending |
+| 2 | df08038941325d9cc6197dd4da9ac2faae959e78 | fix: allow management access in example API key safe mode | ⚠️ conflict resolved (integrated upstream safe-mode middleware; dropped custom warning-only server; preserved removals of pluginhost/redis/home/registry/TUI) |
 | 3 | 4909493297d13f67a265d20ae72911400b21e6c4 | feat(config): default enable WebsocketAuth in LoadConfigOptional and ParseConfigBytes | ⬜ pending |
 | 4 | 22bb89a433698b39a6a4cefd845464752db890ff | Merge pull request #4107 from router-for-me/safemode | ⬜ pending |
 | 5 | 3ef74dce8f451bd7d35e4718152308d79769267b | Merge pull request #4109 from router-for-me/websocket | ⬜ pending |
