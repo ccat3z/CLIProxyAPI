@@ -52,7 +52,7 @@ Total: 196 commits
 | 44 | 20e61f281f4b88e150c5cdfa81c3315d9fcfeabe | Merge pull request #4160 from kogekiplay/fix/codex-client-ultra-reasoning | ✅ done |
 | 45 | bf25331c77a4144daaa919f3dd110f142a1f79d2 | Merge pull request #4157 from Wraient/fix/xai-desktop-tool-schema-and-free-usage-retry | ✅ done |
 | 46 | ca67caf0872eef65f8eaedf2e127cf214a49621d | **fix(xai): improve namespace-specific tool parameter handling and simplify Codex automation schema** | ⚠️ conflicts |
-| 47 | f084eefae6a9aa67c273a697e4c3fdfc15102032 | chore(models): remove "ultra" effort level from models.json | ⬜ pending |
+| 47 | f084eefae6a9aa67c273a697e4c3fdfc15102032 | chore(models): remove "ultra" effort level from models.json | ✅ done |
 | 48 | 1af2334477d699e6c864986876666dac1a145e1c | fix(oauth): reject unknown completed states | ⬜ pending |
 | 49 | f081b91e57dcd913b43a26e9426bc955c57b1979 | fix(plugin-store): preserve installed source identity | ⬜ pending |
 | 50 | d1ef06cb5e343c46dc2a354e48e18971a7570491 | fix(oauth): hide completed sessions from legacy getter | ⬜ pending |
