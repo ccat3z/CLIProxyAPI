@@ -3,7 +3,7 @@
 This directory documents all local changes on the `custom` branch that diverge from upstream.
 
 - **Upstream**: https://github.com/router-for-me/CLIProxyAPI.git
-- **Based on upstream commit**: `1204101ff2e8bcd5d778f19fb475fa4440aa865f`
+- **Based on upstream commit**: `ee71dc52b704ac448fe24043899f251656b9deb1`
 
 > This directory only documents server-side changes. Web UI and other non-server component changes are excluded.
 > Bug fixes for features introduced on the `custom` branch are not documented separately.
@@ -19,6 +19,7 @@ This directory documents all local changes on the `custom` branch that diverge f
 - [Disable Config API](./disable-config-api.md)
 - [Model `extra` Field](./model-extra.md)
 - [Model-Level `compat` Option](./model-compat.md)
+- [Claude Model ID Prefix Handling](./claude-model-id-prefix.md)
 - [Docker Compose Support](./docker-compose.md)
 - [Server Flags & Config Defaults](./server-flags.md)
 
