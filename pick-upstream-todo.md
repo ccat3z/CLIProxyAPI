@@ -86,7 +86,7 @@ Total: 196 commits
 | 78 | bd7cc64732faba4c0c3ae5015e95849c5f56c2ba | feat(translator): 支持 Codex additional_tools 工具下发与 custom 工具历史回放 | ✅ clean |
 | 79 | bd2aafb8fc6d09cc7b0d65fb286bcba2bc62bd57 | feat(translator): custom 工具调用以 custom_tool_call item 回放给客户端 | ✅ clean |
 | 80 | e9d3dfbce1788b82f5982ad2a2d1db3160dbd896 | fix(translator): 工具输出与 custom input 解包的健壮性改进 | ✅ clean |
-| 81 | dc39f445473024ffeb3dbded2f601945884c7f09 | fix(translator): stabilize Responses Lite tool events | ⬜ pending |
+| 81 | dc39f445473024ffeb3dbded2f601945884c7f09 | fix(translator): stabilize Responses Lite tool events | ✅ clean |
 | 82 | f4a8aee69500038289064bf5aba5ffc11cabd603 | feat(translator): support namespace and custom tool handling in OpenAI responses | ⬜ pending |
 | 83 | 3586d3e750038c699b628122ec8e70d1fb8d8b48 | feat(config): add support for configurable model display names across all APIs | ⬜ pending |
 | 84 | 041816c2fd6f4a10621ca0c02cbc52f034b104f6 | feat(xai): encrypted reasoning replay for Responses/Claude with hardened cache | ⬜ pending |
