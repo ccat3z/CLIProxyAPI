@@ -26,6 +26,7 @@ func ParseConfigBytes(data []byte) (*Config, error) {
 	cfg.SaveCooldownStatus = false
 	cfg.TransientErrorCooldownSeconds = 0
 	cfg.DisableImageGeneration = DisableImageGenerationOff
+	cfg.WebsocketAuth = true
 	cfg.RemoteManagement.PanelGitHubRepository = DefaultPanelGitHubRepository
 
 	if err := yaml.Unmarshal(data, &cfg); err != nil {

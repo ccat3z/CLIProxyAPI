@@ -599,6 +599,7 @@ func LoadConfigOptional(configFile string, optional bool) (*Config, error) {
 	cfg.SaveCooldownStatus = false
 	cfg.TransientErrorCooldownSeconds = 0
 	cfg.DisableImageGeneration = DisableImageGenerationOff
+	cfg.WebsocketAuth = true
 	cfg.RemoteManagement.PanelGitHubRepository = DefaultPanelGitHubRepository
 	if err = yaml.Unmarshal(data, &cfg); err != nil {
 		if optional {
