@@ -555,7 +555,10 @@ func hasOpenAIStyleUsageTokenFields(usageNode gjson.Result) bool {
 		usageNode.Get("total_tokens").Exists() ||
 		usageNode.Get("prompt_tokens_details.cached_tokens").Exists() ||
 		usageNode.Get("input_tokens_details.cached_tokens").Exists() ||
+		usageNode.Get("prompt_tokens_details.cache_write_tokens").Exists() ||
+		usageNode.Get("prompt_tokens_details.cache_creation_tokens").Exists() ||
 		usageNode.Get("input_tokens_details.cache_write_tokens").Exists() ||
+		usageNode.Get("input_tokens_details.cache_creation_tokens").Exists() ||
 		usageNode.Get("completion_tokens_details.reasoning_tokens").Exists() ||
 		usageNode.Get("output_tokens_details.reasoning_tokens").Exists()
 }
@@ -580,9 +583,17 @@ func parseOpenAIStyleUsageNode(usageNode gjson.Result) usage.Detail {
 	}
 	if cached.Exists() {
 		detail.CachedTokens = cached.Int()
+		detail.CacheReadTokens = cached.Int()
 	}
-	if cacheWrite := usageNode.Get("input_tokens_details.cache_write_tokens"); cacheWrite.Exists() {
-		detail.CacheCreationTokens = cacheWrite.Int()
+	cacheCreation := firstExistingUsageNode(
+		usageNode,
+		"input_tokens_details.cache_creation_tokens",
+		"input_tokens_details.cache_write_tokens",
+		"prompt_tokens_details.cache_creation_tokens",
+		"prompt_tokens_details.cache_write_tokens",
+	)
+	if cacheCreation.Exists() {
+		detail.CacheCreationTokens = cacheCreation.Int()
 	}
 	reasoning := usageNode.Get("completion_tokens_details.reasoning_tokens")
 	if !reasoning.Exists() {
@@ -647,6 +658,16 @@ func parseClaudeUsageNode(usageNode gjson.Result) usage.Detail {
 	}
 	detail.TotalTokens = detail.InputTokens + detail.OutputTokens + detail.CacheReadTokens + detail.CacheCreationTokens
 	return detail
+}
+
+func firstExistingUsageNode(root gjson.Result, paths ...string) gjson.Result {
+	for _, path := range paths {
+		node := root.Get(path)
+		if node.Exists() {
+			return node
+		}
+	}
+	return gjson.Result{}
 }
 
 func extractResponseServiceTier(payload []byte) string {

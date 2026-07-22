@@ -22,9 +22,9 @@ The `Parse*Usage` / `Parse*StreamUsage` helpers in `internal/runtime/executor/he
 | `ParseGeminiUsage`, `ParseGeminiStreamUsage` | Gemini executor removed. |
 | `ParseGeminiCLIUsage`, `ParseGeminiCLIStreamUsage` | Gemini-CLI executor removed. |
 | `ParseAntigravityUsage`, `ParseAntigravityStreamUsage` | Antigravity executor removed. |
-| `parseGeminiFamilyUsageDetail`, `hasGeminiFamilyUsageTokenFields`, `firstExistingUsageNode` (private) | Only callers were the removed parsers above. |
+| `parseGeminiFamilyUsageDetail`, `hasGeminiFamilyUsageTokenFields` (private) | Only callers were the removed parsers above. |
 
-**Kept** (live callers in the OpenAI-compat and Claude executors): `ParseOpenAIUsage`, `ParseOpenAIStreamUsage`, `ParseClaudeUsage`, `ParseClaudeStreamUsage`, their shared helpers, and `StreamUsageBuffer` (used by the OpenAI-compat executor to track the last observed stream usage before publishing).
+**Kept** (live callers in the OpenAI-compat and Claude executors): `ParseOpenAIUsage`, `ParseOpenAIStreamUsage`, `ParseClaudeUsage`, `ParseClaudeStreamUsage`, their shared helpers, `StreamUsageBuffer` (used by the OpenAI-compat executor to track the last observed stream usage before publishing), and `firstExistingUsageNode` (now used by the retained `parseOpenAIStyleUsageNode` to normalize cache-token aliases).
 
 ### Dead thinking-config providers
 
