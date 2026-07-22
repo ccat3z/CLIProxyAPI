@@ -57,7 +57,7 @@ Total: 196 commits
 | 49 | f081b91e57dcd913b43a26e9426bc955c57b1979 | fix(plugin-store): preserve installed source identity | ⚠️ conflicts resolved (modify/delete on removed plugin files; kept deletion) |
 | 50 | d1ef06cb5e343c46dc2a354e48e18971a7570491 | fix(oauth): hide completed sessions from legacy getter | ⚠️ conflicts resolved |
 | 51 | 7115e7e00c4de2760e658b98ec31a8652be6a50d | fix(oauth): make session completion idempotent | ✅ done (empty pick; modify/delete on oauth_sessions.go + _test.go — both removed on custom branch per docs/custom/removed-providers-oauth.md, kept deletion) |
-| 52 | 04109920e4e74128e705aa3155164711e2f7b573 | Merge pull request #4185 from router-for-me/codex/fix-p2-oauth-plugin-source | ⬜ pending |
+| 52 | 04109920e4e74128e705aa3155164711e2f7b573 | Merge pull request #4185 from router-for-me/codex/fix-p2-oauth-plugin-source | ⚠️ done (empty pick; modify/delete on oauth_callback.go/oauth_sessions.go/plugin_store.go/plugin_store_test.go + content conflict in auth_files.go — all removed on custom branch per docs/custom/removed-providers-oauth.md + removed-plugins.md; also dropped new oauth_sessions_test.go that referenced removed OAuth session symbols; kept custom deletions) |
 | 53 | 631f7a652c350d5481a61181566cdacf68839302 | fix(executor): enhance image generation tool handling for responses-lite requests | ⬜ pending |
 | 54 | 3554b63721aac9b4202bf2ef88ba7a82b4e5caf8 | Merge pull request #4192 from router-for-me/codex/fix-sol-responses-lite-image-tool | ⬜ pending |
 | 55 | abb5224880a97e9e0937ead25b5f1db5a93a590f | feat(translator): add support for `cache_write_tokens` in Codex response usage details | ⬜ pending |
