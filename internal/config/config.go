@@ -299,6 +299,9 @@ type ClaudeModel struct {
 	// Alias is the client-facing model name that maps to Name.
 	Alias string `yaml:"alias" json:"alias"`
 
+	// DisplayName is the optional human-readable name shown in model catalogs.
+	DisplayName string `yaml:"display-name,omitempty" json:"display-name,omitempty"`
+
 	// InputPriceM is the price per 1M non-cached input tokens.
 	InputPriceM float64 `yaml:"input_price_m,omitempty" json:"input_price_m,omitempty"`
 
@@ -318,6 +321,7 @@ type ClaudeModel struct {
 
 func (m ClaudeModel) GetName() string          { return m.Name }
 func (m ClaudeModel) GetAlias() string         { return m.Alias }
+func (m ClaudeModel) GetDisplayName() string   { return m.DisplayName }
 func (m ClaudeModel) GetExtra() map[string]any { return m.Extra }
 
 // FindClaudeModelCompat resolves the ClaudeKey entry matching apiKey+baseURL,
@@ -434,6 +438,9 @@ type OpenAICompatibilityModel struct {
 	// Alias is the model name alias that clients will use to reference this model.
 	Alias string `yaml:"alias" json:"alias"`
 
+	// DisplayName is the optional human-readable name shown in model catalogs.
+	DisplayName string `yaml:"display-name,omitempty" json:"display-name,omitempty"`
+
 	// Image marks this model as callable through /v1/images/generations and /v1/images/edits.
 	Image bool `yaml:"image,omitempty" json:"image,omitempty"`
 
@@ -463,6 +470,7 @@ type OpenAICompatibilityModel struct {
 
 func (m OpenAICompatibilityModel) GetName() string          { return m.Name }
 func (m OpenAICompatibilityModel) GetAlias() string         { return m.Alias }
+func (m OpenAICompatibilityModel) GetDisplayName() string   { return m.DisplayName }
 func (m OpenAICompatibilityModel) GetExtra() map[string]any { return m.Extra }
 
 // parsedLimitsCache caches the result of ParsedLimits for OpenAICompatibilityAPIKey.

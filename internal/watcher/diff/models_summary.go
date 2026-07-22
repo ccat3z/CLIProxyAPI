@@ -29,7 +29,7 @@ func SummarizeClaudeModels(models []config.ClaudeModel) ClaudeModelsSummary {
 			if name == "" && alias == "" {
 				continue
 			}
-			out(strings.ToLower(name) + "|" + strings.ToLower(alias))
+			out(strings.ToLower(name) + "|" + strings.ToLower(alias) + "|" + strings.TrimSpace(model.DisplayName))
 		}
 	})
 	return ClaudeModelsSummary{

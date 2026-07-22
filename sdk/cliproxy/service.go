@@ -1459,6 +1459,7 @@ func matchWildcard(pattern, value string) bool {
 type modelEntry interface {
 	GetName() string
 	GetAlias() string
+	GetDisplayName() string
 	GetExtra() map[string]any
 }
 
@@ -1487,13 +1488,17 @@ func buildOpenAICompatibilityConfigModels(compat *config.OpenAICompatibility) []
 		}
 		inputModalities := normalizeCompatConfigModalities(model.InputModalities)
 		outputModalities := normalizeCompatConfigModalities(model.OutputModalities)
+		displayName := strings.TrimSpace(model.DisplayName)
+		if displayName == "" {
+			displayName = modelID
+		}
 		models = append(models, &ModelInfo{
 			ID:                        modelID,
 			Object:                    "model",
 			Created:                   now,
 			OwnedBy:                   compat.Name,
 			Type:                      modelType,
-			DisplayName:               modelID,
+			DisplayName:               displayName,
 			UserDefined:               false,
 			Thinking:                  thinking,
 			Extra:                     model.Extra,
@@ -1549,7 +1554,10 @@ func buildConfigModels[T modelEntry](models []T, ownedBy, modelType string) []*M
 			continue
 		}
 		seen[key] = struct{}{}
-		display := name
+		display := strings.TrimSpace(model.GetDisplayName())
+		if display == "" {
+			display = name
+		}
 		if display == "" {
 			display = alias
 		}
