@@ -43,22 +43,24 @@ type ModelPrices struct {
 
 // UsageDetailRow is a single row from the full usage report query.
 type UsageDetailRow struct {
-	AuthID          string
-	Provider        string
-	Model           string
-	APIKey          string
-	AuthIndex       string
-	Source          string
-	Timestamp       time.Time
-	LatencyNs       int64
-	Failed          bool
-	InputTokens     int64
-	OutputTokens    int64
-	ReasoningTokens int64
-	CachedTokens    int64
-	TotalTokens     int64
-	Cost            float64
-	RequestID       string
+	AuthID              string
+	Provider            string
+	Model               string
+	APIKey              string
+	AuthIndex           string
+	Source              string
+	Timestamp           time.Time
+	LatencyNs           int64
+	Failed              bool
+	InputTokens         int64
+	OutputTokens        int64
+	ReasoningTokens     int64
+	CachedTokens        int64
+	TotalTokens         int64
+	Cost                float64
+	RequestID           string
+	RequestServiceTier  string
+	ResponseServiceTier string
 }
 
 // APIReport holds per-API usage data.
@@ -120,7 +122,9 @@ CREATE TABLE IF NOT EXISTS usage (
     failed           INTEGER NOT NULL DEFAULT 0,
     reasoning_tokens INTEGER NOT NULL DEFAULT 0,
     total_tokens     INTEGER NOT NULL DEFAULT 0,
-    request_id       TEXT NOT NULL DEFAULT ''
+    request_id       TEXT NOT NULL DEFAULT '',
+    request_service_tier  TEXT NOT NULL DEFAULT '',
+    response_service_tier TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_usage_auth_model_ts ON usage(auth_id, model, timestamp);
 CREATE INDEX IF NOT EXISTS idx_usage_timestamp ON usage(timestamp);
@@ -140,6 +144,8 @@ var newColumns = []struct {
 	{"reasoning_tokens", "INTEGER NOT NULL DEFAULT 0"},
 	{"total_tokens", "INTEGER NOT NULL DEFAULT 0"},
 	{"request_id", "TEXT NOT NULL DEFAULT ''"},
+	{"request_service_tier", "TEXT NOT NULL DEFAULT ''"},
+	{"response_service_tier", "TEXT NOT NULL DEFAULT ''"},
 }
 
 func priceKey(authID, model string) string {
@@ -223,6 +229,7 @@ func (p *PersistPlugin) HandleUsage(_ context.Context, record coreusage.Record) 
 		record.Source, record.Latency.Nanoseconds(), failed,
 		record.Detail.ReasoningTokens, record.Detail.TotalTokens,
 		record.RequestID,
+		record.RequestServiceTier, record.ResponseServiceTier,
 	)
 	if err != nil {
 		log.Debugf("persist: failed to insert usage: %v", err)
@@ -277,7 +284,8 @@ func (p *PersistPlugin) QueryFullUsageReport(from, to time.Time) (*UsageReport, 
 	rows, err := p.db.Query(
 		`SELECT auth_id, model, timestamp, input_tokens, output_tokens, cached_tokens, cost,
 		        provider, api_key, auth_index, source, latency_ns, failed,
-		        reasoning_tokens, total_tokens, request_id
+		        reasoning_tokens, total_tokens, request_id,
+		        request_service_tier, response_service_tier
 		 FROM usage WHERE timestamp >= ? AND timestamp < ?`,
 		from.UnixNano(), to.UnixNano())
 	if err != nil {
@@ -302,6 +310,7 @@ func (p *PersistPlugin) QueryFullUsageReport(from, to time.Time) (*UsageReport, 
 	for rows.Next() {
 		var (
 			authID, model, provider, apiKey, authIndex, source, requestID string
+			requestServiceTier, responseServiceTier                       string
 			timestampNs, inputTokens, outputTokens, cachedTokens          int64
 			latencyNs, reasoningTokens, totalTokens                       int64
 			failed                                                        int64
@@ -311,6 +320,7 @@ func (p *PersistPlugin) QueryFullUsageReport(from, to time.Time) (*UsageReport, 
 			&authID, &model, &timestampNs, &inputTokens, &outputTokens, &cachedTokens, &costFloat,
 			&provider, &apiKey, &authIndex, &source, &latencyNs, &failed,
 			&reasoningTokens, &totalTokens, &requestID,
+			&requestServiceTier, &responseServiceTier,
 		); errScan != nil {
 			return nil, fmt.Errorf("persist: scan row: %w", errScan)
 		}
@@ -319,22 +329,24 @@ func (p *PersistPlugin) QueryFullUsageReport(from, to time.Time) (*UsageReport, 
 		isFailed := failed != 0
 
 		row := UsageDetailRow{
-			AuthID:          authID,
-			Provider:        provider,
-			Model:           model,
-			APIKey:          apiKey,
-			AuthIndex:       authIndex,
-			Source:          source,
-			Timestamp:       ts,
-			LatencyNs:       latencyNs,
-			Failed:          isFailed,
-			InputTokens:     inputTokens,
-			OutputTokens:    outputTokens,
-			ReasoningTokens: reasoningTokens,
-			CachedTokens:    cachedTokens,
-			TotalTokens:     totalTokens,
-			Cost:            costFloat,
-			RequestID:       requestID,
+			AuthID:              authID,
+			Provider:            provider,
+			Model:               model,
+			APIKey:              apiKey,
+			AuthIndex:           authIndex,
+			Source:              source,
+			Timestamp:           ts,
+			LatencyNs:           latencyNs,
+			Failed:              isFailed,
+			InputTokens:         inputTokens,
+			OutputTokens:        outputTokens,
+			ReasoningTokens:     reasoningTokens,
+			CachedTokens:        cachedTokens,
+			TotalTokens:         totalTokens,
+			Cost:                costFloat,
+			RequestID:           requestID,
+			RequestServiceTier:  requestServiceTier,
+			ResponseServiceTier: responseServiceTier,
 		}
 
 		report.TotalRequests++
@@ -465,8 +477,9 @@ func InitPersistStore(dbPath string) error {
 	insertStmt, err := db.Prepare(
 		`INSERT INTO usage (auth_id, model, timestamp, input_tokens, output_tokens, cached_tokens, cost,
 		                    provider, api_key, auth_index, source, latency_ns, failed,
-		                    reasoning_tokens, total_tokens, request_id)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		                    reasoning_tokens, total_tokens, request_id,
+		                    request_service_tier, response_service_tier)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		db.Close()
 		return fmt.Errorf("persist: prepare insert: %w", err)

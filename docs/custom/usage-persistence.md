@@ -39,7 +39,7 @@ usage-db: ./data/usage.db
 
 ## Code Changes
 
-- `internal/usage/persist_plugin.go` — `PersistPlugin`: stores records with `auth_id`, `model`, `timestamp`, tokens, `cost`, `provider`, `source`, `request_id`; `QueryUsageMulti(authID, models, from, to)` for limit checks (aggregates across models; empty models = all); `QueryFullUsageReport(from, to)` for API; `SetModelPrices(authID, model, prices)` for cost computation; `ClearStaleModelPrices(authID, currentModels)` removes prices for models no longer in config
+- `internal/usage/persist_plugin.go` — `PersistPlugin`: stores records with `auth_id`, `model`, `timestamp`, tokens, `cost`, `provider`, `source`, `request_id`, `request_service_tier`, `response_service_tier`; `QueryUsageMulti(authID, models, from, to)` for limit checks (aggregates across models; empty models = all); `QueryFullUsageReport(from, to)` for API; `SetModelPrices(authID, model, prices)` for cost computation; `ClearStaleModelPrices(authID, currentModels)` removes prices for models no longer in config
 - `internal/api/handlers/management/usage.go` — `GetUsageStatistics` handler with `limits` field via `buildLimitsResponse` (uses `helps.ResolveUsageSource` for source, consistent with apis details); `buildPersistResponse` for SQLite path
 - `internal/runtime/executor/helps/usage_helpers.go` — `ResolveUsageSource` (exported) resolves the source identifier for an auth record (api_key, email, project_id, etc.); used by both detail recording and limits response
 - `internal/api/handlers/management/api_key_usage.go` — `apiKeyUsageProviderKey` resolves the provider bucket key for API key usage grouping; uses `compat_name` attribute when present (lowercased), otherwise falls back to `auth.Provider`
