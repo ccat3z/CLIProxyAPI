@@ -10,7 +10,7 @@ Total: 196 commits
 | 2 | df08038941325d9cc6197dd4da9ac2faae959e78 | fix: allow management access in example API key safe mode | ⚠️ conflict resolved (integrated upstream safe-mode middleware; dropped custom warning-only server; preserved removals of pluginhost/redis/home/registry/TUI) |
 | 3 | 4909493297d13f67a265d20ae72911400b21e6c4 | feat(config): default enable WebsocketAuth in LoadConfigOptional and ParseConfigBytes | ⚠️ conflict resolved (integrated WebsocketAuth=true default; dropped pprof lines per removed-pprof.md) |
 | 4 | 22bb89a433698b39a6a4cefd845464752db890ff | Merge pull request #4107 from router-for-me/safemode | ✅ clean (empty pick; underlying changes already applied via commit df080389 in row 2) |
-| 5 | 3ef74dce8f451bd7d35e4718152308d79769267b | Merge pull request #4109 from router-for-me/websocket | ⬜ pending |
+| 5 | 3ef74dce8f451bd7d35e4718152308d79769267b | Merge pull request #4109 from router-for-me/websocket | ⚠️ conflict resolved (merge commit only re-adds WebsocketAuth=true default already applied in row 3; dropped pprof lines per removed-pprof.md; empty pick) |
 | 6 | 270869dd20b3d09691d46b22bf9daeb33475b371 | fix(auth): escalate quota backoff once per cooldown window and jitter cooldown waits | ⬜ pending |
 | 7 | 0d23f7915169d52ce7cd2cf52b1ec3ecd5a2079e | fix(auth): keep jittered cooldown waits within max-retry-interval | ⬜ pending |
 | 8 | 4a2a3b29a875d8d423f23e396460128127c11516 | Merge pull request #4117 from router-for-me/quota-backoff-guard | ⬜ pending |
