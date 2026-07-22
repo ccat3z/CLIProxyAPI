@@ -3,7 +3,7 @@
 This directory documents all local changes on the `custom` branch that diverge from upstream.
 
 - **Upstream**: https://github.com/router-for-me/CLIProxyAPI.git
-- **Based on upstream commit**: `4123e275830c93c7061723d7c800ec95b7c9b551`
+- **Based on upstream commit**: `19fb0f077456510b4061964046db302b6f651252`
 
 > This directory only documents server-side changes. Web UI and other non-server component changes are excluded.
 > Bug fixes for features introduced on the `custom` branch are not documented separately.
