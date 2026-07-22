@@ -55,7 +55,7 @@ Total: 196 commits
 | 47 | f084eefae6a9aa67c273a697e4c3fdfc15102032 | chore(models): remove "ultra" effort level from models.json | ✅ done |
 | 48 | 1af2334477d699e6c864986876666dac1a145e1c | fix(oauth): reject unknown completed states | ✅ applied |
 | 49 | f081b91e57dcd913b43a26e9426bc955c57b1979 | fix(plugin-store): preserve installed source identity | ⚠️ conflicts resolved (modify/delete on removed plugin files; kept deletion) |
-| 50 | d1ef06cb5e343c46dc2a354e48e18971a7570491 | fix(oauth): hide completed sessions from legacy getter | ⬜ pending |
+| 50 | d1ef06cb5e343c46dc2a354e48e18971a7570491 | fix(oauth): hide completed sessions from legacy getter | ⚠️ conflicts resolved |
 | 51 | 7115e7e00c4de2760e658b98ec31a8652be6a50d | fix(oauth): make session completion idempotent | ⬜ pending |
 | 52 | 04109920e4e74128e705aa3155164711e2f7b573 | Merge pull request #4185 from router-for-me/codex/fix-p2-oauth-plugin-source | ⬜ pending |
 | 53 | 631f7a652c350d5481a61181566cdacf68839302 | fix(executor): enhance image generation tool handling for responses-lite requests | ⬜ pending |
