@@ -198,7 +198,7 @@ func (e *ClaudeExecutor) Execute(ctx context.Context, auth *cliproxyauth.Auth, r
 	originalPayload := originalPayloadSource
 	originalTranslated := sdktranslator.TranslateRequest(from, to, baseModel, originalPayload, stream)
 	body := sdktranslator.TranslateRequest(from, to, baseModel, req.Payload, stream)
-	body, _ = sjson.SetBytes(body, "model", baseModel)
+	body = helps.SetStringIfDifferent(body, "model", baseModel)
 
 	body, err = thinking.ApplyThinking(body, req.Model, from.String(), to.String(), e.Identifier())
 	if err != nil {
@@ -401,7 +401,7 @@ func (e *ClaudeExecutor) ExecuteStream(ctx context.Context, auth *cliproxyauth.A
 	originalPayload := originalPayloadSource
 	originalTranslated := sdktranslator.TranslateRequest(from, to, baseModel, originalPayload, true)
 	body := sdktranslator.TranslateRequest(from, to, baseModel, req.Payload, true)
-	body, _ = sjson.SetBytes(body, "model", baseModel)
+	body = helps.SetStringIfDifferent(body, "model", baseModel)
 
 	body, err = thinking.ApplyThinking(body, req.Model, from.String(), to.String(), e.Identifier())
 	if err != nil {
@@ -696,7 +696,7 @@ func (e *ClaudeExecutor) CountTokens(ctx context.Context, auth *cliproxyauth.Aut
 	// Use streaming translation to preserve function calling, except for claude.
 	stream := from != to
 	body := sdktranslator.TranslateRequest(from, to, baseModel, req.Payload, stream)
-	body, _ = sjson.SetBytes(body, "model", baseModel)
+	body = helps.SetStringIfDifferent(body, "model", baseModel)
 	if rebuildMidSystemMessageEnabled(e.cfg, auth) {
 		body = rebuildMidSystemMessagesToTopLevel(body)
 	}
