@@ -112,7 +112,7 @@ Total: 196 commits
 | 104 | e73aad2e0afea07a3433a0fa0440f21cac2b339e | fix(codex): require model template for tool search | ✅ clean pick (no conflicts; both target files retained on custom; build + UT + 37 integration tests pass; smoke test 200 on deepseek-v4-pro) |
 | 105 | 7efe8b394ae57d42fbe4231f19464e02811d5c80 | Merge pull request #4278 from huahai0202/fix/disable-custom-tool-search | ✅ clean pick (empty merge commit — fix commits #103/#104 already individually picked; created empty commit with original message; build + UT + 37 integration tests pass; smoke test 200 on glm-5.1) |
 | 106 | cf10f25e70aba2d1bdce35b0e28884f3457c3725 | docs(readme): add Grok Search MCP project entry | ✅ clean pick (README-only addition; README_CN.md/README_JA.md already removed on custom; build + UT + 37 integration tests pass; smoke test 200 on glm-5.1 and mc/glm-5.1) |
-| 107 | a9813dcc2cb5d326e597780c18153b7d3d2cb37b | docs(readme): add Grok Search MCP translations | ⬜ pending |
+| 107 | a9813dcc2cb5d326e597780c18153b7d3d2cb37b | docs(readme): add Grok Search MCP translations | ✅ clean pick (README_CN.md/README_JA.md removed on custom → modify/delete conflicts; kept deletions; empty commit; build + UT + 37 integration tests pass; smoke test 200 on kimi-k2.6) |
 | 108 | 7bb8132817a6b2f53d22be9e25e69612e39b8648 | fix(xai): normalize custom tool call history | ⬜ pending |
 | 109 | 7f6d491e7048669741d9a43974a22be1f038dd13 | perf(executor): avoid O(n^2) rebuilds when sanitizing reasoning encrypted_content (#4281) | ⬜ pending |
 | 110 | caa93a7fc63414e1c709421b6f8e0d86304adbc9 | fix(xai): filter internal X search calls | ⬜ pending |
