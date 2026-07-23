@@ -114,7 +114,7 @@ Total: 196 commits
 | 106 | cf10f25e70aba2d1bdce35b0e28884f3457c3725 | docs(readme): add Grok Search MCP project entry | ✅ clean pick (README-only addition; README_CN.md/README_JA.md already removed on custom; build + UT + 37 integration tests pass; smoke test 200 on glm-5.1 and mc/glm-5.1) |
 | 107 | a9813dcc2cb5d326e597780c18153b7d3d2cb37b | docs(readme): add Grok Search MCP translations | ✅ clean pick (README_CN.md/README_JA.md removed on custom → modify/delete conflicts; kept deletions; empty commit; build + UT + 37 integration tests pass; smoke test 200 on kimi-k2.6) |
 | 108 | 7bb8132817a6b2f53d22be9e25e69612e39b8648 | fix(xai): normalize custom tool call history | ⚠️ conflict (modify/delete on xai_executor.go + test; XAI executor removed on custom; kept deletions; empty commit; build + UT + 37 integration tests pass; smoke test 200 on mc/glm-5.1) |
-| 109 | 7f6d491e7048669741d9a43974a22be1f038dd13 | perf(executor): avoid O(n^2) rebuilds when sanitizing reasoning encrypted_content (#4281) | ⬜ pending |
+| 109 | 7f6d491e7048669741d9a43974a22be1f038dd13 | perf(executor): avoid O(n^2) rebuilds when sanitizing reasoning encrypted_content (#4281) | ✅ clean pick (openai_responses_signature.go retained on custom; build + UT + 37 integration tests pass; smoke test: /v1/models returns qwen3.6-plus, chat completion accepted without 500/crash) |
 | 110 | caa93a7fc63414e1c709421b6f8e0d86304adbc9 | fix(xai): filter internal X search calls | ⬜ pending |
 | 111 | 194fbce4b498f8dacc78a7fd6fef0433bb9ab86b | fix(executor): strip orphan reasoning ids when store is disabled (#4285) | ⬜ pending |
 | 112 | 4651c3705d3ccd51dc0c68e083571ef81d0f93bb | perf(xai): reuse parsed input array | ⬜ pending |
