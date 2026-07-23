@@ -198,7 +198,7 @@ Total: 196 commits
 | 190 | a007ad69f21a0bdc57871e5bc0ca30fea0380128 | test(websocket): add robust unit tests for tool call handling and reconciliation | ✅ clean |
 | 191 | 01f387f44754af09783ac52a2051cb2c66a7bf44 | feat(docker): add plugin volume mapping to docker-compose files | ⬜ pending |
 | 192 | db82d65d1cc3be6dc9662ee2b9a3810ac948d377 | docs(readme): update Kimi model descriptions with K3 details | ⬜ pending |
-| 193 | 3e7e0815aab9ee75817f5cfb7c2741828b2ca97f | fix(pluginhost): prevent stream close/send panic (#4480) | ⬜ pending |
+| 193 | 3e7e0815aab9ee75817f5cfb7c2741828b2ca97f | fix(pluginhost): prevent stream close/send panic (#4480) | ✅ empty pick — both targets (`internal/pluginhost/stream_bridge.go`, `stream_bridge_test.go`) belong to the removed plugin system; modify/delete conflict resolved by keeping deletion → net empty diff, committed empty with original message/author; build + UT + 37 integration tests pass; smoke test 200 on glm-5.2 |
 | 194 | 119debe1f27edd79dc8fb487d9a55670ad7ce5ae | fix(pluginhost): honor accepted emit results | ⬜ pending |
 | 195 | 2b4e96212ac7ff5153e069302882b42346e76d8d | Merge pull request #4481 from KorenKrita/agent/fix-plugin-stream-bridge-close-race | ⬜ pending |
 | 196 | 36b45d57a3e804b9dfcee307e5d7b3e8cea5acfc | Merge pull request #4083 from seakee/fix/auth-files-filter-by-index | ⬜ pending |
