@@ -182,7 +182,7 @@ Total: 196 commits
 | 174 | 910ab83bb29ef19fe110a57517e8158107c2fa5e | Merge pull request #4329 from mazzz1y/perf/executor | ⚠️ conflict resolved (modify/delete: internal/translator/openai/interactions/responses/interactions_openai_responses_request.go — entire interactions subsystem removed on custom branch per docs/custom/removed-providers-oauth.md, kept deletion → empty commit. The substantive perf refactor in claude_openai_request.go / openai_openai-responses_request.go / bytes.go was already present in HEAD from a prior pick. Build + UT + 37 integration tests pass; smoke test 200 on friday/glm-5.1) |
 | 175 | 9f1e8904194dcdf1c9a6adad7927bebb7df2fa9d | Merge pull request #4366 from Johnnybyzhang/fix/claude-codex-allocation-fix | ✅ done |
 | 176 | 3c2010bcf32b8921e6b15a0e59dfce867c086827 | test(translator): add benchmarks for request translation performance across large histories | ✅ done |
-| 177 | 7c61e982e490f028d295d69e22e372b29cd2db8c | perf(translator): optimize array allocation logic and replace `JoinRawArray` with `SetRawArrayItems` methods | ⬜ pending |
+| 177 | 7c61e982e490f028d295d69e22e372b29cd2db8c | perf(translator): optimize array allocation logic and replace `JoinRawArray` with `SetRawArrayItems` methods | ⚠️ conflicts resolved |
 | 178 | f175c084d327c34e70fbcff4d54bbd327139eb71 | feat(executor): promote `additional_tools` to top-level `tools` in XAI requests | ⬜ pending |
 | 179 | b7299a3d863e006f1ecf18e0492b003eda2e2cb3 | feat(translator): implement output indexing for OpenAI response generation | ⬜ pending |
 | 180 | cd98e9d74d37def10c52e966cc991797b4d6c2bc | feat(translator): handle empty response content for Claude and adjust JSON structure | ⬜ pending |

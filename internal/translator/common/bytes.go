@@ -2,6 +2,9 @@ package common
 
 import (
 	"strconv"
+
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 func ClaudeInputTokensJSON(count int64) []byte {
@@ -10,6 +13,14 @@ func ClaudeInputTokensJSON(count int64) []byte {
 	out = strconv.AppendInt(out, count, 10)
 	out = append(out, '}')
 	return out
+}
+
+// NewRawArrayItems creates a raw item slice sized for the expected input.
+func NewRawArrayItems(capacity int64) [][]byte {
+	if capacity <= 0 {
+		return nil
+	}
+	return make([][]byte, 0, int(capacity))
 }
 
 func JoinRawArray(items [][]byte) []byte {
@@ -29,6 +40,27 @@ func JoinRawArray(items [][]byte) []byte {
 		out = append(out, item...)
 	}
 	return append(out, ']')
+}
+
+// SetRawArrayItems replaces an empty JSON array at path with raw items.
+// The single-item path avoids allocating an intermediate joined array.
+func SetRawArrayItems(data []byte, path string, items [][]byte) []byte {
+	if len(items) == 0 {
+		return data
+	}
+	if len(items) == 1 {
+		array := gjson.GetBytes(data, path)
+		if array.Raw == "[]" && array.Index >= 0 && array.Index+len(array.Raw) <= len(data) {
+			out := make([]byte, 0, len(data)+len(items[0]))
+			out = append(out, data[:array.Index]...)
+			out = append(out, '[')
+			out = append(out, items[0]...)
+			out = append(out, ']')
+			return append(out, data[array.Index+len(array.Raw):]...)
+		}
+	}
+	data, _ = sjson.SetRawBytes(data, path, JoinRawArray(items))
+	return data
 }
 
 func SSEEventData(event string, payload []byte) []byte {
