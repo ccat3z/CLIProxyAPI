@@ -229,7 +229,7 @@ func (p *PersistPlugin) HandleUsage(_ context.Context, record coreusage.Record) 
 		record.Source, record.Latency.Nanoseconds(), failed,
 		record.Detail.ReasoningTokens, record.Detail.TotalTokens,
 		record.RequestID,
-		record.RequestServiceTier, record.ResponseServiceTier,
+		record.ServiceTier, record.ResponseServiceTier,
 	)
 	if err != nil {
 		log.Debugf("persist: failed to insert usage: %v", err)
