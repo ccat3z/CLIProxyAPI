@@ -176,7 +176,7 @@ Total: 196 commits
 | 168 | 70c4bd78b2bc347bf988f74f2d2d7da85de5aa13 | feat(kimi): route Claude requests through Claude executor in Kimi | ✅ done |
 | 169 | 93d74a890a44802f656d7f39a573916b2611896e | Merge pull request #4419 from mikewong23571/fix/kimi-upstream-model-normalization | ✅ done |
 | 170 | b651a1a8fd8ea1a43d061a08b42cef8fa3160179 | feat(redis): add plugin sync timeout and enhance redis options handling | ⚠️ conflict |
-| 171 | 58ef846ff0cc0c17ed301d9e47a84de0cdaf8c81 | chore(go): update `golang.org/x/sys` to v0.47.0 in Claude web search router | ⬜ pending |
+| 171 | 58ef846ff0cc0c17ed301d9e47a84de0cdaf8c81 | chore(go): update `golang.org/x/sys` to v0.47.0 in Claude web search router | ⚠️ conflict (modify/delete: files under examples/plugin/ removed on custom branch — kept deletion → empty commit. Build + UT + 37 integration tests pass; smoke test 200 on glm/glm-5.2) |
 | 172 | 0b2ce80fcb81f784e995ba07691f8d954d729197 | fix(auth): update credential filename logic to include account hash | ⬜ pending |
 | 173 | 36ed0ca5ce4130efcd7532d86c1386ee11ed0e2d | feat(auth): add explicit handling for `count_tokens` endpoint errors and enhance model availability logic | ⬜ pending |
 | 174 | 910ab83bb29ef19fe110a57517e8158107c2fa5e | Merge pull request #4329 from mazzz1y/perf/executor | ⬜ pending |
