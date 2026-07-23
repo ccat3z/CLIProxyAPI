@@ -184,7 +184,7 @@ Total: 196 commits
 | 176 | 3c2010bcf32b8921e6b15a0e59dfce867c086827 | test(translator): add benchmarks for request translation performance across large histories | ✅ done |
 | 177 | 7c61e982e490f028d295d69e22e372b29cd2db8c | perf(translator): optimize array allocation logic and replace `JoinRawArray` with `SetRawArrayItems` methods | ⚠️ conflicts resolved |
 | 178 | f175c084d327c34e70fbcff4d54bbd327139eb71 | feat(executor): promote `additional_tools` to top-level `tools` in XAI requests | ⚠️ conflict (modify/delete on xai_executor.go + _test.go + xai_websockets_executor_test.go; XAI executor removed on custom, see docs/custom/removed-providers-oauth.md; kept deletions → empty diff → empty commit. Build + UT + 37 integration tests pass; smoke test: /v1/models returns glm-5.2, chat completion 200 on glm-5.2) |
-| 179 | b7299a3d863e006f1ecf18e0492b003eda2e2cb3 | feat(translator): implement output indexing for OpenAI response generation | ⬜ pending |
+| 179 | b7299a3d863e006f1ecf18e0492b003eda2e2cb3 | feat(translator): implement output indexing for OpenAI response generation | ✅ done |
 | 180 | cd98e9d74d37def10c52e966cc991797b4d6c2bc | feat(translator): handle empty response content for Claude and adjust JSON structure | ⬜ pending |
 | 181 | 07f8354912c3488f7b86234c1a5be6eeb1febf4a | feat(translator): qualify function names with namespace in OpenAI response handling | ⬜ pending |
 | 182 | e47ffda75b6d55ce88462ca6e76f8ffed1c0e88a | feat(translator): normalize and extract OpenAI file content with MIME type | ⬜ pending |
