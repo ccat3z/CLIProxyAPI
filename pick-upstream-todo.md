@@ -189,7 +189,7 @@ Total: 196 commits
 | 181 | 07f8354912c3488f7b86234c1a5be6eeb1febf4a | feat(translator): qualify function names with namespace in OpenAI response handling | ✅ done |
 | 182 | e47ffda75b6d55ce88462ca6e76f8ffed1c0e88a | feat(translator): normalize and extract OpenAI file content with MIME type | ⚠️ done (conflicts resolved) |
 | 183 | fde40c5a0a2f8f6808bcde498bc6079f32c355ef | feat(executor): sanitize and drop overlong encrypted reasoning IDs in Codex input processing | ⚠️ conflict-resolved |
-| 184 | 0f52284e6cd4812d6bbd1a0b0891f8498118c546 | perf(translator): add normalization and reuse logic for Codex request payloads | ⬜ pending |
+| 184 | 0f52284e6cd4812d6bbd1a0b0891f8498118c546 | perf(translator): add normalization and reuse logic for Codex request payloads | ⚠️ conflict (modify/delete on codex_openai-responses_request.go + _test.go; codex translator subtree removed on custom, see docs/custom/removed-providers-oauth.md; kept deletions → empty diff → empty commit. Build + UT + 37 integration tests pass; smoke test: /v1/models returns qwen3.6-plus, chat completion 200 on qwen3.6-plus) |
 | 185 | 64291120e7f003c676992d57d67d0c97cf9d1bc4 | perf(translator): add unit tests for payload reuse and normalization across translators | ⬜ pending |
 | 186 | 8b4fd28c95b9769ef1f61ddc5ca47b7fb9b77abb | perf(executor): replace `sjson.SetBytes` with optimized helpers for conditional payload updates | ⬜ pending |
 | 187 | 53c1e7e2dd6ddf973098a4e685e852aeebed9fe3 | perf(util): introduce `GetGJSONBytesNoCopy` for efficient JSON parsing without data duplication | ⬜ pending |
