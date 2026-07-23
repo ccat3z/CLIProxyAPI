@@ -305,7 +305,7 @@ The `sjson` import (used only by `WrapGeminiCLIResponse`) was removed; `strconv`
 
 | File | Removed symbols |
 | --- | --- |
-| `mime-type.go` | `misc.MimeTypes` |
+| `mime-type.go` | `misc.MimeTypes` — **restored** by upstream commit `e47ffda7` (`feat(translator): normalize and extract OpenAI file content with MIME type`): the retained `internal/translator/common/file_data.go` `NormalizeOpenAIFileData` helper resolves a MIME type from the file extension via `misc.MimeTypes`, so the map is once again live. |
 | `oauth.go` | `misc.GenerateRandomState`, `misc.ParseOAuthCallback`, `misc.OAuthCallback`, `misc.AsyncPrompt` |
 | `copy-example-config.go` | `misc.CopyConfigTemplate` |
 | `claude_code_instructions.go` + `.txt` | `misc.ClaudeCodeInstructions` |

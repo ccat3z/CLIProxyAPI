@@ -187,7 +187,7 @@ Total: 196 commits
 | 179 | b7299a3d863e006f1ecf18e0492b003eda2e2cb3 | feat(translator): implement output indexing for OpenAI response generation | ✅ done |
 | 180 | cd98e9d74d37def10c52e966cc991797b4d6c2bc | feat(translator): handle empty response content for Claude and adjust JSON structure | ⚠️ conflict (modify/delete on antigravity_claude_response.go + _test.go; antigravity translator subtree removed on custom, see docs/custom/removed-providers-oauth.md; kept deletions → empty diff → empty commit. Build + UT + 37 integration tests pass; smoke test: /v1/models returns glm-5.2, chat completion 200 on glm-5.2) |
 | 181 | 07f8354912c3488f7b86234c1a5be6eeb1febf4a | feat(translator): qualify function names with namespace in OpenAI response handling | ✅ done |
-| 182 | e47ffda75b6d55ce88462ca6e76f8ffed1c0e88a | feat(translator): normalize and extract OpenAI file content with MIME type | ⬜ pending |
+| 182 | e47ffda75b6d55ce88462ca6e76f8ffed1c0e88a | feat(translator): normalize and extract OpenAI file content with MIME type | ⚠️ done (conflicts resolved) |
 | 183 | fde40c5a0a2f8f6808bcde498bc6079f32c355ef | feat(executor): sanitize and drop overlong encrypted reasoning IDs in Codex input processing | ⬜ pending |
 | 184 | 0f52284e6cd4812d6bbd1a0b0891f8498118c546 | perf(translator): add normalization and reuse logic for Codex request payloads | ⬜ pending |
 | 185 | 64291120e7f003c676992d57d67d0c97cf9d1bc4 | perf(translator): add unit tests for payload reuse and normalization across translators | ⬜ pending |
