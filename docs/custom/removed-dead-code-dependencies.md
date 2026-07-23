@@ -188,7 +188,7 @@ The `/v1beta/*` routes serve the `gemini` handler type, requiring a `gemini` pro
 | --- | --- |
 | `RecordAPIWebsocketRequest`, `RecordAPIWebsocketHandshake`, `RecordAPIWebsocketUpgradeRejection`, `WebsocketUpgradeRequestURL`, `AppendAPIWebsocketResponse`, `RecordAPIWebsocketError`, `appendAPIWebsocketTimeline`, `apiWebsocketTimelineSource`, `apiWebsocketTimelineKey` constant, `net/url` import | `MarkCreditsUsed`, `CreditsUsed`, `creditsUsedKey` constant |
 
-**Kept**: the retained HTTP request-log helpers (`RecordAPIRequest`, `RecordAPIResponseMetadata`, `RecordAPIResponseError`, `AppendAPIResponseChunk`) are unchanged and wired into the live executors. The gin logger's own `creditsUsedKey` constant (in `internal/logging/gin_logger.go`) is unaffected.
+**Kept**: the retained HTTP request-log helpers (`RecordAPIRequest`, `RecordAPIResponseMetadata`, `RecordAPIResponseError`, `AppendAPIResponseChunk`) are wired into the live executors. `RecordAPIRequest` now also supports deferred (error-only) request-body spooling via `logging.DeferredAPIRequest` (upstream `e5741673`); the `homeRequestLogClient` interface and `currentHomeRequestLogClient` var that upstream added alongside it were dropped because they reference the removed `internal/home` package. The gin logger's own `creditsUsedKey` constant (in `internal/logging/gin_logger.go`) is unaffected.
 
 ---
 
