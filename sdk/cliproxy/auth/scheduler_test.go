@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -358,6 +359,39 @@ func TestManager_PickNextMixed_DisallowFreeAuthSkipsCodexFreePlan(t *testing.T) 
 	}
 	if got.ID != "codex-b-plus" {
 		t.Fatalf("pickNextMixed() auth.ID = %q, want %q", got.ID, "codex-b-plus")
+	}
+}
+
+func TestManagerSelectAuthByKindReturnsErrorWhenUnavailable(t *testing.T) {
+	manager := NewManager(nil, &RoundRobinSelector{}, nil)
+	manager.executors["codex"] = schedulerTestExecutor{}
+	if _, errRegister := manager.Register(context.Background(), &Auth{
+		ID:         "codex-api-key",
+		Provider:   "codex",
+		Attributes: map[string]string{AttributeAPIKey: "test-key"},
+	}); errRegister != nil {
+		t.Fatalf("Register(codex-api-key) error = %v", errRegister)
+	}
+
+	selected, errSelect := manager.SelectAuthByKind(context.Background(), "codex", "", AuthKindOAuth, cliproxyexecutor.Options{})
+	if selected != nil {
+		t.Fatalf("SelectAuthByKind() auth = %#v, want nil", selected)
+	}
+	var authErr *Error
+	if !errors.As(errSelect, &authErr) || authErr.Code != "auth_not_found" {
+		t.Fatalf("SelectAuthByKind() error = %#v, want auth_not_found", errSelect)
+	}
+}
+
+func TestManagerSelectAuthByKindRejectsInvalidKind(t *testing.T) {
+	manager := NewManager(nil, &RoundRobinSelector{}, nil)
+	selected, errSelect := manager.SelectAuthByKind(context.Background(), "codex", "", "certificate", cliproxyexecutor.Options{})
+	if selected != nil {
+		t.Fatalf("SelectAuthByKind() auth = %#v, want nil", selected)
+	}
+	var authErr *Error
+	if !errors.As(errSelect, &authErr) || authErr.Code != "invalid_auth_kind" || authErr.HTTPStatus != http.StatusBadRequest {
+		t.Fatalf("SelectAuthByKind() error = %#v, want invalid_auth_kind", errSelect)
 	}
 }
 
