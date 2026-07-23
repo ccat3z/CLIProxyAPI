@@ -174,7 +174,7 @@ Total: 196 commits
 | 166 | 117654317ab88bfe35675116d1251317e82c1d21 | feat(kimi): migrate Kimi executor to use chat completions path and remove deprecated code | ⚠️ conflict-resolved |
 | 167 | bd3841155e4e948f4cae0ae3dfcc18a48fd540a6 | fix(models): update Gemini model IDs and metadata for production release | ⚠️ conflict (custom branch trimmed models.json to claude-only, removed gemini section — upstream Gemini ID changes have no target. Kept HEAD → empty commit. Build + UT + 37 integration tests pass; smoke test 200 on friday/glm-5.2) |
 | 168 | 70c4bd78b2bc347bf988f74f2d2d7da85de5aa13 | feat(kimi): route Claude requests through Claude executor in Kimi | ✅ done |
-| 169 | 93d74a890a44802f656d7f39a573916b2611896e | Merge pull request #4419 from mikewong23571/fix/kimi-upstream-model-normalization | ⬜ pending |
+| 169 | 93d74a890a44802f656d7f39a573916b2611896e | Merge pull request #4419 from mikewong23571/fix/kimi-upstream-model-normalization | ✅ done |
 | 170 | b651a1a8fd8ea1a43d061a08b42cef8fa3160179 | feat(redis): add plugin sync timeout and enhance redis options handling | ⬜ pending |
 | 171 | 58ef846ff0cc0c17ed301d9e47a84de0cdaf8c81 | chore(go): update `golang.org/x/sys` to v0.47.0 in Claude web search router | ⬜ pending |
 | 172 | 0b2ce80fcb81f784e995ba07691f8d954d729197 | fix(auth): update credential filename logic to include account hash | ⬜ pending |
