@@ -40,6 +40,7 @@ import (
 )
 
 var corsExposedResponseHeaders = []string{
+	logging.CPATraceIDHeader,
 	"X-CPA-VERSION",
 	"X-CPA-COMMIT",
 	"X-CPA-BUILD-DATE",
@@ -258,6 +259,7 @@ func NewServer(cfg *config.Config, authManager *auth.Manager, accessManager *sdk
 	// Add middleware
 	engine.Use(logging.GinLogrusLogger())
 	engine.Use(logging.GinLogrusRecovery())
+	engine.Use(logging.CPATraceIDMiddleware())
 	for _, mw := range optionState.extraMiddleware {
 		engine.Use(mw)
 	}
@@ -555,6 +557,7 @@ func (s *Server) codexAlphaSearch(c *gin.Context) {
 		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
+	logging.SetGinCPATraceID(c, selected.EnsureIndex())
 
 	headers := make(http.Header)
 	headers.Set("Content-Type", "application/json")
