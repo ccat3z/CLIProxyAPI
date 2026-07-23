@@ -19,7 +19,6 @@ This directory documents all local changes on the `custom` branch that diverge f
 - [Disable Config API](./disable-config-api.md)
 - [Model `extra` Field](./model-extra.md)
 - [Model-Level `compat` Option](./model-compat.md)
-- [Claude Model ID Prefix Handling](./claude-model-id-prefix.md)
 - [Docker Compose Support](./docker-compose.md)
 - [Server Flags & Config Defaults](./server-flags.md)
 
